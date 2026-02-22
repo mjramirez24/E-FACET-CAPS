@@ -15,6 +15,8 @@ const allowedOrigins = new Set([
   "http://localhost:5179",
 ]);
 
+app.use("/assets", express.static(path.join(__dirname, "assets")));
+
 function isAllowedOrigin(origin) {
   if (!origin) return true; // Postman / curl
   if (allowedOrigins.has(origin)) return true;

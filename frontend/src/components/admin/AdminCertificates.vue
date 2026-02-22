@@ -1,6 +1,6 @@
 <template>
   <AdminLayout>
-    <!-- Header -->
+    <!-- Header-left -->
     <template #header-left>
       <input
         type="text"
@@ -13,7 +13,17 @@
     <div>
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-bold text-green-800">🎓 Certificate Management</h2>
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-bold text-green-800">🎓 Certificate Management</h2>
+
+          <!-- ✅ Logo -->
+          <img
+            :src="logoUrl"
+            alt="Logo"
+            class="h-10 w-auto object-contain"
+            @error="onLogoError"
+          />
+        </div>
 
         <button
           @click="fetchRows"
@@ -270,8 +280,14 @@ export default {
   name: "AdminCertificates",
   components: { AdminLayout },
   setup() {
-    // ✅ FIX: backend is running on PORT 3000 based on your server.js
     const API_BASE = "http://localhost:3000";
+
+    // ✅ Logo from backend/assets/logo.png
+    const logoUrl = ref(`${API_BASE}/assets/logo.png`);
+    const onLogoError = () => {
+      // fallback: hide if missing
+      logoUrl.value = "";
+    };
 
     const rows = ref([]);
     const loading = ref(true);
@@ -295,15 +311,15 @@ export default {
     const filteredRows = computed(() => {
       let result = [...rows.value];
 
-      if (searchQuery.value) {
+      if (searchQuery.value.trim()) {
         const q = searchQuery.value.toLowerCase();
-        result = result.filter(
-          (r) =>
-            (r.student_name || "").toLowerCase().includes(q) ||
-            (r.student_email || "").toLowerCase().includes(q) ||
-            (r.course_name || "").toLowerCase().includes(q) ||
-            (r.certificate_code || "").toLowerCase().includes(q),
-        );
+        result = result.filter((r) => {
+          const name = (r.student_name || "").toLowerCase();
+          const email = (r.student_email || "").toLowerCase();
+          const course = (r.course_name || "").toLowerCase();
+          const code = (r.certificate_code || "").toLowerCase();
+          return name.includes(q) || email.includes(q) || course.includes(q) || code.includes(q);
+        });
       }
 
       if (selectedCourse.value) {
@@ -315,7 +331,6 @@ export default {
       }
 
       if (selectedDate.value) {
-        // compare YYYY-MM-DD from done_at
         result = result.filter((r) => (r.done_at || "").slice(0, 10) === selectedDate.value);
       }
 
@@ -342,23 +357,17 @@ export default {
     const getInitials = (name) => {
       const safe = String(name || "").trim();
       if (!safe) return "??";
-      return safe
-        .split(" ")
-        .filter(Boolean)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+      const parts = safe.split(/\s+/).filter(Boolean);
+      const first = parts[0]?.[0] || "";
+      const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
+      return (first + last).toUpperCase() || "??";
     };
 
     const formatDate = (dateString) => {
       if (!dateString) return "—";
       const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
     const getStatusClass = (status) => {
@@ -410,7 +419,7 @@ export default {
         await axios.post(
           `${API_BASE}/api/admin/certificates/generate`,
           { reservation_id: row.reservation_id },
-          { withCredentials: true },
+          { withCredentials: true }
         );
 
         await fetchRows();
@@ -420,13 +429,11 @@ export default {
     };
 
     const viewCertificate = (row) => {
-      const url = `${API_BASE}/api/admin/certificates/${row.certificate_id}/view`;
-      window.open(url, "_blank");
+      window.open(`${API_BASE}/api/admin/certificates/${row.certificate_id}/view`, "_blank");
     };
 
     const downloadCertificate = (row) => {
-      const url = `${API_BASE}/api/admin/certificates/${row.certificate_id}/download`;
-      window.open(url, "_blank");
+      window.open(`${API_BASE}/api/admin/certificates/${row.certificate_id}/download`, "_blank");
     };
 
     const revokeCertificate = async (row) => {
@@ -438,7 +445,7 @@ export default {
         await axios.patch(
           `${API_BASE}/api/admin/certificates/${row.certificate_id}/revoke`,
           {},
-          { withCredentials: true },
+          { withCredentials: true }
         );
 
         await fetchRows();
@@ -449,31 +456,37 @@ export default {
 
     const exportCsv = () => {
       const headers = ["Student", "Email", "Course", "Done At", "Certificate Code", "Status"];
-      const lines = filteredRows.value.map((r) =>
-        [
+      const lines = filteredRows.value.map((r) => {
+        const arr = [
           r.student_name,
           r.student_email,
           r.course_name,
           (r.done_at || "").slice(0, 10),
           r.certificate_code || "",
           r.ui_status,
-        ]
-          .map((v) => `"${String(v || "").replace(/"/g, '""')}"`)
-          .join(","),
-      );
+        ];
+        return arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
+      });
 
       const csv = [headers.join(","), ...lines].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "certificates.csv";
-      link.click();
-      URL.revokeObjectURL(link.href);
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "certificates.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     };
 
     onMounted(fetchRows);
 
     return {
+      API_BASE,
+      logoUrl,
+      onLogoError,
       rows,
       loading,
       error,

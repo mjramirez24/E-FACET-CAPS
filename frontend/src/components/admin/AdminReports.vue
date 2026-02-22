@@ -1,7 +1,7 @@
-<!-- frontend/src/components/AdminReports.vue (FULL) -->
+<!-- frontend/src/components/AdminReports.vue (FULL UPDATED: ECharts + Export Picker + Column Cleanup) -->
 <template>
   <AdminLayout>
-    <!-- Header-left: search only (shared local search, NOT a global backend filter) -->
+    <!-- Header-left: search only (local filter) -->
     <template #header-left>
       <input
         type="text"
@@ -17,36 +17,29 @@
         <div>
           <h2 class="text-lg font-bold text-green-800">📈 Analytics & Reports</h2>
           <p class="text-xs text-gray-500">
-            Descriptive = what happened • Predictive = what may happen next (trend-based).
+            Charts are descriptive + simple forecasting (trend-based). Exports are selectable (course + columns).
           </p>
         </div>
 
         <div class="flex flex-wrap gap-2">
           <button
-            @click="openExplainModal()"
-            class="border border-gray-300 hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
-          >
-            🧠 How Analytics Works
-          </button>
-
-          <button
-            @click="exportAll('pdf')"
+            @click="openExport('all')"
             class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
           >
-            📄 Export PDF (All)
+            📤 Export (All)
           </button>
 
           <button
-            @click="exportAll('xlsx')"
+            @click="openExport(activeTab)"
             class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
           >
-            📊 Export Excel (All)
+            📤 Export (This Tab)
           </button>
         </div>
       </div>
 
-      <!-- TOP SUMMARY (always visible) -->
-      <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <!-- TOP SUMMARY (cleaned: removed completion rate + cert issued) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-green-50 p-4 rounded-lg border border-green-100">
           <p class="text-sm text-green-700 font-medium">Total Enrolled</p>
           <h3 class="text-2xl font-bold text-green-800 mt-1">{{ summary.totalEnrolled }}</h3>
@@ -56,18 +49,6 @@
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
           <p class="text-sm text-blue-700 font-medium">Most Popular Course</p>
           <h3 class="text-lg font-bold text-blue-800 mt-1">{{ summary.mostPopularCourse || "-" }}</h3>
-          <p class="text-xs text-gray-500 mt-1">Descriptive</p>
-        </div>
-
-        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-          <p class="text-sm text-yellow-700 font-medium">Completion Rate</p>
-          <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ summary.completionRate }}%</h3>
-          <p class="text-xs text-gray-500 mt-1">Descriptive</p>
-        </div>
-
-        <div class="bg-orange-50 p-4 rounded-lg border border-orange-100">
-          <p class="text-sm text-orange-700 font-medium">Certificates Issued</p>
-          <h3 class="text-2xl font-bold text-orange-800 mt-1">{{ summary.certIssued }}</h3>
           <p class="text-xs text-gray-500 mt-1">Descriptive</p>
         </div>
 
@@ -177,12 +158,6 @@
             </div>
 
             <div class="flex flex-wrap gap-2 items-end">
-              <select v-model="overviewExportFormat" class="p-2 border border-gray-300 rounded-md text-sm">
-                <option value="xlsx">Excel</option>
-                <option value="pdf">PDF</option>
-                <option value="csv">CSV</option>
-              </select>
-
               <button
                 @click="reloadOverview()"
                 class="px-3 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium"
@@ -191,7 +166,7 @@
               </button>
 
               <button
-                @click="exportSection('overview', overviewExportFormat)"
+                @click="openExport('overview')"
                 class="px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium"
               >
                 📤 Export Overview
@@ -213,7 +188,7 @@
           </div>
         </div>
 
-        <!-- OVERVIEW CHARTS -->
+        <!-- OVERVIEW CHARTS (ECharts) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Enrollment Trend -->
           <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
@@ -224,13 +199,16 @@
                   Course = {{ overviewFilters.courseId ? courseNameById(overviewFilters.courseId) : 'All' }}
                 </p>
               </div>
-              <button @click="openExplainModal('trend')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">
-                🧠 Explain
+              <button
+                @click="openExport('overview')"
+                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+              >
+                📤 Export
               </button>
             </div>
 
             <div class="h-64">
-              <canvas ref="trendCanvas"></canvas>
+              <VChart ref="trendChartRef" :option="trendOption" autoresize />
             </div>
 
             <div class="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
@@ -248,21 +226,16 @@
                 <h3 class="text-green-800 font-semibold">Top Courses</h3>
                 <p class="text-xs text-gray-500">Distribution of enrollments</p>
               </div>
-              <div class="flex gap-2">
-                <button
-                  @click="exportSection('topCourses', overviewExportFormat)"
-                  class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                >
-                  📤 Export
-                </button>
-                <button @click="openExplainModal('topCourses')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">
-                  🧠 Explain
-                </button>
-              </div>
+              <button
+                @click="openExport('overview')"
+                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+              >
+                📤 Export
+              </button>
             </div>
 
             <div class="h-64">
-              <canvas ref="topCoursesCanvas"></canvas>
+              <VChart ref="topCoursesChartRef" :option="topCoursesOption" autoresize />
             </div>
           </div>
 
@@ -273,13 +246,16 @@
                 <h3 class="text-green-800 font-semibold">Students by Gender</h3>
                 <p class="text-xs text-gray-500">Descriptive breakdown</p>
               </div>
-              <button @click="openExplainModal('gender')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">
-                🧠 Explain
+              <button
+                @click="openExport('overview')"
+                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+              >
+                📤 Export
               </button>
             </div>
 
             <div class="h-64">
-              <canvas ref="genderCanvas"></canvas>
+              <VChart ref="genderChartRef" :option="genderOption" autoresize />
             </div>
           </div>
 
@@ -288,20 +264,15 @@
             <div class="flex items-start justify-between gap-3 mb-3">
               <div>
                 <h3 class="text-green-800 font-semibold">Course Enrollments per Month</h3>
-                <p class="text-xs text-gray-500">Example: PDC = 3 enrollments this month</p>
+                <p class="text-xs text-gray-500">Preview table (export to get full)</p>
               </div>
 
-              <div class="flex gap-2">
-                <button
-                  @click="exportSection('courseMonthly', overviewExportFormat)"
-                  class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                >
-                  📤 Export
-                </button>
-                <button @click="openExplainModal('courseMonthly')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">
-                  🧠 Explain
-                </button>
-              </div>
+              <button
+                @click="openExport('overview')"
+                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+              >
+                📤 Export
+              </button>
             </div>
 
             <div class="overflow-x-auto">
@@ -336,13 +307,13 @@
             </div>
 
             <p class="text-xs text-gray-500 mt-3">
-              Tip: Export to Excel para full dataset (hindi lang preview).
+              Tip: export to Excel/PDF/CSV para full dataset.
             </p>
           </div>
         </div>
       </div>
 
-      <!-- ===================== REVENUE ===================== -->
+      <!-- ===================== REVENUE (cleaned columns) ===================== -->
       <div v-else-if="activeTab === 'revenue'" class="space-y-6">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -369,16 +340,6 @@
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Payment Status</label>
-                <select v-model="revenueTabFilters.status" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All</option>
-                  <option value="VERIFIED">VERIFIED</option>
-                  <option value="FOR_VERIFICATION">FOR_VERIFICATION</option>
-                  <option value="REJECTED">REJECTED</option>
-                </select>
-              </div>
-
-              <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
                 <select v-model="revenueTabFilters.payment_method" class="w-40 p-2 border border-gray-300 rounded-md text-sm">
                   <option value="">All</option>
@@ -387,17 +348,11 @@
                 </select>
               </div>
 
-              <select v-model="revenueExportFormat" class="w-32 p-2 border border-gray-300 rounded-md text-sm">
-                <option value="xlsx">Excel</option>
-                <option value="pdf">PDF</option>
-                <option value="csv">CSV</option>
-              </select>
-
               <button @click="reloadRevenue()" class="text-sm px-3 py-2 bg-green-700 text-white rounded hover:bg-green-800">
                 Apply
               </button>
 
-              <button @click="exportSection('revenue', revenueExportFormat)" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
+              <button @click="openExport('revenue')" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
                 📤 Export Revenue
               </button>
             </div>
@@ -427,7 +382,7 @@
           </div>
         </div>
 
-        <!-- Revenue Table -->
+        <!-- Revenue Table (removed Payment Ref + Status + Verified At) -->
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-3">
             <div>
@@ -456,37 +411,33 @@
             <table class="min-w-full border border-gray-200 text-sm">
               <thead class="bg-gray-200">
                 <tr>
-                  <th class="py-2 px-3 text-left">Payment Ref</th>
                   <th class="py-2 px-3 text-left">Student</th>
                   <th class="py-2 px-3 text-left">Course</th>
                   <th class="py-2 px-3 text-left">Method</th>
                   <th class="py-2 px-3 text-left">Amount</th>
-                  <th class="py-2 px-3 text-left">Status</th>
-                  <th class="py-2 px-3 text-left">Verified At</th>
+                  <th class="py-2 px-3 text-left">Created</th>
                 </tr>
               </thead>
 
               <tbody>
                 <tr
                   v-for="p in revenuePaginated"
-                  :key="p.payment_ref || `${p.id}-${p.created_at}`"
+                  :key="p.id || `${p.created_at}-${p.fullname}`"
                   class="border-b border-gray-100 hover:bg-gray-50"
                 >
-                  <td class="py-2 px-3">{{ p.payment_ref || '-' }}</td>
                   <td class="py-2 px-3">{{ p.fullname || '-' }}</td>
                   <td class="py-2 px-3">{{ p.course_name || '-' }}</td>
                   <td class="py-2 px-3">{{ normalizePaymentMethod(p.payment_method) || '-' }}</td>
                   <td class="py-2 px-3">{{ formatCurrency(p.amount_peso || 0) }}</td>
-                  <td class="py-2 px-3">{{ p.status || '-' }}</td>
-                  <td class="py-2 px-3">{{ p.verified_at ? formatDate(p.verified_at) : '-' }}</td>
+                  <td class="py-2 px-3">{{ p.created_at ? formatDate(p.created_at) : '-' }}</td>
                 </tr>
 
                 <tr v-if="!revenueLoading && revenueFiltered.length === 0">
-                  <td colspan="7" class="py-6 text-center text-gray-500">No payments loaded</td>
+                  <td colspan="5" class="py-6 text-center text-gray-500">No payments loaded</td>
                 </tr>
 
                 <tr v-if="revenueLoading">
-                  <td colspan="7" class="py-6 text-center text-gray-500">Loading payments…</td>
+                  <td colspan="5" class="py-6 text-center text-gray-500">Loading payments…</td>
                 </tr>
               </tbody>
             </table>
@@ -524,7 +475,7 @@
         </div>
       </div>
 
-      <!-- ===================== DETAILED REPORTS ===================== -->
+      <!-- ===================== DETAILED REPORTS (export templates + columns) ===================== -->
       <div v-else-if="activeTab === 'detailed'" class="space-y-6">
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -557,20 +508,6 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Reservation Status</label>
-                <select v-model="detailedTabFilters.status" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All</option>
-                  <option value="PENDING">PENDING</option>
-                  <option value="CONFIRMED">CONFIRMED</option>
-                  <option value="APPROVED">APPROVED</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="DONE">DONE</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                  <option value="REJECTED">REJECTED</option>
-                </select>
-              </div>
-
-              <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Source</label>
                 <select v-model="detailedTabFilters.source" class="w-36 p-2 border border-gray-300 rounded-md text-sm">
                   <option value="">All</option>
@@ -597,15 +534,6 @@
                   <option value="name_desc">Name (Z–A)</option>
                 </select>
               </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Export format</label>
-                <select v-model="detailedExportFormat" class="w-32 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="xlsx">Excel</option>
-                  <option value="pdf">PDF</option>
-                  <option value="csv">CSV</option>
-                </select>
-              </div>
             </div>
 
             <div class="flex flex-wrap gap-2 items-end">
@@ -613,7 +541,7 @@
                 Apply
               </button>
 
-              <button @click="exportSection('detailed', detailedExportFormat)" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
+              <button @click="openExport('detailed')" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
                 📤 Export Detailed
               </button>
 
@@ -624,8 +552,22 @@
           </div>
 
           <div v-if="columnsOpen" class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <p class="text-xs text-gray-600 mb-2 font-semibold">Column visibility</p>
-            <div class="flex flex-wrap gap-4 text-sm">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-xs text-gray-600 font-semibold">Column visibility (table + export default)</p>
+              <div class="flex gap-2">
+                <button @click="applyColumnPreset('pdc')" class="text-xs px-3 py-2 border rounded hover:bg-white">
+                  Preset: PDC list
+                </button>
+                <button @click="applyColumnPreset('minimal')" class="text-xs px-3 py-2 border rounded hover:bg-white">
+                  Preset: Minimal
+                </button>
+                <button @click="applyColumnPreset('all')" class="text-xs px-3 py-2 border rounded hover:bg-white">
+                  Preset: Show all
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-4 text-sm">
               <label v-for="col in columnOptions" :key="col.key" class="inline-flex items-center gap-2">
                 <input type="checkbox" v-model="visibleColumns[col.key]" />
                 <span>{{ col.label }}</span>
@@ -683,7 +625,6 @@
                 <th v-if="visibleColumns.training_purpose" class="py-2 px-3 text-left">Training Purpose</th>
                 <th v-if="visibleColumns.municipality" class="py-2 px-3 text-left">Municipality</th>
 
-                <th v-if="visibleColumns.reservation_status" class="py-2 px-3 text-left">Status</th>
                 <th v-if="visibleColumns.reservation_source" class="py-2 px-3 text-left">Source</th>
                 <th v-if="visibleColumns.payment_method" class="py-2 px-3 text-left">Payment</th>
                 <th v-if="visibleColumns.created_at" class="py-2 px-3 text-left">Created</th>
@@ -714,11 +655,6 @@
                 <td v-if="visibleColumns.training_purpose" class="py-2 px-3">{{ row.training_purpose || '-' }}</td>
                 <td v-if="visibleColumns.municipality" class="py-2 px-3">{{ row.municipality || '-' }}</td>
 
-                <td v-if="visibleColumns.reservation_status" class="py-2 px-3">
-                  <span class="px-2 py-1 rounded text-xs" :class="statusBadge(row.reservation_status)">
-                    {{ row.reservation_status || '-' }}
-                  </span>
-                </td>
                 <td v-if="visibleColumns.reservation_source" class="py-2 px-3">{{ row.reservation_source || '-' }}</td>
                 <td v-if="visibleColumns.payment_method" class="py-2 px-3">{{ normalizePaymentMethod(row.payment_method) || '-' }}</td>
                 <td v-if="visibleColumns.created_at" class="py-2 px-3">{{ row.created_at ? formatDate(row.created_at) : '-' }}</td>
@@ -811,40 +747,177 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- EXPLAIN MODAL -->
-    <ExplainModal
-      :open="explainOpen"
-      :focus="explainFocus"
-      :trend="trend"
-      :forecast="forecast"
-      :gender="gender"
-      :topCourses="topCourses"
-      @close="explainOpen=false"
-    />
+      <!-- ===================== EXPORT MODAL ===================== -->
+      <div v-if="exportOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+          <div class="p-4 border-b flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-green-800">📤 Export Builder</h3>
+              <p class="text-xs text-gray-500">
+                Piliin ang course + columns + scope, then export as Excel/PDF/CSV.
+              </p>
+            </div>
+            <button @click="exportOpen=false" class="px-3 py-2 border rounded hover:bg-gray-50">✖</button>
+          </div>
+
+          <div class="p-4 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Target</label>
+                <select v-model="exportTarget" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                  <option value="all">All (Overview + Revenue + Detailed)</option>
+                  <option value="overview">Overview (trend/top/gender/monthly)</option>
+                  <option value="revenue">Revenue table</option>
+                  <option value="detailed">Detailed table</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Format</label>
+                <select v-model="exportFormat" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                  <option value="xlsx">Excel (.xlsx)</option>
+                  <option value="pdf">PDF</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Scope</label>
+                <select v-model="exportScope" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                  <option value="all">All rows (filtered)</option>
+                  <option value="page">Current page only</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Course chooser applies mainly to Detailed/Revenue exports -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Course (optional)</label>
+                <select v-model="exportCourseId" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                  <option value="">Use current tab filter</option>
+                  <option v-for="c in courses" :key="c.id" :value="String(c.id)">
+                    {{ c.course_name }}
+                  </option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Blank = gamitin ang current filters mo.</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Template</label>
+                <select v-model="exportTemplate" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                  <option value="custom">Custom (selected columns)</option>
+                  <option value="pdc">PDC-style list (like your picture)</option>
+                  <option value="minimal">Minimal list</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Template affects columns for Detailed export.</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">File name</label>
+                <input v-model="exportFileName" class="w-full p-2 border border-gray-300 rounded-md text-sm" />
+              </div>
+            </div>
+
+            <!-- Columns selection (only meaningful for Detailed/Revenue; Overview has fixed sets) -->
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-gray-700">Columns</p>
+                <div class="flex gap-2">
+                  <button @click="selectExportColumns('fromVisible')" class="text-xs px-3 py-2 border rounded hover:bg-white">
+                    Use table columns
+                  </button>
+                  <button @click="selectExportColumns('all')" class="text-xs px-3 py-2 border rounded hover:bg-white">
+                    Select all
+                  </button>
+                  <button @click="selectExportColumns('none')" class="text-xs px-3 py-2 border rounded hover:bg-white">
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                <label
+                  v-for="col in exportColumnOptions"
+                  :key="col.key"
+                  class="inline-flex items-center gap-2 text-sm"
+                >
+                  <input type="checkbox" v-model="exportColumns[col.key]" />
+                  <span>{{ col.label }}</span>
+                </label>
+              </div>
+
+              <p class="text-xs text-gray-500 mt-2">
+                Note: For Overview export, columns are predefined per dataset.
+              </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2 justify-end">
+              <button @click="exportOpen=false" class="px-4 py-2 border rounded hover:bg-gray-50">
+                Cancel
+              </button>
+              <button @click="runExport()" class="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800">
+                Export Now
+              </button>
+            </div>
+
+            <div v-if="exportError" class="p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
+              {{ exportError }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- hidden canvases for PNG export (ECharts renders to canvas internally; we grab it from DOM) -->
+      <div class="hidden">
+        <canvas ref="tmpCanvas"></canvas>
+      </div>
+    </div>
   </AdminLayout>
 </template>
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
-import Chart from "chart.js/auto";
 import AdminLayout from "./AdminLayout.vue";
-
-// ✅ External components (NO JSX)
 import DateRangePicker from "./DateRangePicker.vue";
-import ExplainModal from "./ExplainModal.vue";
+
+// ECharts
+import VChart from "vue-echarts";
+import * as echarts from "echarts/core";
+import { CanvasRenderer } from "echarts/renderers";
+import { LineChart, BarChart, PieChart } from "echarts/charts";
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  TitleComponent,
+} from "echarts/components";
+
+// Export libs
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+echarts.use([
+  CanvasRenderer,
+  LineChart,
+  BarChart,
+  PieChart,
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  TitleComponent,
+]);
 
 export default {
   name: "AdminReports",
-  components: { AdminLayout, DateRangePicker, ExplainModal },
+  components: { AdminLayout, DateRangePicker, VChart },
   setup() {
     // UI
     const activeTab = ref("overview");
     const examOpen = ref(false);
     const columnsOpen = ref(false);
-    const explainOpen = ref(false);
-    const explainFocus = ref("");
 
     const tabActive = "bg-green-700 text-white border-green-700";
     const tabInactive = "bg-white text-gray-700 border-gray-200 hover:bg-gray-50";
@@ -875,7 +948,6 @@ export default {
       customFrom: "",
       customTo: "",
       courseId: "",
-      status: "",
       payment_method: "",
     });
 
@@ -885,7 +957,6 @@ export default {
       customTo: "",
       courseId: "",
       groupBy: "raw",
-      status: "",
       source: "",
       payment_method: "",
       sort: "created_desc",
@@ -894,17 +965,12 @@ export default {
     // Config
     const trendPeriod = ref("month");
     const forecastHorizon = ref("next");
-    const overviewExportFormat = ref("xlsx");
-    const revenueExportFormat = ref("xlsx");
-    const detailedExportFormat = ref("xlsx");
 
     // Data
     const courses = ref([]);
     const summary = reactive({
       totalEnrolled: 0,
       mostPopularCourse: "",
-      completionRate: 0,
-      certIssued: 0,
       totalRevenuePeso: 0,
     });
 
@@ -933,14 +999,10 @@ export default {
     const revenueError = ref("");
     const detailedError = ref("");
 
-    // Charts
-    const trendCanvas = ref(null);
-    const topCoursesCanvas = ref(null);
-    const genderCanvas = ref(null);
-
-    const trendChart = ref(null);
-    const topCoursesChart = ref(null);
-    const genderChart = ref(null);
+    // ECharts refs (for PNG exporting)
+    const trendChartRef = ref(null);
+    const topCoursesChartRef = ref(null);
+    const genderChartRef = ref(null);
 
     // Pagination
     const revenuePage = ref(1);
@@ -948,7 +1010,7 @@ export default {
     const detailedPage = ref(1);
     const detailedPageSize = ref(25);
 
-    // Columns
+    // Columns (REMOVED: payment_ref, status, verified_at, reservation_status)
     const columnOptions = [
       { key: "client_id", label: "Client ID" },
       { key: "fullname", label: "Full Name" },
@@ -961,28 +1023,27 @@ export default {
       { key: "dl_code", label: "DL Code" },
       { key: "training_purpose", label: "Training Purpose" },
       { key: "municipality", label: "Municipality" },
-      { key: "reservation_status", label: "Status" },
       { key: "reservation_source", label: "Source" },
       { key: "payment_method", label: "Payment" },
       { key: "created_at", label: "Created" },
     ];
 
+    // Default visible columns (PDC-ish)
     const visibleColumns = reactive({
       client_id: true,
       fullname: true,
       birthday: true,
       gender: true,
       instructor_name: true,
-      course_name: true,
-      course_start: false,
-      course_end: false,
-      dl_code: false,
-      training_purpose: false,
-      municipality: true,
-      reservation_status: true,
+      course_name: false,
+      course_start: true,
+      course_end: true,
+      dl_code: true,
+      training_purpose: true,
+      municipality: false,
       reservation_source: false,
-      payment_method: true,
-      created_at: true,
+      payment_method: false,
+      created_at: false,
     });
 
     const detailedColspan = computed(() => 1 + Object.values(visibleColumns).filter(Boolean).length);
@@ -1021,15 +1082,6 @@ export default {
       return d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" });
     }
 
-    function statusBadge(status) {
-      const s = String(status || "").toUpperCase();
-      if (s.includes("APPROVED") || s.includes("CONFIRMED") || s.includes("ACTIVE") || s.includes("DONE"))
-        return "bg-green-100 text-green-700";
-      if (s.includes("PENDING") || s.includes("FOR")) return "bg-yellow-100 text-yellow-700";
-      if (s.includes("REJECT") || s.includes("CANCEL") || s.includes("FAILED")) return "bg-red-100 text-red-700";
-      return "bg-gray-100 text-gray-700";
-    }
-
     function normalizePaymentMethod(v) {
       const s = String(v || "").trim().toUpperCase();
       if (!s) return "";
@@ -1038,12 +1090,12 @@ export default {
       return s;
     }
 
-function toISODateLocal(dt) {
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, "0");
-  const d = String(dt.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+    function toISODateLocal(dt) {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, "0");
+      const d = String(dt.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
 
     function getRangeDates(range, customFrom, customTo) {
       const today = new Date();
@@ -1051,19 +1103,18 @@ function toISODateLocal(dt) {
       const mm = today.getMonth();
 
       if (range === "custom") return { from: customFrom, to: customTo };
-if (range === "thisMonth") return { from: toISODateLocal(new Date(yyyy, mm, 1)), to: toISODateLocal(today) };
-
-if (range === "lastMonth") return {
-  from: toISODateLocal(new Date(yyyy, mm - 1, 1)),
-  to: toISODateLocal(new Date(yyyy, mm, 0)),
-};
-
-if (range === "thisQuarter") {
-  const qStart = Math.floor(mm / 3) * 3;
-  return { from: toISODateLocal(new Date(yyyy, qStart, 1)), to: toISODateLocal(today) };
-}
-
-return { from: toISODateLocal(new Date(yyyy, 0, 1)), to: toISODateLocal(today) };
+      if (range === "thisMonth") return { from: toISODateLocal(new Date(yyyy, mm, 1)), to: toISODateLocal(today) };
+      if (range === "lastMonth") {
+        return {
+          from: toISODateLocal(new Date(yyyy, mm - 1, 1)),
+          to: toISODateLocal(new Date(yyyy, mm, 0)),
+        };
+      }
+      if (range === "thisQuarter") {
+        const qStart = Math.floor(mm / 3) * 3;
+        return { from: toISODateLocal(new Date(yyyy, qStart, 1)), to: toISODateLocal(today) };
+      }
+      return { from: toISODateLocal(new Date(yyyy, 0, 1)), to: toISODateLocal(today) };
     }
 
     function courseNameById(id) {
@@ -1071,7 +1122,7 @@ return { from: toISODateLocal(new Date(yyyy, 0, 1)), to: toISODateLocal(today) }
       return c?.course_name || "-";
     }
 
-    // Predictive
+    // Predictive (same logic)
     function computeForecast(values) {
       const v = (values || []).map((x) => Number(x || 0)).filter((x) => Number.isFinite(x));
       if (v.length === 0) return 0;
@@ -1203,8 +1254,6 @@ return { from: toISODateLocal(new Date(yyyy, 0, 1)), to: toISODateLocal(today) }
         if (sum.status === "success" && sum.data) {
           summary.totalEnrolled = Number(sum.data.totalEnrolled || 0);
           summary.mostPopularCourse = String(sum.data.mostPopularCourse || "");
-          summary.completionRate = Number(sum.data.completionRate || 0);
-          summary.certIssued = Number(sum.data.certIssued || 0);
           summary.totalRevenuePeso = Number(sum.data.totalRevenuePeso || 0);
         }
 
@@ -1235,14 +1284,6 @@ return { from: toISODateLocal(new Date(yyyy, 0, 1)), to: toISODateLocal(today) }
         courseMonthlyPreview.value = monthly.status === "success" && Array.isArray(monthly.data) ? monthly.data : [];
 
         computeForecastAndRevenueModel();
-
-        await nextTick();
-if (activeTab.value === "overview") {
-  refreshChartsOrInit();
-}
-
-        // ✅ FIX: wait DOM to render canvases, and only draw if tab is overview
-
       } catch (e) {
         overviewError.value = e?.message || "Failed to load overview.";
         trend.labels = [];
@@ -1252,7 +1293,7 @@ if (activeTab.value === "overview") {
         gender.labels = ["Male", "Female"];
         gender.values = [0, 0];
         courseMonthlyPreview.value = [];
-
+        computeForecastAndRevenueModel();
       } finally {
         overviewLoading.value = false;
       }
@@ -1263,10 +1304,7 @@ if (activeTab.value === "overview") {
       revenueError.value = "";
       try {
         const qs = buildParams("revenue", {
-          status: revenueTabFilters.status || "",
-          payment_method: revenueTabFilters.payment_method
-            ? normalizePaymentMethod(revenueTabFilters.payment_method)
-            : "",
+          payment_method: revenueTabFilters.payment_method ? normalizePaymentMethod(revenueTabFilters.payment_method) : "",
         });
 
         const json = await apiGet(`/api/admin/reports/revenue-preview?${qs.toString()}`);
@@ -1302,11 +1340,8 @@ if (activeTab.value === "overview") {
       try {
         const qs = buildParams("detailed", {
           group_by: detailedTabFilters.groupBy,
-          status: detailedTabFilters.status || "",
           source: detailedTabFilters.source || "",
-          payment_method: detailedTabFilters.payment_method
-            ? normalizePaymentMethod(detailedTabFilters.payment_method)
-            : "",
+          payment_method: detailedTabFilters.payment_method ? normalizePaymentMethod(detailedTabFilters.payment_method) : "",
         });
 
         const json = await apiGet(`/api/admin/reports/detailed?${qs.toString()}`);
@@ -1323,6 +1358,8 @@ if (activeTab.value === "overview") {
       revenuePage.value = 1;
       detailedPage.value = 1;
       await loadOverview();
+      await nextTick();
+      resizeCharts();
     }
     async function reloadRevenue() {
       revenuePage.value = 1;
@@ -1336,161 +1373,91 @@ if (activeTab.value === "overview") {
     async function setTrendPeriod(p) {
       trendPeriod.value = p;
       await loadOverview();
+      await nextTick();
+      resizeCharts();
     }
 
-    // Charts
-    function destroyCharts() {
-      if (trendChart.value) {
-        trendChart.value.destroy();
-        trendChart.value = null;
-      }
-      if (topCoursesChart.value) {
-        topCoursesChart.value.destroy();
-        topCoursesChart.value = null;
-      }
-      if (genderChart.value) {
-        genderChart.value.destroy();
-        genderChart.value = null;
-      }
+    function resizeCharts() {
+      // ECharts autoresize already, but on tab switch sometimes needs a poke
+      try { trendChartRef.value?.resize?.(); } catch {}
+      try { topCoursesChartRef.value?.resize?.(); } catch {}
+      try { genderChartRef.value?.resize?.(); } catch {}
     }
 
-function initCharts() {
-  if (!trendCanvas.value || !topCoursesCanvas.value || !genderCanvas.value) return;
+    // ECharts options (computed)
+    const trendOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      grid: { left: 40, right: 20, top: 20, bottom: 40 },
+      xAxis: {
+        type: "category",
+        data: trend.labels || [],
+        axisLabel: { rotate: 0 },
+      },
+      yAxis: { type: "value" },
+      series: [
+        {
+          name: "Enrollments",
+          type: "line",
+          smooth: true,
+          data: trend.values || [],
+          areaStyle: {},
+        },
+      ],
+    }));
 
-  if (trendChart.value) trendChart.value.destroy();
-  if (topCoursesChart.value) topCoursesChart.value.destroy();
-  if (genderChart.value) genderChart.value.destroy();
+    const topCoursesOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      grid: { left: 60, right: 20, top: 20, bottom: 60 },
+      xAxis: {
+        type: "category",
+        data: topCourses.labels || [],
+        axisLabel: { rotate: 35 },
+      },
+      yAxis: { type: "value" },
+      series: [
+        {
+          name: "Enrollments",
+          type: "bar",
+          data: topCourses.values || [],
+        },
+      ],
+    }));
 
-  trendChart.value = new Chart(trendCanvas.value, {
-    type: "bar",
-    data: {
-      labels: [...(trend.labels || [])],
-      datasets: [{ label: "Enrollments", data: [...(trend.values || [])], borderRadius: 4 }],
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
+    const genderOption = computed(() => ({
+      tooltip: { trigger: "item" },
+      legend: { bottom: 0 },
+      series: [
+        {
+          name: "Gender",
+          type: "pie",
+          radius: ["40%", "70%"],
+          avoidLabelOverlap: true,
+          data: (gender.labels || []).map((lbl, i) => ({ name: lbl, value: Number(gender.values?.[i] || 0) })),
+        },
+      ],
+    }));
 
-  topCoursesChart.value = new Chart(topCoursesCanvas.value, {
-    type: "pie",
-    data: {
-      labels: [...(topCourses.labels || [])],
-      datasets: [{ data: [...(topCourses.values || [])] }],
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-
-  genderChart.value = new Chart(genderCanvas.value, {
-    type: "doughnut",
-    data: {
-      labels: [...(gender.labels || [])],
-      datasets: [{ data: [...(gender.values || [])] }],
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
-
-
-function refreshChartsOrInit() {
-  if (!trendCanvas.value || !topCoursesCanvas.value || !genderCanvas.value) return;
-
-  // If charts not yet created → create them
-  if (!trendChart.value || !topCoursesChart.value || !genderChart.value) {
-    initCharts();
-    return;
-  }
-
-  // Otherwise just update data
-  trendChart.value.data.labels = [...(trend.labels || [])];
-  trendChart.value.data.datasets[0].data = [...(trend.values || [])];
-  trendChart.value.update();
-
-  topCoursesChart.value.data.labels = [...(topCourses.labels || [])];
-  topCoursesChart.value.data.datasets[0].data = [...(topCourses.values || [])];
-  topCoursesChart.value.update();
-
-  genderChart.value.data.labels = [...(gender.labels || [])];
-  genderChart.value.data.datasets[0].data = [...(gender.values || [])];
-  genderChart.value.update();
-}
-
-
+    // PNG chart download from ECharts canvas
     function downloadChartImage(which) {
-      const canvas =
-        which === "trend"
-          ? trendCanvas.value
-          : which === "topCourses"
-          ? topCoursesCanvas.value
-          : which === "gender"
-          ? genderCanvas.value
-          : null;
+      const refMap = {
+        trend: trendChartRef.value,
+        topCourses: topCoursesChartRef.value,
+        gender: genderChartRef.value,
+      };
+      const chartComp = refMap[which];
+      const instance = chartComp?.chart;
+      if (!instance) return;
 
-      if (!canvas) return;
+      const dataUrl = instance.getDataURL({
+        type: "png",
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
 
       const link = document.createElement("a");
       link.download = `${which}-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = dataUrl;
       link.click();
-    }
-
-    // Exports
-    function exportAll(format) {
-      const qs = buildParams("overview", { format, period: trendPeriod.value });
-      window.open(`/api/admin/reports/export/all?${qs.toString()}`, "_blank");
-    }
-
-    function exportSection(section, format = "xlsx") {
-      if (section === "overview") {
-        const qs = buildParams("overview", { format, period: trendPeriod.value });
-        window.open(`/api/admin/reports/export/overview?${qs.toString()}`, "_blank");
-        return;
-      }
-
-      if (section === "topCourses") {
-        const qs = buildParams("overview", { format });
-        window.open(`/api/admin/reports/export/top-courses?${qs.toString()}`, "_blank");
-        return;
-      }
-
-      if (section === "courseMonthly") {
-        const qs = buildParams("overview", { format });
-        window.open(`/api/admin/reports/export/course-monthly?${qs.toString()}`, "_blank");
-        return;
-      }
-
-      if (section === "revenue") {
-        const qs = buildParams("revenue", {
-          format,
-          status: revenueTabFilters.status || "",
-          payment_method: revenueTabFilters.payment_method
-            ? normalizePaymentMethod(revenueTabFilters.payment_method)
-            : "",
-        });
-        window.open(`/api/admin/reports/export/revenue?${qs.toString()}`, "_blank");
-        return;
-      }
-
-      if (section === "detailed") {
-        const qs = buildParams("detailed", {
-          format,
-          group_by: detailedTabFilters.groupBy,
-          status: detailedTabFilters.status || "",
-          source: detailedTabFilters.source || "",
-          payment_method: detailedTabFilters.payment_method
-            ? normalizePaymentMethod(detailedTabFilters.payment_method)
-            : "",
-        });
-        window.open(`/api/admin/reports/export/detailed?${qs.toString()}`, "_blank");
-        return;
-      }
-
-      const qs = buildParams("overview", { format, section });
-      window.open(`/api/admin/reports/export/section?${qs.toString()}`, "_blank");
-    }
-
-    // Explain modal
-    function openExplainModal(focus = "") {
-      explainFocus.value = focus;
-      explainOpen.value = true;
     }
 
     // Computed: DETAILED filtered/search/sort + pagination
@@ -1507,9 +1474,10 @@ function refreshChartsOrInit() {
             r.course_name,
             r.instructor_name,
             r.municipality,
-            r.reservation_status,
             r.reservation_source,
             r.payment_method,
+            r.dl_code,
+            r.training_purpose,
           ]
             .filter(Boolean)
             .join(" ")
@@ -1522,7 +1490,7 @@ function refreshChartsOrInit() {
       const safeStr = (x) => String(x || "").toLowerCase();
 
       if (s === "created_desc") arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      else if (s === "created_asc") arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      else if (s === "created_asc") arr.sort((a, b) => new Date(a.created_at || 0) - new Date(a.created_at || 0));
       else if (s === "name_asc") arr.sort((a, b) => safeStr(a.fullname || a.group_label).localeCompare(safeStr(b.fullname || b.group_label)));
       else if (s === "name_desc") arr.sort((a, b) => safeStr(b.fullname || b.group_label).localeCompare(safeStr(a.fullname || a.group_label)));
 
@@ -1543,7 +1511,7 @@ function refreshChartsOrInit() {
       const q = debouncedQuery.value;
       if (q) {
         arr = arr.filter((p) => {
-          const hay = [p.payment_ref, p.fullname, p.course_name, p.status, p.payment_method]
+          const hay = [p.fullname, p.course_name, p.payment_method]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
@@ -1575,59 +1543,359 @@ function refreshChartsOrInit() {
     const detailedPageButtons = computed(() => makePageButtons(detailedPage.value, detailedTotalPages.value, 5));
     const revenuePageButtons = computed(() => makePageButtons(revenuePage.value, revenueTotalPages.value, 5));
 
-    // Fix pages if out of range
-watch(detailedTotalPages, (tp) => {
-  const total = Number(tp || 1);
-  if (detailedPage.value > total) detailedPage.value = total;
-  if (detailedPage.value < 1) detailedPage.value = 1;
-});
+    watch(detailedTotalPages, (tp) => {
+      const total = Number(tp || 1);
+      if (detailedPage.value > total) detailedPage.value = total;
+      if (detailedPage.value < 1) detailedPage.value = 1;
+    });
 
-watch(revenueTotalPages, (tp) => {
-  const total = Number(tp || 1);
-  if (revenuePage.value > total) revenuePage.value = total;
-  if (revenuePage.value < 1) revenuePage.value = 1;
-});
+    watch(revenueTotalPages, (tp) => {
+      const total = Number(tp || 1);
+      if (revenuePage.value > total) revenuePage.value = total;
+      if (revenuePage.value < 1) revenuePage.value = 1;
+    });
 
     watch(debouncedQuery, () => {
       revenuePage.value = 1;
       detailedPage.value = 1;
     });
 
-    // ✅ FIX: destroy charts when leaving overview
-watch(activeTab, async (newTab) => {
-  if (newTab === "overview") {
-    await nextTick();
-    if (!trendChart.value) {
-      initCharts();
-    }
-  } else if (newTab === "revenue") {
-    loadRevenue();
-  } else if (newTab === "detailed") {
-    loadDetailed();
-  }
-});
+    watch(activeTab, async (newTab) => {
+      if (newTab === "overview") {
+        await nextTick();
+        resizeCharts();
+      } else if (newTab === "revenue") {
+        loadRevenue();
+      } else if (newTab === "detailed") {
+        loadDetailed();
+      }
+    });
 
-    // Init
+    // Column presets
+    function applyColumnPreset(preset) {
+      if (preset === "pdc") {
+        Object.assign(visibleColumns, {
+          client_id: true,
+          fullname: true,
+          birthday: true,
+          gender: true,
+          instructor_name: true,
+          course_name: false,
+          course_start: true,
+          course_end: true,
+          dl_code: true,
+          training_purpose: true,
+          municipality: false,
+          reservation_source: false,
+          payment_method: false,
+          created_at: false,
+        });
+        return;
+      }
+      if (preset === "minimal") {
+        Object.assign(visibleColumns, {
+          client_id: true,
+          fullname: true,
+          birthday: false,
+          gender: false,
+          instructor_name: false,
+          course_name: true,
+          course_start: true,
+          course_end: false,
+          dl_code: false,
+          training_purpose: false,
+          municipality: false,
+          reservation_source: false,
+          payment_method: false,
+          created_at: false,
+        });
+        return;
+      }
+      if (preset === "all") {
+        for (const k of Object.keys(visibleColumns)) visibleColumns[k] = true;
+      }
+    }
+
+    // ===================== EXPORT BUILDER =====================
+    const exportOpen = ref(false);
+    const exportTarget = ref("all");
+    const exportFormat = ref("xlsx");
+    const exportScope = ref("all"); // all or page
+    const exportCourseId = ref("");
+    const exportTemplate = ref("custom");
+    const exportFileName = ref(`reports-${new Date().toISOString().slice(0, 10)}`);
+    const exportError = ref("");
+
+    // export columns (for detailed/revenue; overview uses fixed sets)
+    const exportColumnOptions = computed(() => {
+      if (exportTarget.value === "revenue") {
+        return [
+          { key: "fullname", label: "Student" },
+          { key: "course_name", label: "Course" },
+          { key: "payment_method", label: "Method" },
+          { key: "amount_peso", label: "Amount" },
+          { key: "created_at", label: "Created" },
+        ];
+      }
+      // detailed default options
+      return columnOptions;
+    });
+
+    const exportColumns = reactive({});
+    function initExportColumnsFromVisible() {
+      // default based on visibleColumns (detailed), or all (revenue)
+      exportColumnOptions.value.forEach((c) => {
+        if (exportTarget.value === "detailed") exportColumns[c.key] = !!visibleColumns[c.key];
+        else exportColumns[c.key] = true;
+      });
+    }
+
+    function openExport(target) {
+      exportError.value = "";
+      exportOpen.value = true;
+
+      exportTarget.value = target === "all" ? "all" : (target || "all");
+      exportFormat.value = "xlsx";
+      exportScope.value = "all";
+      exportCourseId.value = "";
+      exportTemplate.value = exportTarget.value === "detailed" ? "pdc" : "custom";
+      exportFileName.value = `${exportTarget.value}-export-${new Date().toISOString().slice(0, 10)}`;
+
+      // reset exportColumns
+      for (const k of Object.keys(exportColumns)) delete exportColumns[k];
+      initExportColumnsFromVisible();
+
+      // apply template defaults if detailed
+      if (exportTarget.value === "detailed" && exportTemplate.value !== "custom") {
+        applyExportTemplate(exportTemplate.value);
+      }
+    }
+
+    watch(exportTemplate, (v) => {
+      if (exportTarget.value !== "detailed") return;
+      if (v === "custom") return;
+      applyExportTemplate(v);
+    });
+
+    function applyExportTemplate(tpl) {
+      if (exportTarget.value !== "detailed") return;
+
+      // clear all first
+      exportColumnOptions.value.forEach((c) => (exportColumns[c.key] = false));
+
+      if (tpl === "pdc") {
+        const keys = ["client_id", "fullname", "birthday", "gender", "instructor_name", "course_start", "course_end", "dl_code", "training_purpose"];
+        keys.forEach((k) => (exportColumns[k] = true));
+      } else if (tpl === "minimal") {
+        const keys = ["client_id", "fullname", "course_name", "course_start"];
+        keys.forEach((k) => (exportColumns[k] = true));
+      }
+    }
+
+    function selectExportColumns(mode) {
+      if (mode === "all") exportColumnOptions.value.forEach((c) => (exportColumns[c.key] = true));
+      else if (mode === "none") exportColumnOptions.value.forEach((c) => (exportColumns[c.key] = false));
+      else if (mode === "fromVisible") initExportColumnsFromVisible();
+    }
+
+    function pickRowsForExport(target) {
+      // Use CURRENT loaded data (no backend export). We respect current filters and search.
+      // Optional: override courseId if exportCourseId is set.
+      const overrideCourse = String(exportCourseId.value || "").trim();
+
+      if (target === "detailed") {
+        let base = detailedFiltered.value;
+        if (overrideCourse) base = base.filter((r) => String(r.course_id || r.courseId || "") === overrideCourse || String(r.course_id || "") === overrideCourse);
+
+        const rows = exportScope.value === "page" ? detailedPaginated.value : base;
+        return rows;
+      }
+
+      if (target === "revenue") {
+        let base = revenueFiltered.value;
+        if (overrideCourse) base = base.filter((r) => String(r.course_id || r.courseId || "") === overrideCourse || String(r.course_id || "") === overrideCourse);
+
+        const rows = exportScope.value === "page" ? revenuePaginated.value : base;
+        return rows;
+      }
+
+      // overview datasets exported as separate sheets/tables
+      return [];
+    }
+
+    function selectedColumnDefs() {
+      const defs = exportColumnOptions.value.filter((c) => !!exportColumns[c.key]);
+      return defs.length ? defs : exportColumnOptions.value; // fallback if none selected
+    }
+
+    function valueForCell(row, key) {
+      if (!row) return "";
+      if (key === "birthday") return row.birthday ? formatDateShort(row.birthday) : "";
+      if (key === "gender") return row.gender ? (String(row.gender).toLowerCase() === "male" ? "M" : "F") : "";
+      if (key === "course_start") return row.course_start ? formatDate(row.course_start) : "";
+      if (key === "course_end") return row.course_end ? formatDate(row.course_end) : "";
+      if (key === "created_at") return row.created_at ? formatDate(row.created_at) : "";
+      if (key === "payment_method") return normalizePaymentMethod(row.payment_method) || "";
+      if (key === "amount_peso") return Number(row.amount_peso || 0);
+      return row[key] ?? "";
+    }
+
+    function exportXlsx(tables, filename) {
+      const wb = XLSX.utils.book_new();
+      for (const t of tables) {
+        const ws = XLSX.utils.aoa_to_sheet([t.headers, ...t.rows]);
+        XLSX.utils.book_append_sheet(wb, ws, t.sheetName.slice(0, 31));
+      }
+      XLSX.writeFile(wb, `${filename}.xlsx`);
+    }
+
+    function exportCsv(table, filename) {
+      const esc = (v) => {
+        const s = String(v ?? "");
+        if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      };
+      const lines = [table.headers.map(esc).join(",")];
+      for (const r of table.rows) lines.push(r.map(esc).join(","));
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filename}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPdf(table, filename) {
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      doc.setFontSize(12);
+      doc.text(filename, 40, 30);
+
+      autoTable(doc, {
+        startY: 50,
+        head: [table.headers],
+        body: table.rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [230, 230, 230] },
+      });
+
+      doc.save(`${filename}.pdf`);
+    }
+
+    function buildTableFromRows(rows, defs) {
+      const headers = defs.map((d) => d.label);
+      const mapped = rows.map((r) => defs.map((d) => valueForCell(r, d.key)));
+      return { headers, rows: mapped };
+    }
+
+    function runExport() {
+      exportError.value = "";
+      try {
+        const target = exportTarget.value;
+
+        // Overview export: multi tables
+        if (target === "overview" || target === "all") {
+          const tables = [];
+
+          // trend
+          tables.push({
+            sheetName: "Trend",
+            headers: ["Label", "Enrollments"],
+            rows: (trend.labels || []).map((l, i) => [l, Number(trend.values?.[i] || 0)]),
+          });
+
+          // top courses
+          tables.push({
+            sheetName: "Top Courses",
+            headers: ["Course", "Enrollments"],
+            rows: (topCourses.labels || []).map((l, i) => [l, Number(topCourses.values?.[i] || 0)]),
+          });
+
+          // gender
+          tables.push({
+            sheetName: "Gender",
+            headers: ["Gender", "Count"],
+            rows: (gender.labels || []).map((l, i) => [l, Number(gender.values?.[i] || 0)]),
+          });
+
+          // monthly preview
+          tables.push({
+            sheetName: "Course Monthly",
+            headers: ["Month", "Course", "Enrollments"],
+            rows: (courseMonthlyPreview.value || []).map((r) => [r.month_label || "", r.course_name || "", Number(r.count || 0)]),
+          });
+
+          if (target === "overview") {
+            return exportMulti(tables, exportFileName.value);
+          }
+          // for "all", continue to revenue + detailed too
+          exportMulti(tables, `${exportFileName.value}-overview`);
+        }
+
+        if (target === "revenue" || target === "all") {
+          const rows = pickRowsForExport("revenue");
+          const defs = selectedColumnDefs();
+          const table = buildTableFromRows(rows, defs);
+          if (target === "revenue") return exportSingle(table, exportFileName.value);
+          exportSingle(table, `${exportFileName.value}-revenue`);
+        }
+
+        if (target === "detailed" || target === "all") {
+          const rows = pickRowsForExport("detailed");
+          const defs = selectedColumnDefs();
+          const table = buildTableFromRows(rows, defs);
+          if (target === "detailed") return exportSingle(table, exportFileName.value);
+          exportSingle(table, `${exportFileName.value}-detailed`);
+        }
+
+        exportOpen.value = false;
+      } catch (e) {
+        exportError.value = e?.message || "Export failed.";
+      }
+    }
+
+    function exportSingle(table, filename) {
+      if (exportFormat.value === "xlsx") return exportXlsx([{ sheetName: "Export", ...table }], filename);
+      if (exportFormat.value === "csv") return exportCsv(table, filename);
+      if (exportFormat.value === "pdf") return exportPdf(table, filename);
+      throw new Error("Unsupported export format.");
+    }
+
+    function exportMulti(tables, filename) {
+      if (exportFormat.value === "xlsx") return exportXlsx(tables, filename);
+      if (exportFormat.value === "csv") {
+        // CSV can only be one table; we export the first + suffix warning
+        return exportCsv({ headers: tables[0].headers, rows: tables[0].rows }, `${filename}-trend-only`);
+      }
+      if (exportFormat.value === "pdf") {
+        // PDF can only be one table per file; export Trend as default
+        return exportPdf({ headers: tables[0].headers, rows: tables[0].rows }, `${filename}-trend-only`);
+      }
+      throw new Error("Unsupported export format.");
+    }
+
+    // Lifecycle
     onMounted(async () => {
       const today = new Date();
       const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
-overviewFilters.customFrom = toISODateLocal(lastMonth);
-overviewFilters.customTo = toISODateLocal(today);
+      overviewFilters.customFrom = toISODateLocal(lastMonth);
+      overviewFilters.customTo = toISODateLocal(today);
 
-revenueTabFilters.customFrom = toISODateLocal(lastMonth);
-revenueTabFilters.customTo = toISODateLocal(today);
+      revenueTabFilters.customFrom = toISODateLocal(lastMonth);
+      revenueTabFilters.customTo = toISODateLocal(today);
 
-detailedTabFilters.customFrom = toISODateLocal(lastMonth);
-detailedTabFilters.customTo = toISODateLocal(today);
+      detailedTabFilters.customFrom = toISODateLocal(lastMonth);
+      detailedTabFilters.customTo = toISODateLocal(today);
 
       await loadCourses();
       await loadOverview();
       await loadRevenue();
+      await nextTick();
+      resizeCharts();
     });
 
     onUnmounted(() => {
-      destroyCharts();
       clearTimeout(t);
     });
 
@@ -1636,8 +1904,6 @@ detailedTabFilters.customTo = toISODateLocal(today);
       activeTab,
       examOpen,
       columnsOpen,
-      explainOpen,
-      explainFocus,
       tabActive,
       tabInactive,
       btnActive,
@@ -1654,9 +1920,6 @@ detailedTabFilters.customTo = toISODateLocal(today);
       // config
       trendPeriod,
       forecastHorizon,
-      overviewExportFormat,
-      revenueExportFormat,
-      detailedExportFormat,
 
       // data
       courses,
@@ -1678,13 +1941,15 @@ detailedTabFilters.customTo = toISODateLocal(today);
       revenueError,
       detailedError,
 
-      // refs
-      trendCanvas,
-      topCoursesCanvas,
-      genderCanvas,
+      // charts
+      trendChartRef,
+      topCoursesChartRef,
+      genderChartRef,
+      trendOption,
+      topCoursesOption,
+      genderOption,
 
       // helpers
-      statusBadge,
       normalizePaymentMethod,
       formatCurrency,
       formatDate,
@@ -1697,10 +1962,7 @@ detailedTabFilters.customTo = toISODateLocal(today);
       reloadRevenue,
       reloadDetailed,
       setTrendPeriod,
-      exportAll,
-      exportSection,
       downloadChartImage,
-      openExplainModal,
 
       // detailed table
       columnOptions,
@@ -1724,6 +1986,24 @@ detailedTabFilters.customTo = toISODateLocal(today);
       revenuePageStart,
       revenuePageEnd,
       revenuePageButtons,
+
+      // columns preset
+      applyColumnPreset,
+
+      // export modal
+      exportOpen,
+      exportTarget,
+      exportFormat,
+      exportScope,
+      exportCourseId,
+      exportTemplate,
+      exportFileName,
+      exportError,
+      exportColumns,
+      exportColumnOptions,
+      openExport,
+      runExport,
+      selectExportColumns,
 
       // exams
       examStats,
