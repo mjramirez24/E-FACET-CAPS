@@ -60,6 +60,22 @@ function isDoneConditionSql() {
 }
 
 /**
+ * DL code derived from course_code:
+ * - PDC-A  => A
+ * - PDC-B  => B
+ * - PDC-AB => AB
+ * - else fallback to course_code
+ */
+function dlCodeExprSql() {
+  return `
+    CASE
+      WHEN c.course_code LIKE 'PDC-%' THEN SUBSTRING_INDEX(c.course_code, '-', -1)
+      ELSE c.course_code
+    END
+  `;
+}
+
+/**
  * Join latest payment submission per tuple (schedule_id, student_id, course_id)
  * to avoid duplicate rows.
  */
@@ -168,7 +184,7 @@ function exportAsPdfSimple(res, title, columns, rows, baseName) {
 }
 
 // ------------------------
-// CONTROLLERS (existing)
+// CONTROLLERS
 // ------------------------
 
 // GET /api/admin/reports/detailed?from&to&course_id&gender&payment_method&status&page&limit&q
@@ -214,11 +230,13 @@ exports.getDetailed = async (req, res) => {
         AND (
           u.fullname LIKE ? OR
           CAST(sr.student_id AS CHAR) LIKE ? OR
+          sr.lto_client_id LIKE ? OR
           c.course_name LIKE ? OR
+          c.course_code LIKE ? OR
           sps.payment_ref LIKE ?
         )
       `;
-      params.push(like, like, like, like);
+      params.push(like, like, like, like, like, like);
     }
 
     const [countRows] = await pool.execute(
@@ -242,6 +260,7 @@ exports.getDetailed = async (req, res) => {
         sr.reservation_id,
         sr.schedule_id,
         sr.student_id,
+        sr.lto_client_id,          -- ✅ NEW: this is the one you want to show
         sr.course_id,
         sr.reservation_source,
         sr.reservation_status,
@@ -257,13 +276,14 @@ exports.getDetailed = async (req, res) => {
         sr.expires_at,
         sr.done_at,
 
-        u.id AS client_id,
         u.fullname,
         u.gender,
         u.birthday,
 
         c.course_name,
         c.course_fee,
+
+        ${dlCodeExprSql()} AS dl_code,
 
         s.schedule_date,
         s.start_time,
@@ -405,7 +425,7 @@ exports.getSummary = async (req, res) => {
         completionRate: 0,
         certIssued: 0,
         totalRevenuePeso: Number(revRows?.[0]?.totalRevenuePeso || 0),
-        doneCount: safeInt(revRows?.[0]?.doneCount || 0),
+        doneCount: safeInt(revRows?.[0]?.doneCount || 0, 0),
       },
     });
   } catch (err) {
@@ -720,7 +740,6 @@ exports.exportOverview = async (req, res) => {
     const courseId = safeStr(req.query.course_id);
     const gender = safeStr(req.query.gender).toLowerCase();
 
-    // reuse summary logic (same filters)
     let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
     const params = [from, to];
 
@@ -759,7 +778,6 @@ exports.exportOverview = async (req, res) => {
 
     const mostPopularCourse = popularRows.length ? popularRows[0].name : "";
 
-    // revenue summary (DONE only)
     let doneWhere = `WHERE sr.created_at >= ? AND sr.created_at < ? AND ${isDoneConditionSql()}`;
     const doneParams = [from, to];
 
@@ -801,7 +819,6 @@ exports.exportOverview = async (req, res) => {
       { metric: "To (exclusive)", value: to },
       { metric: "Course ID", value: courseId || "All" },
       { metric: "Gender", value: gender || "All" },
-
       { metric: "Total Enrolled", value: safeInt(totalEnrolled, 0) },
       { metric: "Most Popular Course", value: mostPopularCourse || "-" },
       { metric: "Done Count", value: safeInt(revRows?.[0]?.doneCount || 0, 0) },
@@ -809,7 +826,6 @@ exports.exportOverview = async (req, res) => {
         metric: "Total Revenue (Peso)",
         value: Number(revRows?.[0]?.totalRevenuePeso || 0),
       },
-
       { metric: "Completion Rate", value: "0" },
       { metric: "Certificates Issued", value: "0" },
     ];
@@ -1095,11 +1111,13 @@ exports.exportDetailed = async (req, res) => {
         AND (
           u.fullname LIKE ? OR
           CAST(sr.student_id AS CHAR) LIKE ? OR
+          sr.lto_client_id LIKE ? OR
           c.course_name LIKE ? OR
+          c.course_code LIKE ? OR
           sps.payment_ref LIKE ?
         )
       `;
-      params.push(like, like, like, like);
+      params.push(like, like, like, like, like, like);
     }
 
     const [rows] = await pool.execute(
@@ -1108,10 +1126,12 @@ exports.exportDetailed = async (req, res) => {
         sr.reservation_id,
         sr.schedule_id,
         sr.student_id,
+        sr.lto_client_id,      -- ✅ add
         u.fullname,
         u.gender,
         u.birthday,
         c.course_name,
+        ${dlCodeExprSql()} AS dl_code,
         i.fullname AS instructor_name,
         sr.reservation_source,
         sr.reservation_status,
@@ -1143,10 +1163,12 @@ exports.exportDetailed = async (req, res) => {
       { header: "Reservation ID", key: "reservation_id", width: 14 },
       { header: "Schedule ID", key: "schedule_id", width: 12 },
       { header: "Student ID", key: "student_id", width: 10 },
+      { header: "LTO Client ID", key: "lto_client_id", width: 18 }, // ✅ NEW
       { header: "Full Name", key: "fullname", width: 26 },
       { header: "Gender", key: "gender", width: 8 },
       { header: "Birthdate", key: "birthday", width: 12 },
       { header: "Course", key: "course_name", width: 22 },
+      { header: "DL Code", key: "dl_code", width: 10 },
       { header: "Instructor", key: "instructor_name", width: 22 },
       { header: "Source", key: "reservation_source", width: 10 },
       { header: "Status", key: "reservation_status", width: 12 },
@@ -1164,10 +1186,12 @@ exports.exportDetailed = async (req, res) => {
       reservation_id: r.reservation_id,
       schedule_id: r.schedule_id,
       student_id: r.student_id,
+      lto_client_id: r.lto_client_id || "", // ✅
       fullname: r.fullname || "",
       gender: r.gender || "",
       birthday: r.birthday ? toISODate(r.birthday) : "",
       course_name: r.course_name || "",
+      dl_code: r.dl_code || "",
       instructor_name: r.instructor_name || "",
       reservation_source: r.reservation_source || "",
       reservation_status: r.reservation_status || "",
@@ -1213,13 +1237,6 @@ exports.exportAll = async (req, res) => {
     const { from, to } = getDateRange(req);
     const courseId = safeStr(req.query.course_id);
 
-    // build data by calling the same queries used above
-    // (fast enough for admin; if heavy later, optimize)
-    // Overview = summary metrics
-    const fakeReq = { query: { ...req.query, from, to, course_id: courseId } };
-
-    // Use DB queries directly (avoid calling res.json)
-    // Overview sheet
     let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
     const params = [from, to];
     if (courseId) {
@@ -1345,10 +1362,12 @@ exports.exportAll = async (req, res) => {
         sr.reservation_id,
         sr.schedule_id,
         sr.student_id,
+        sr.lto_client_id,     -- ✅ add
         u.fullname,
         u.gender,
         u.birthday,
         c.course_name,
+        ${dlCodeExprSql()} AS dl_code,
         sr.reservation_status,
         CASE WHEN ${isDoneConditionSql()} THEN 'DONE' ELSE 'PENDING' END AS derived_status,
         sr.payment_method,
@@ -1368,7 +1387,6 @@ exports.exportAll = async (req, res) => {
       params,
     );
 
-    // Create multi-sheet workbook
     const wb = new ExcelJS.Workbook();
 
     // Overview sheet
@@ -1457,10 +1475,12 @@ exports.exportAll = async (req, res) => {
       { header: "Reservation ID", key: "reservation_id", width: 14 },
       { header: "Schedule ID", key: "schedule_id", width: 12 },
       { header: "Student ID", key: "student_id", width: 10 },
+      { header: "LTO Client ID", key: "lto_client_id", width: 18 }, // ✅ NEW
       { header: "Full Name", key: "fullname", width: 26 },
       { header: "Gender", key: "gender", width: 8 },
       { header: "Birthdate", key: "birthday", width: 12 },
       { header: "Course", key: "course_name", width: 22 },
+      { header: "DL Code", key: "dl_code", width: 10 },
       { header: "Status", key: "reservation_status", width: 12 },
       { header: "Derived", key: "derived_status", width: 10 },
       { header: "Payment Method", key: "payment_method", width: 12 },
@@ -1475,10 +1495,12 @@ exports.exportAll = async (req, res) => {
         reservation_id: r.reservation_id,
         schedule_id: r.schedule_id,
         student_id: r.student_id,
+        lto_client_id: r.lto_client_id || "",
         fullname: r.fullname || "",
         gender: r.gender || "",
         birthday: r.birthday ? toISODate(r.birthday) : "",
         course_name: r.course_name || "",
+        dl_code: r.dl_code || "",
         reservation_status: r.reservation_status || "",
         derived_status: r.derived_status || "",
         payment_method: r.payment_method || "",

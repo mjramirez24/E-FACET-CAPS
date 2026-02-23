@@ -448,6 +448,26 @@
           </div>
 
           <div v-else class="space-y-4">
+
+            <div
+              v-if="selectedCourse && selectedCourse.course_code && selectedCourse.course_code.toUpperCase().includes('PDC')"
+              class="p-4 border border-green-200 rounded-lg bg-green-50"
+            >
+              <label class="block text-sm font-semibold text-gray-800 mb-1">
+                LTO Client ID <span class="text-red-500">*</span>
+              </label>
+              <p class="text-xs text-gray-500 mb-2">
+                Required for PDC enrollment. Found on your Student Permit or Driver's License.
+              </p>
+              <input
+                type="text"
+                v-model="ltoClientId"
+                placeholder="e.g. N02-12-345678"
+                maxlength="50"
+                class="w-full md:w-1/2 border-2 border-green-700 rounded-lg p-3 focus:ring-2 focus:ring-green-500 focus:border-green-700 transition-colors text-sm"
+              />
+            </div>
+            
             <div
               v-for="req in selectedRequirements"
               :key="req.requirement_id"
@@ -863,6 +883,7 @@ export default {
         message: "",
         _timer: null,
       },
+      ltoClientId: "",
     };
   },
 
@@ -977,6 +998,10 @@ export default {
 
     canProceedUploadStep() {
       if (!this.canGoUpload) return false;
+
+      const isPDC = (this.selectedCourse?.course_code || "").toUpperCase().includes("PDC");
+      if (isPDC && !this.ltoClientId.trim()) return false;
+
       if (this.requirementsMode === "walkin") return true;
 
       const reqs = this.selectedRequirements;
@@ -1419,6 +1444,7 @@ export default {
           payment_method,
           requirements_mode: this.requirementsMode, // 'online' or 'walkin'
           fee_option_code: null,
+          lto_client_id: this.ltoClientId?.trim() || null,  // ✅ THIS IS KEY - make sure it's included
         };
 
         // ✅ if GCASH, require paymentRef + proof submitted first (backend rule)
@@ -1444,6 +1470,10 @@ export default {
             fd.append("files", file);
           }
 
+          const isPDC = (this.selectedCourse?.course_code || "").toUpperCase().includes("PDC");
+          if (isPDC && this.ltoClientId.trim()) {
+            fd.append("lto_client_id", this.ltoClientId.trim());
+          }
           await api.post(`/student/reservations/${reservationId}/requirements`, fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });

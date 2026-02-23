@@ -1,4 +1,4 @@
-<!-- frontend/src/components/AdminReports.vue (FULL UPDATED: ECharts + Export Picker + Column Cleanup) -->
+<!-- frontend/src/components/AdminReports.vue (FULL UPDATED: LTO Client ID + ECharts + Export Picker + Column Cleanup) -->
 <template>
   <AdminLayout>
     <!-- Header-left: search only (local filter) -->
@@ -611,7 +611,7 @@
             <thead class="bg-gray-200 text-gray-900">
               <tr>
                 <th class="py-2 px-3 text-left">No.</th>
-                <th v-if="visibleColumns.client_id" class="py-2 px-3 text-left">Client ID</th>
+                <th v-if="visibleColumns.lto_client_id" class="py-2 px-3 text-left">LTO Client ID</th>
                 <th v-if="visibleColumns.fullname" class="py-2 px-3 text-left">Full Name</th>
                 <th v-if="visibleColumns.birthday" class="py-2 px-3 text-left">Birthdate</th>
                 <th v-if="visibleColumns.gender" class="py-2 px-3 text-left">Sex</th>
@@ -639,7 +639,7 @@
               >
                 <td class="py-2 px-3">{{ detailedPageStart + idx }}</td>
 
-                <td v-if="visibleColumns.client_id" class="py-2 px-3">{{ row.client_id || '-' }}</td>
+                <td v-if="visibleColumns.lto_client_id" class="py-2 px-3">{{ row.lto_client_id || '-' }}</td>
                 <td v-if="visibleColumns.fullname" class="py-2 px-3">{{ row.fullname || row.group_label || '-' }}</td>
                 <td v-if="visibleColumns.birthday" class="py-2 px-3">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
                 <td v-if="visibleColumns.gender" class="py-2 px-3">
@@ -1011,8 +1011,9 @@ export default {
     const detailedPageSize = ref(25);
 
     // Columns (REMOVED: payment_ref, status, verified_at, reservation_status)
+    // ✅ CHANGED: client_id -> lto_client_id + label
     const columnOptions = [
-      { key: "client_id", label: "Client ID" },
+      { key: "lto_client_id", label: "LTO Client ID" },
       { key: "fullname", label: "Full Name" },
       { key: "birthday", label: "Birthdate" },
       { key: "gender", label: "Sex" },
@@ -1029,8 +1030,9 @@ export default {
     ];
 
     // Default visible columns (PDC-ish)
+    // ✅ CHANGED: client_id -> lto_client_id
     const visibleColumns = reactive({
-      client_id: true,
+      lto_client_id: true,
       fullname: true,
       birthday: true,
       gender: true,
@@ -1468,7 +1470,7 @@ export default {
       if (q) {
         arr = arr.filter((r) => {
           const hay = [
-            r.client_id,
+            r.lto_client_id,
             r.fullname,
             r.group_label,
             r.course_name,
@@ -1490,7 +1492,7 @@ export default {
       const safeStr = (x) => String(x || "").toLowerCase();
 
       if (s === "created_desc") arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      else if (s === "created_asc") arr.sort((a, b) => new Date(a.created_at || 0) - new Date(a.created_at || 0));
+      else if (s === "created_asc") arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)); // ✅ fixed
       else if (s === "name_asc") arr.sort((a, b) => safeStr(a.fullname || a.group_label).localeCompare(safeStr(b.fullname || b.group_label)));
       else if (s === "name_desc") arr.sort((a, b) => safeStr(b.fullname || b.group_label).localeCompare(safeStr(a.fullname || a.group_label)));
 
@@ -1575,7 +1577,7 @@ export default {
     function applyColumnPreset(preset) {
       if (preset === "pdc") {
         Object.assign(visibleColumns, {
-          client_id: true,
+          lto_client_id: true,
           fullname: true,
           birthday: true,
           gender: true,
@@ -1594,7 +1596,7 @@ export default {
       }
       if (preset === "minimal") {
         Object.assign(visibleColumns, {
-          client_id: true,
+          lto_client_id: true,
           fullname: true,
           birthday: false,
           gender: false,
@@ -1684,10 +1686,10 @@ export default {
       exportColumnOptions.value.forEach((c) => (exportColumns[c.key] = false));
 
       if (tpl === "pdc") {
-        const keys = ["client_id", "fullname", "birthday", "gender", "instructor_name", "course_start", "course_end", "dl_code", "training_purpose"];
+        const keys = ["lto_client_id", "fullname", "birthday", "gender", "instructor_name", "course_start", "course_end", "dl_code", "training_purpose"];
         keys.forEach((k) => (exportColumns[k] = true));
       } else if (tpl === "minimal") {
-        const keys = ["client_id", "fullname", "course_name", "course_start"];
+        const keys = ["lto_client_id", "fullname", "course_name", "course_start"];
         keys.forEach((k) => (exportColumns[k] = true));
       }
     }

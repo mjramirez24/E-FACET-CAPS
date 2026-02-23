@@ -3,15 +3,6 @@ const fs = require("fs");
 const PDFDocument = require("pdfkit");
 const pool = require("../config/database");
 
-// QR generator (npm i qrcode)
-let QRCode = null;
-try {
-  // eslint-disable-next-line global-require
-  QRCode = require("qrcode");
-} catch (e) {
-  QRCode = null;
-}
-
 function makeCertCode() {
   const y = new Date().getFullYear();
   const rand = Math.floor(100000 + Math.random() * 900000);
@@ -22,7 +13,6 @@ function ensureDir(absDir) {
   if (!fs.existsSync(absDir)) fs.mkdirSync(absDir, { recursive: true });
 }
 
-// safer join for relative path storage
 function toRelUploadsPath(filename) {
   return path.join("uploads", "certificates", filename).replace(/\\/g, "/");
 }
@@ -37,16 +27,36 @@ function fileExists(p) {
 
 function safeDate(d) {
   const dt = new Date(d);
-  return Number.isNaN(dt.getTime()) ? new Date() : dt;
+  return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
 function fmtDate(d) {
   const dt = safeDate(d);
+  if (!dt) return "—";
   return dt.toLocaleDateString("en-US", {
     month: "long",
     day: "2-digit",
     year: "numeric",
   });
+}
+
+function computeAge(birthday) {
+  const b = safeDate(birthday);
+  if (!b) return "—";
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
+}
+
+function normalizeSex(g) {
+  const s = String(g || "")
+    .trim()
+    .toLowerCase();
+  if (s === "male" || s === "m") return "MALE";
+  if (s === "female" || s === "f") return "FEMALE";
+  return s ? s.toUpperCase() : "—";
 }
 
 function drawBorder(doc, x, y, w, h) {
@@ -65,38 +75,26 @@ function drawSectionHeader(doc, x, y, w, title) {
     .restore();
 }
 
-async function makeQrPngBuffer(text) {
-  if (!QRCode) return null;
-  try {
-    // returns PNG buffer
-    const buf = await QRCode.toBuffer(String(text || ""), {
-      type: "png",
-      errorCorrectionLevel: "M",
-      margin: 1,
-      scale: 6,
-    });
-    return buf;
-  } catch (e) {
-    return null;
-  }
-}
-
 /**
- * generatePdf: creates a styled certificate PDF similar to sample
- * Notes:
- * - logo: backend/assets/logo.png
- * - watermark seal: backend/assets/seal.png (optional)
- * - student photo: pass photo_abs_path if you have one, else placeholder box
+ * generatePdf: LTO-style layout, FACET branding
+ * - no photo
+ * - no QR
+ * - has watermark background (seal.png if exists)
+ * Assets:
+ * - backend/assets/logo.png  (FACET logo)
+ * - backend/assets/seal.png  (FACET watermark/seal) optional
  */
 async function generatePdf({
   certificate_id,
   certificate_code,
   student_name,
-  student_email,
+  student_email, // optional (pwede mo tanggalin sa details list kung ayaw mo)
   course_name,
   issued_at,
   done_at,
-  photo_abs_path, // absolute path if available (optional)
+  lto_client_id,
+  birthday,
+  gender,
 }) {
   const uploadsDir = path.join(process.cwd(), "uploads", "certificates");
   ensureDir(uploadsDir);
@@ -116,48 +114,42 @@ async function generatePdf({
   const logoAbs = path.join(process.cwd(), "assets", "logo.png");
   const sealAbs = path.join(process.cwd(), "assets", "seal.png");
 
-  // outer border
+  // outer border (LTO-ish)
   drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
 
   // watermark seal (center, light)
   if (fileExists(sealAbs)) {
-    const wmSize = 360;
+    const wmSize = 380;
     const wmX = (pageW - wmSize) / 2;
-    const wmY = (pageH - wmSize) / 2 + 40;
+    const wmY = (pageH - wmSize) / 2 + 20;
 
     doc.save();
     doc.opacity(0.08);
-    doc.image(sealAbs, wmX, wmY, {
-      width: wmSize,
-      height: wmSize,
-      align: "center",
-    });
+    doc.image(sealAbs, wmX, wmY, { width: wmSize, height: wmSize });
     doc.opacity(1);
     doc.restore();
   }
 
-  // Header top area
+  // Header top
   const headerTop = 40;
   const headerLeft = 40;
-  const headerRight = pageW - 40;
 
-  // logo left
+  // FACET logo (left)
   if (fileExists(logoAbs)) {
-    doc.image(logoAbs, headerLeft, headerTop, { width: 60, height: 60 });
+    doc.image(logoAbs, headerLeft, headerTop, { width: 62, height: 62 });
   } else {
-    // placeholder if missing
     doc
       .save()
-      .rect(headerLeft, headerTop, 60, 60)
+      .rect(headerLeft, headerTop, 62, 62)
       .stroke("#9ca3af")
       .font("Helvetica")
       .fontSize(8)
       .fillColor("#6b7280")
-      .text("LOGO", headerLeft, headerTop + 25, { width: 60, align: "center" })
+      .text("LOGO", headerLeft, headerTop + 27, { width: 62, align: "center" })
       .restore();
   }
 
-  // header text center
+  // Center header text (FACET, LTO-style spacing)
   doc
     .save()
     .fillColor("#111827")
@@ -169,45 +161,39 @@ async function generatePdf({
     .text("LAND TRANSPORTATION OFFICE", { align: "center" })
     .font("Helvetica")
     .fontSize(9)
-    .text("East Avenue, Quezon City", { align: "center" })
+    .text("E-FACET Accredited Training Partner", { align: "center" })
     .restore();
 
-  // big title
+  // Big Title
   doc
     .save()
-    .moveDown(0.3)
     .font("Helvetica-Bold")
     .fontSize(16)
     .fillColor("#111827")
-    .text("CERTIFICATE OF COMPLETION", 0, headerTop + 80, { align: "center" })
-    .font("Helvetica-Bold")
+    .text("CERTIFICATE OF COMPLETION", 0, headerTop + 82, { align: "center" })
     .fontSize(12)
-    .text(String(course_name || "THEORETICAL DRIVING COURSE").toUpperCase(), {
+    .text(String(course_name || "DRIVING COURSE").toUpperCase(), {
       align: "center",
     })
     .restore();
 
   // content blocks
-  let y = headerTop + 120;
+  let y = headerTop + 122;
 
-  // student details block (left) + photo (right)
   const boxX = 40;
   const boxW = pageW - 80;
-  const leftW = boxW * 0.68;
-  const rightW = boxW - leftW;
-  const boxH = 170;
 
-  // section header
+  // ============ Student Driver's Details (NO PHOTO) ============
+  const box1H = 170;
+
   drawSectionHeader(doc, boxX, y, boxW, "Student Driver's Details");
 
-  // box outline
   doc
     .save()
-    .rect(boxX, y + 22, boxW, boxH - 22)
+    .rect(boxX, y + 22, boxW, box1H - 22)
     .stroke("#d1d5db")
     .restore();
 
-  // left details
   const pad = 12;
   const textX = boxX + pad;
   const textY = y + 22 + pad;
@@ -215,73 +201,41 @@ async function generatePdf({
 
   const issuedStr = fmtDate(issued_at);
   const doneStr = done_at ? fmtDate(done_at) : "—";
+  const sex = normalizeSex(gender);
+  const bdayStr = fmtDate(birthday);
+  const age = computeAge(birthday);
 
-  doc.save();
-  doc.fillColor("#111827").font("Helvetica").fontSize(10);
-
+  // LTO-like detail rows (fields galing DB)
   const details = [
-    ["Certificate ID", certificate_code],
-    ["Student Name", student_name || "—"],
+    ["LTO Client ID", lto_client_id || "—"],
+    ["Name", student_name || "—"],
+    ["Date of Birth", bdayStr],
+    ["Age", String(age)],
+    ["Sex", sex],
+    // optional email (comment out if ayaw mo)
     ["Email", student_email || "—"],
-    ["Course", course_name || "—"],
-    ["Done Date", doneStr],
-    ["Issued Date", issuedStr],
   ];
+
+  doc.save().fillColor("#111827").font("Helvetica").fontSize(10);
 
   let ty = textY;
   details.forEach(([k, v]) => {
     doc
       .font("Helvetica-Bold")
-      .text(`${k}:`, textX, ty, { width: 110 })
+      .text(`${k}:`, textX, ty, { width: 120 })
       .font("Helvetica")
-      .text(String(v), textX + 120, ty, { width: leftW - 120 - pad });
+      .text(String(v), textX + 130, ty, { width: boxW - 130 - pad * 2 });
     ty += lineGap;
   });
 
   doc.restore();
 
-  // photo box on right
-  const photoBoxX = boxX + leftW;
-  const photoBoxY = y + 22;
-  const photoPad = 12;
-
-  doc.save();
-  doc.rect(photoBoxX, photoBoxY, rightW, boxH - 22).stroke("#d1d5db");
-  doc.restore();
-
-  const photoW = rightW - photoPad * 2;
-  const photoH = boxH - 22 - photoPad * 2;
-  const photoX = photoBoxX + photoPad;
-  const photoY = photoBoxY + photoPad;
-
-  if (photo_abs_path && fileExists(photo_abs_path)) {
-    // fit photo
-    doc.image(photo_abs_path, photoX, photoY, {
-      fit: [photoW, photoH],
-      align: "center",
-      valign: "center",
-    });
-  } else {
-    // placeholder
-    doc
-      .save()
-      .rect(photoX, photoY, photoW, photoH)
-      .stroke("#9ca3af")
-      .font("Helvetica")
-      .fontSize(9)
-      .fillColor("#6b7280")
-      .text("PHOTO", photoX, photoY + photoH / 2 - 5, {
-        width: photoW,
-        align: "center",
-      })
-      .restore();
-  }
-
-  // training info block
-  y = y + boxH + 18;
-  const box2H = 110;
+  // ============ Training Info ============
+  y = y + box1H + 18;
+  const box2H = 120;
 
   drawSectionHeader(doc, boxX, y, boxW, "Driving Course Training Information");
+
   doc
     .save()
     .rect(boxX, y + 22, boxW, box2H - 22)
@@ -293,72 +247,56 @@ async function generatePdf({
 
   doc.save().fillColor("#111827").fontSize(10);
 
-  doc.font("Helvetica-Bold").text("Learning Mode:", tX, tY, { width: 110 });
-  doc.font("Helvetica").text("FACE TO FACE", tX + 120, tY);
+  doc.font("Helvetica-Bold").text("Course:", tX, tY, { width: 120 });
+  doc.font("Helvetica").text(course_name || "—", tX + 130, tY, {
+    width: boxW - 160,
+  });
 
   doc
     .font("Helvetica-Bold")
-    .text("Certificate Status:", tX, tY + 16, { width: 110 });
-  doc.font("Helvetica").text("ISSUED", tX + 120, tY + 16);
+    .text("Learning Mode:", tX, tY + 18, { width: 120 });
+  doc.font("Helvetica").text("FACE TO FACE", tX + 130, tY + 18);
 
-  doc.font("Helvetica-Bold").text("Portal:", tX, tY + 32, { width: 110 });
-  doc.font("Helvetica").text("E-FACET Enrollment Portal", tX + 120, tY + 32);
+  doc
+    .font("Helvetica-Bold")
+    .text("Date Completed:", tX, tY + 36, { width: 120 });
+  doc.font("Helvetica").text(doneStr, tX + 130, tY + 36);
+
+  doc.font("Helvetica-Bold").text("Issued Date:", tX, tY + 54, { width: 120 });
+  doc.font("Helvetica").text(issuedStr, tX + 130, tY + 54);
 
   doc.restore();
 
-  // footer text + QR code
-  const footerY = pageH - 160;
+  // Footer statement (no QR)
+  const footerY = pageH - 165;
 
   doc.save();
   doc.fillColor("#111827").font("Helvetica").fontSize(9);
   doc.text(
-    `This certificate with control number ${certificate_code} has been issued for the applicant to obtain a Student-Driver's permit / proof of completion.`,
+    `This certificate with control number ${certificate_code} has been issued as proof of completion under the E-FACET Enrollment Portal.`,
     boxX,
     footerY,
     { width: boxW, align: "center" },
   );
   doc.restore();
 
-  // QR (bottom-right)
-  const qrSize = 90;
-  const qrX = pageW - 40 - qrSize;
-  const qrY = pageH - 40 - qrSize;
+  // Signature lines (LTO-ish)
+  const sigY = pageH - 100;
 
-  // Use a verification URL if meron ka. For now: a simple text payload.
-  const qrPayload = `E-FACET CERT\nID:${certificate_code}\nCERT_ID:${certificate_id || ""}`;
-
-  const qrBuf = await makeQrPngBuffer(qrPayload);
-  if (qrBuf) {
-    doc.image(qrBuf, qrX, qrY, { width: qrSize, height: qrSize });
-  } else {
-    // placeholder if qrcode package missing
-    doc
-      .save()
-      .rect(qrX, qrY, qrSize, qrSize)
-      .stroke("#9ca3af")
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#6b7280")
-      .text("QR", qrX, qrY + 38, { width: qrSize, align: "center" })
-      .restore();
-  }
-
-  // small signature lines (optional look)
-  const sigY = pageH - 95;
   doc.save();
   doc.strokeColor("#9ca3af").lineWidth(1);
-  doc.moveTo(60, sigY).lineTo(220, sigY).stroke();
-  doc.moveTo(260, sigY).lineTo(420, sigY).stroke();
+  doc.moveTo(70, sigY).lineTo(245, sigY).stroke();
+  doc.moveTo(295, sigY).lineTo(470, sigY).stroke();
   doc.restore();
 
   doc.save();
   doc.fillColor("#374151").font("Helvetica").fontSize(8);
-  doc.text("Authorized Representative", 60, sigY + 6, {
-    width: 160,
+  doc.text("Authorized Representative", 70, sigY + 6, {
+    width: 175,
     align: "center",
   });
-  doc.text("Training Institute", 260, sigY + 6, {
-    width: 160,
+  doc.text("Training Institute", 295, sigY + 6, {
+    width: 175,
     align: "center",
   });
   doc.restore();
@@ -371,7 +309,6 @@ async function generatePdf({
     doc.on("error", reject);
   });
 
-  // return relative path saved in DB
   return toRelUploadsPath(filename);
 }
 
@@ -384,12 +321,15 @@ exports.listCompletions = async (req, res) => {
         r.schedule_id,
         r.student_id,
         r.course_id,
+        r.lto_client_id,
         r.reservation_status,
         r.done_at,
         r.updated_at,
 
         u.fullname AS student_name,
         u.email AS student_email,
+        u.birthday AS birthday,
+        u.gender AS gender,
 
         c.course_name,
 
@@ -412,7 +352,13 @@ exports.listCompletions = async (req, res) => {
         ui_status = "issued";
       if (r.certificate_id && r.certificate_status === "revoked")
         ui_status = "revoked";
-      return { ...r, ui_status };
+
+      return {
+        ...r,
+        age: computeAge(r.birthday),
+        sex: normalizeSex(r.gender),
+        ui_status,
+      };
     });
 
     return res.json({ status: "success", data: mapped });
@@ -442,8 +388,11 @@ exports.generate = async (req, res) => {
         r.reservation_id,
         r.reservation_status,
         r.done_at,
+        r.lto_client_id,
         u.fullname AS student_name,
         u.email AS student_email,
+        u.birthday AS birthday,
+        u.gender AS gender,
         c.course_name
       FROM schedule_reservations r
       JOIN users u ON u.id = r.student_id
@@ -490,8 +439,6 @@ exports.generate = async (req, res) => {
 
     const certificate_id = ins.insertId;
 
-    // If you have student photo path in DB, you can query it and pass it here.
-    // For now: placeholder only.
     const pdf_path = await generatePdf({
       certificate_id,
       certificate_code,
@@ -500,7 +447,9 @@ exports.generate = async (req, res) => {
       course_name: r.course_name || "Course",
       issued_at,
       done_at: r.done_at,
-      photo_abs_path: null,
+      lto_client_id: r.lto_client_id,
+      birthday: r.birthday,
+      gender: r.gender,
     });
 
     await pool.execute(

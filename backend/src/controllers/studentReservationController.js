@@ -363,6 +363,7 @@ exports.createReservation = async (req, res) => {
       payment_ref,
       notes,
       fee_option_code,
+      lto_client_id,
     } = req.body;
 
     if (!schedule_id || !payment_method) {
@@ -687,20 +688,22 @@ exports.createReservation = async (req, res) => {
     // DAY 1 insert
     const [r1] = await conn.execute(
       `
-      INSERT INTO schedule_reservations
-        (schedule_id, student_id, course_id,
-         reservation_source, reservation_status,
-         payment_method, notes, fee_option_code,
-         requirements_mode,
-         expires_at,
-         created_by, created_at, updated_at)
-      VALUES
-        (?, ?, ?,
-         'ONLINE', ?,
-         ?, ?, ?,
-         ?,
-         TIMESTAMP(?, '23:59:59'),
-         ?, NOW(), NOW())
+INSERT INTO schedule_reservations
+  (schedule_id, student_id, course_id,
+   reservation_source, reservation_status,
+   payment_method, notes, fee_option_code,
+   requirements_mode,
+   lto_client_id,               -- ✅ add
+   expires_at,
+   created_by, created_at, updated_at)
+VALUES
+  (?, ?, ?,
+   'ONLINE', ?,
+   ?, ?, ?,
+   ?,
+   ?,                         -- ✅ add param
+   TIMESTAMP(?, '23:59:59'),
+   ?, NOW(), NOW())
       `,
       [
         sid,
@@ -711,6 +714,7 @@ exports.createReservation = async (req, res) => {
         notes ? String(notes).trim() : null,
         fee_option_code ? String(fee_option_code).trim() : null,
         reqMode,
+        lto_client_id ? String(lto_client_id).trim() : null, // ✅
         scheduleDateYMD,
         student_id,
       ],
@@ -726,20 +730,22 @@ exports.createReservation = async (req, res) => {
 
       const [r2] = await conn.execute(
         `
-        INSERT INTO schedule_reservations
-          (schedule_id, student_id, course_id,
-           reservation_source, reservation_status,
-           payment_method, notes, fee_option_code,
-           requirements_mode,
-           expires_at,
-           created_by, created_at, updated_at)
-        VALUES
-          (?, ?, ?,
-           'ONLINE', ?,
-           ?, ?, ?,
-           ?,
-           TIMESTAMP(?, '23:59:59'),
-           ?, NOW(), NOW())
+INSERT INTO schedule_reservations
+  (schedule_id, student_id, course_id,
+   reservation_source, reservation_status,
+   payment_method, notes, fee_option_code,
+   requirements_mode,
+   lto_client_id,               -- ✅ add
+   expires_at,
+   created_by, created_at, updated_at)
+VALUES
+  (?, ?, ?,
+   'ONLINE', ?,
+   ?, ?, ?,
+   ?,
+   ?,                         -- ✅ add param
+   TIMESTAMP(?, '23:59:59'),
+   ?, NOW(), NOW())
         `,
         [
           day2Sid,
@@ -750,6 +756,7 @@ exports.createReservation = async (req, res) => {
           notes ? String(notes).trim() : null,
           fee_option_code ? String(fee_option_code).trim() : null,
           reqMode,
+          lto_client_id ? String(lto_client_id).trim() : null,
           day2DateYMD,
           student_id,
         ],

@@ -1,6 +1,9 @@
 // backend/src/controllers/reservationController.js
 const pool = require("../config/database");
-const { sendReservationConfirmation, sendAdminNotification } = require("../services/emailService");
+const {
+  sendReservationConfirmation,
+  sendAdminNotification,
+} = require("../services/emailService");
 
 // statuses that occupy slot
 const OCCUPYING_STATUSES = ["PENDING", "CONFIRMED", "APPROVED", "ACTIVE"];
@@ -185,7 +188,7 @@ async function getPackageInfo(conn, day1ScheduleId) {
         AND s1.package_group_id IS NOT NULL
       LIMIT 1
       `,
-      [Number(day1ScheduleId)]
+      [Number(day1ScheduleId)],
     );
 
     if (!rows.length) return null;
@@ -197,7 +200,7 @@ async function getPackageInfo(conn, day1ScheduleId) {
       day2_end_time: rows[0].day2_end_time,
     };
   } catch (err) {
-    console.error('getPackageInfo error:', err);
+    console.error("getPackageInfo error:", err);
     return null;
   }
 }
@@ -279,6 +282,7 @@ exports.createReservation = async (req, res) => {
       fee_option_code,
       requirements_mode,
       payment_ref,
+      lto_client_id,
     } = req.body;
 
     if (!schedule_id || !course_id || !payment_method) {
@@ -490,28 +494,40 @@ exports.createReservation = async (req, res) => {
         options: fee.options,
       });
     }
+    // In your backend createReservation function, right before the INSERT:
+    console.log(
+      "🔍 DEBUG - lto_client_id from req.body:",
+      req.body.lto_client_id,
+    );
+    console.log(
+      "🔍 DEBUG - lto_client_id type:",
+      typeof req.body.lto_client_id,
+    );
+    console.log("🔍 DEBUG - lto_client_id value:", req.body.lto_client_id);
+    console.log("🔍 DEBUG - lto_client_id truthy?", !!req.body.lto_client_id);
 
     const [ins] = await conn.execute(
       `
-      INSERT INTO schedule_reservations
-        (schedule_id, student_id, course_id,
-         reservation_source, reservation_status,
-         payment_method, notes, fee_option_code, requirements_mode,
-         expires_at, created_by, created_at, updated_at)
-      VALUES
-        (?, ?, ?,
-         'ONLINE', 'CONFIRMED',
-         ?, ?, ?, ?,
-         TIMESTAMP(?, '23:59:59'),
-         ?, NOW(), NOW())
-      `,
+        INSERT INTO schedule_reservations
+          (schedule_id, student_id, lto_client_id, course_id,
+          reservation_source, reservation_status,
+          payment_method, notes, fee_option_code, requirements_mode,
+          expires_at, created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?,
+          'ONLINE', 'CONFIRMED',
+          ?, ?, ?, ?,
+          TIMESTAMP(?, '23:59:59'),
+          ?, NOW(), NOW())
+        `,
       [
         sid,
         studentId,
-        cid,
+        lto_client_id || null, // lto_client_id
+        cid, // course_id
         payMethod,
-        notes ?? null,
-        fee.chosenOption ?? null,
+        notes || null,
+        fee.chosenOption || null,
         reqMode,
         scheduleDate,
         studentId,
@@ -523,13 +539,13 @@ exports.createReservation = async (req, res) => {
     // 🔥 GET STUDENT INFO
     const [studentRows] = await conn.execute(
       `SELECT fullname, email FROM users WHERE id = ? LIMIT 1`,
-      [studentId]
+      [studentId],
     );
 
     // 🔥 GET COURSE INFO
     const [courseRows] = await conn.execute(
       `SELECT course_name, course_code, course_fee FROM courses WHERE id = ? LIMIT 1`,
-      [cid]
+      [cid],
     );
 
     // 🔥 GET INSTRUCTOR NAME
@@ -537,7 +553,7 @@ exports.createReservation = async (req, res) => {
     if (sched.instructor_id) {
       const [instructorRows] = await conn.execute(
         `SELECT CONCAT(first_name, ' ', last_name) AS fullname FROM instructors WHERE instructor_id = ? LIMIT 1`,
-        [sched.instructor_id]
+        [sched.instructor_id],
       );
       if (instructorRows.length) {
         instructorName = instructorRows[0].fullname;
@@ -545,7 +561,9 @@ exports.createReservation = async (req, res) => {
     }
 
     // 🆕 CHECK IF PACKAGE (2-day)
-    const isPackage = Boolean(sched.package_group_id && Number(sched.package_day) === 1);
+    const isPackage = Boolean(
+      sched.package_group_id && Number(sched.package_day) === 1,
+    );
     let packageInfo = null;
     if (isPackage) {
       packageInfo = await getPackageInfo(conn, sid);
@@ -596,7 +614,7 @@ exports.createReservation = async (req, res) => {
       // Send emails asynchronously (non-blocking)
       setImmediate(() => {
         console.log("📧 Starting email send process...");
-        
+
         Promise.all([
           sendReservationConfirmation(emailData)
             .then((result) => {
@@ -610,7 +628,7 @@ exports.createReservation = async (req, res) => {
               console.error("   Stack:", err.stack);
               throw err;
             }),
-          
+
           sendAdminNotification(emailData)
             .then((result) => {
               console.log("✅ Admin notification email sent successfully!");
@@ -637,14 +655,17 @@ exports.createReservation = async (req, res) => {
           });
       });
     } else {
-      console.log("⚠️ WARNING: Cannot send emails - missing student or course data");
+      console.log(
+        "⚠️ WARNING: Cannot send emails - missing student or course data",
+      );
       console.log("   Student rows:", studentRows.length);
       console.log("   Course rows:", courseRows.length);
     }
 
     return res.status(201).json({
       status: "success",
-      message: "Reservation created (CONFIRMED). Check your email for confirmation!",
+      message:
+        "Reservation created (CONFIRMED). Check your email for confirmation!",
       data: { reservation_id: reservationId, schedule_date: scheduleDate },
     });
   } catch (err) {
@@ -680,6 +701,7 @@ exports.listMyReservations = async (req, res) => {
         r.payment_method,
         r.requirements_mode,
         r.notes,
+        r.lto_client_id,
         r.created_at,
 
         u.id AS student_id,
@@ -747,7 +769,7 @@ exports.listMyReservations = async (req, res) => {
 exports.cancelMyReservation = async (req, res) => {
   try {
     const studentId = Number(req.session?.user_id);
-    const reservationId = Number(req.params?.id); 
+    const reservationId = Number(req.params?.id);
 
     if (!studentId)
       return res
@@ -795,6 +817,7 @@ exports.listReservationsAdmin = async (req, res) => {
         r.payment_method,
         r.requirements_mode,
         r.notes,
+        r.lto_client_id,
         r.created_at,
 
         r.student_id,
@@ -951,6 +974,7 @@ exports.createWalkInReservation = async (req, res) => {
       reference_no,
       official_receipt_no,
       fee_option_code,
+      lto_client_id,
     } = req.body;
 
     if (!student_id || !schedule_id || !course_id) {
@@ -1089,26 +1113,32 @@ exports.createWalkInReservation = async (req, res) => {
       });
     }
 
+    console.log("🔍 lto_client_id from req.body:", req.body.lto_client_id);
+    console.log("🔍 lto_client_id variable:", lto_client_id);
+    console.log("🔍 typeof:", typeof lto_client_id);
+    console.log("🔍 value going in:", lto_client_id ?? null);
+
     const [ins] = await conn.execute(
       `
-      INSERT INTO schedule_reservations
-        (schedule_id, student_id, course_id,
-         reservation_source, reservation_status,
-         payment_method, notes, fee_option_code,
-         requirements_mode,
-         expires_at,
-         created_by, created_at, updated_at)
-      VALUES
-        (?, ?, ?,
-         'WALKIN', ?,
-         ?, ?, ?,
-         'walkin',
-         TIMESTAMP(?, '23:59:59'),
-         ?, NOW(), NOW())
-      `,
+        INSERT INTO schedule_reservations
+          (schedule_id, student_id, lto_client_id, course_id,
+          reservation_source, reservation_status,
+          payment_method, notes, fee_option_code,
+          requirements_mode,
+          expires_at,
+          created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?,
+          'WALKIN', ?,
+          ?, ?, ?,
+          'walkin',
+          TIMESTAMP(?, '23:59:59'),
+          ?, NOW(), NOW())
+        `,
       [
         Number(finalScheduleId),
         studentId,
+        lto_client_id || null, // ✅ ADD THIS
         cid,
         resStatus,
         payMethod,
@@ -1171,6 +1201,7 @@ exports.getReservationDetailsAdmin = async (req, res) => {
         r.payment_method,
         r.requirements_mode,
         r.notes,
+        r.lto_client_id,
         r.created_at,
         r.updated_at,
 
@@ -1276,3 +1307,4 @@ exports.getReservationDetailsAdmin = async (req, res) => {
     });
   }
 };
+ 
