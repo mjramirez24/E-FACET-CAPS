@@ -1,0 +1,48 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  requireAuth,
+  requireInstructor,
+} = require("../middlewares/authMiddleware");
+
+const instructorStudentsController = require("../controllers/instructorStudentsController");
+const {
+  getDrivingInstructorClasses,
+} = require("../controllers/drivingInstructorClassesController");
+const { getTesdaClasses } = require("../controllers/tesdaClassesController");
+
+const {
+  getInstructorSchedulesList,
+} = require("../controllers/instructorScheduleController");
+
+// ✅ protect everything
+router.use(requireAuth);
+router.use(requireInstructor);
+
+// ✅ debug route para sure ka na gumagana ang mount
+router.get("/instructor/ping", (req, res) => {
+  return res.json({
+    status: "success",
+    message: "OK /api/instructor/* routes working",
+  });
+});
+
+// ✅ students
+router.get(
+  "/instructor/students/list",
+  instructorStudentsController.getInstructorStudentsListOnly,
+);
+router.get(
+  "/instructor/students",
+  instructorStudentsController.getInstructorStudents,
+);
+
+// ✅ classes (assigned)
+router.get("/instructor/driving/classes", getDrivingInstructorClasses);
+router.get("/instructor/tesda/classes", getTesdaClasses);
+
+router.get("/instructor/schedules/list", getInstructorSchedulesList);
+
+
+module.exports = router;

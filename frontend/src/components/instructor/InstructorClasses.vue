@@ -1,10 +1,10 @@
 <template>
-  <InstructorLayout active-page="classes">
+  <InstructorLayout active-page="schedule">
     <!-- Header -->
     <template #header-left>
       <input
         type="text"
-        placeholder="Search classes..."
+        :placeholder="headerPlaceholder"
         v-model="searchQuery"
         class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
       />
@@ -12,370 +12,955 @@
 
     <div>
       <!-- Page Header -->
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-bold text-green-800">📚 My Classes</h2>
-        <!-- ✅ removed Add Class button -->
-      </div>
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold text-green-800">📅 Schedule</h2>
 
-      <!-- Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-          <p class="text-sm text-gray-600">Total Classes</p>
-          <h3 class="text-2xl font-bold text-green-800 mt-1">{{ classes.length }}</h3>
-        </div>
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-          <p class="text-sm text-gray-600">Active</p>
-          <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ activeCount }}</h3>
-        </div>
-        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-          <p class="text-sm text-gray-600">Upcoming</p>
-          <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ upcomingCount }}</h3>
-        </div>
-        <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-          <p class="text-sm text-gray-600">Total Students</p>
-          <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ totalStudents }}</h3>
-        </div>
-      </div>
-
-      <!-- Filters -->
-      <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
-          <select
-            v-model="selectedCourse"
-            class="w-52 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Courses</option>
-            <option v-for="c in courseOptions" :key="c" :value="c">{{ c }}</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-          <select
-            v-model="selectedStatus"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-
-        <div class="flex items-end gap-2">
-          <button
-            @click="clearFilters"
-            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-          >
-            Clear
+        <!-- Tabs -->
+        <div class="flex gap-2">
+          <button @click="activeTab = 'schedules'" :class="tabBtnClass(activeTab === 'schedules')">
+            Schedules
+          </button>
+          <button @click="activeTab = 'history'" :class="tabBtnClass(activeTab === 'history')">
+            History
           </button>
         </div>
+      </div>
+
+      <!-- ✅ Floating Totals (keep squares at top) -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+          <p class="text-sm text-gray-600">Total Schedules</p>
+          <h3 class="text-2xl font-bold text-green-800 mt-1">{{ schedulesTotal }}</h3>
+        </div>
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <p class="text-sm text-gray-600">Loaded</p>
+          <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ schedules.length }}</h3>
+        </div>
+        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+          <p class="text-sm text-gray-600">Has Slots Dates</p>
+          <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ hasSlotsDates }}</h3>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+          <p class="text-sm text-gray-600">Full Dates</p>
+          <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ fullDates }}</h3>
+        </div>
+      </div>
+
+      <!-- Error Banner -->
+      <div v-if="errorMsg" class="mb-4 p-3 rounded border border-red-200 bg-red-50 text-red-700 text-sm">
+        {{ errorMsg }}
       </div>
 
       <!-- Loading -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-green-700"></div>
-        <p class="mt-3 text-gray-600">Loading classes...</p>
+        <p class="mt-3 text-gray-600">Loading...</p>
       </div>
 
-      <!-- Table -->
-      <div v-else class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div class="text-sm text-gray-600">
-            Showing {{ filteredClasses.length }} of {{ classes.length }} classes
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-gray-600">Sort by:</span>
-            <select v-model="sortBy" class="text-sm border rounded px-2 py-1">
-              <option value="dateAsc">Soonest</option>
-              <option value="dateDesc">Latest</option>
-              <option value="course">Course</option>
-              <option value="students">Students</option>
-              <option value="status">Status</option>
-            </select>
+      <!-- ===================== TAB: SCHEDULES ===================== -->
+      <div v-else-if="activeTab === 'schedules'">
+        <!-- Summary -->
+        <div class="mb-4 p-3 rounded border border-gray-200 bg-gray-50 text-gray-700 text-sm">
+          <div class="flex flex-wrap gap-6">
+            <div><span class="font-semibold">After filters:</span> {{ filteredSchedules.length }}</div>
+            <div><span class="font-semibold">Selected Month:</span> {{ schedulesSelectedMonth || '(All)' }}</div>
+            <div><span class="font-semibold">Selected Course:</span> {{ schedulesSelectedCourse || '(All)' }}</div>
           </div>
         </div>
 
-        <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-          <thead class="bg-green-800 text-white">
-            <tr>
-              <th class="py-3 px-4 text-left font-medium">Course</th>
-              <th class="py-3 px-4 text-left font-medium">Date</th>
-              <th class="py-3 px-4 text-left font-medium">Time</th>
-              <th class="py-3 px-4 text-left font-medium">Students</th>
-              <th class="py-3 px-4 text-left font-medium">Status</th>
-              <th class="py-3 px-4 text-left font-medium">Actions</th>
-            </tr>
-          </thead>
+        <!-- Calendar -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-green-800">📅 Schedule Overview</h3>
+            <div class="flex gap-3 text-sm">
+              <span class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                Has slots dates: {{ hasSlotsDates }}
+              </span>
+              <span class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                Full dates: {{ fullDates }}
+              </span>
+            </div>
+          </div>
 
-          <tbody>
-            <tr
-              v-for="cls in filteredClasses"
-              :key="cls.id"
-              class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
+              <select
+                v-model="schedulesSelectedCourse"
+                class="w-64 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">All Courses</option>
+                <option v-for="c in schedulesUniqueCourses" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Month</label>
+              <select
+                v-model="schedulesSelectedMonth"
+                class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">All Months</option>
+                <option v-for="month in months" :key="month" :value="month">{{ month }}</option>
+              </select>
+            </div>
+
+            <div class="flex items-end gap-2">
+              <button
+                @click="clearSchedulesFilters"
+                class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+              >
+                Clear
+              </button>
+              <button
+                @click="fetchSchedules()"
+                class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- Calendar Navigation -->
+          <div class="flex justify-between items-center mb-4">
+            <button
+              @click="prevMonth"
+              class="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium"
             >
-              <td class="py-3 px-4">
-                <div class="font-medium">{{ cls.course }}</div>
-                <div class="text-xs text-gray-500">Section: {{ cls.section }}</div>
-              </td>
+              ◀ Prev
+            </button>
+            <h3 class="text-lg font-semibold text-green-800">{{ currentMonthName }} {{ currentYear }}</h3>
+            <button
+              @click="nextMonth"
+              class="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium"
+            >
+              Next ▶
+            </button>
+          </div>
 
-              <td class="py-3 px-4">
-                {{ formatDate(cls.date) }}
-                <div class="text-xs text-gray-500">{{ cls.day }}</div>
-              </td>
+          <!-- Calendar Grid -->
+          <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium text-gray-600 mb-2">
+            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+          </div>
 
-              <td class="py-3 px-4">
-                <div class="font-medium">{{ cls.startTime }} - {{ cls.endTime }}</div>
-              </td>
+          <div class="grid grid-cols-7 gap-2">
+            <div
+              v-for="date in calendarDates"
+              :key="date.key"
+              :class="[
+                'p-3 border rounded text-center cursor-pointer transition-colors',
+                date.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400',
+                date.isToday ? 'border-green-500' : 'border-gray-200',
+                getDateClass(date.ymd)
+              ]"
+              @click="openDateModal(date.ymd)"
+            >
+              <div class="font-medium">{{ date.day }}</div>
 
-              <td class="py-3 px-4">
-                <span class="font-medium">{{ cls.studentCount }}</span>
-              </td>
-
-              <td class="py-3 px-4">
-                <span class="px-2 py-1 rounded-full text-xs font-medium" :class="statusBadgeClass(cls.status)">
-                  {{ formatStatus(cls.status) }}
+              <div v-if="date.studentsSum !== null" class="text-xs mt-1">
+                <span :class="date.isFull ? 'text-red-600' : 'text-green-700'">
+                  {{ date.isFull ? 'Full' : `Students ${date.studentsSum}` }}
                 </span>
-              </td>
+              </div>
+            </div>
+          </div>
 
-              <td class="py-3 px-4">
-                <button
-                  @click="viewClass(cls)"
-                  class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          <div class="mt-4 flex gap-4 text-sm text-gray-600">
+            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-green-100 rounded"></div>Has slots</span>
+            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-red-100 rounded"></div>Full</span>
+            <span class="flex items-center gap-2"><div class="w-3 h-3 border-2 border-green-500 rounded"></div>Today</span>
+          </div>
+        </div>
+
+        <!-- Schedule Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-green-800">🗂️ Schedule List</h3>
+            <div class="text-sm text-gray-600">
+              Showing {{ schedulesPaged.length }} of {{ filteredSchedules.length }} schedules
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+              <thead class="bg-green-800 text-white">
+                <tr>
+                  <th class="py-3 px-4 text-left font-medium">Course</th>
+                  <th class="py-3 px-4 text-left font-medium">Date</th>
+                  <th class="py-3 px-4 text-left font-medium">Time</th>
+                  <th class="py-3 px-4 text-left font-medium">Students</th>
+                  <th class="py-3 px-4 text-left font-medium">Status</th>
+                  <th class="py-3 px-4 text-left font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="s in schedulesPaged"
+                  :key="s.id"
+                  class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                 >
-                  View
-                </button>
-              </td>
-            </tr>
+                  <td class="py-3 px-4">
+                    <div class="font-medium">{{ s.course }}</div>
+                    <div v-if="s.course_code" class="text-xs text-gray-500">{{ s.course_code }}</div>
+                  </td>
 
-            <tr v-if="filteredClasses.length === 0">
-              <td colspan="7" class="py-8 text-center text-gray-500">
-                No classes found
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  <td class="py-3 px-4">
+                    {{ formatDate(s.date) }}
+                    <div class="text-xs text-gray-500">{{ s.day || '' }}</div>
+                  </td>
+
+                  <td class="py-3 px-4">
+                    <div class="font-medium">{{ s.startTime }} - {{ s.endTime }}</div>
+                  </td>
+
+                  <td class="py-3 px-4">
+                    <div class="font-medium">{{ s.students }}</div>
+                    <div class="text-xs text-gray-500" v-if="Number.isFinite(s.totalSlots)">Total: {{ s.totalSlots }}</div>
+                  </td>
+
+                  <td class="py-3 px-4">
+                    <span :class="getStatusClassByBooked(s.students, s.totalSlots)">
+                      {{ getStatusLabelByBooked(s.students, s.totalSlots) }}
+                    </span>
+                  </td>
+
+                  <td class="py-3 px-4">
+                    <button
+                      @click="openScheduleModal(s)"
+                      class="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+
+                <tr v-if="filteredSchedules.length === 0">
+                  <td colspan="6" class="py-8 text-center text-gray-500">
+                    No schedules found
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="filteredSchedules.length > 0" class="p-4 flex justify-between items-center border-t border-gray-200">
+            <div class="text-sm text-gray-600">
+              Page {{ schedulesPage }} of {{ schedulesTotalPages }} • {{ filteredSchedules.length }} items
+            </div>
+
+            <div class="flex items-center gap-2">
+              <select v-model.number="schedulesPageSize" class="text-sm border rounded px-2 py-1">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+              </select>
+
+              <button
+                class="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+                :disabled="schedulesPage <= 1"
+                @click="schedulesPage--"
+              >
+                ← Prev
+              </button>
+              <button
+                class="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+                :disabled="schedulesPage >= schedulesTotalPages"
+                @click="schedulesPage++"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== TAB: HISTORY ===================== -->
+      <div v-else>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-green-800">🕘 History</h3>
+
+            <button
+              @click="fetchHistory()"
+              class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div class="p-4">
+            <div class="text-sm text-gray-600 mb-3">
+              Showing {{ history.length }} of {{ historyTotal }} history items
+            </div>
+
+            <div v-if="history.length === 0" class="py-10 text-center text-gray-500">
+              No history yet.
+            </div>
+
+            <div v-else class="overflow-x-auto">
+              <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+                <thead class="bg-gray-800 text-white">
+                  <tr>
+                    <th class="py-3 px-4 text-left font-medium">Course</th>
+                    <th class="py-3 px-4 text-left font-medium">Date</th>
+                    <th class="py-3 px-4 text-left font-medium">Time</th>
+                    <th class="py-3 px-4 text-left font-medium">Students</th>
+                    <th class="py-3 px-4 text-left font-medium">Status</th>
+                    <th class="py-3 px-4 text-left font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="h in history" :key="h.id" class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4">
+                      <div class="font-medium">{{ h.course }}</div>
+                      <div v-if="h.course_code" class="text-xs text-gray-500">{{ h.course_code }}</div>
+                    </td>
+                    <td class="py-3 px-4">{{ formatDate(h.date) }}</td>
+                    <td class="py-3 px-4">{{ h.startTime }} - {{ h.endTime }}</td>
+                    <td class="py-3 px-4">
+                      {{ h.students }}
+                      <span class="text-xs text-gray-500" v-if="Number.isFinite(h.totalSlots)">/ {{ h.totalSlots }}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                      <span class="text-green-700 font-semibold">DONE</span>
+                    </td>
+                    <td class="py-3 px-4">
+                      <button @click="openScheduleModal(h)" class="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- History Pagination (server side) -->
+            <div v-if="historyTotal > 0" class="mt-4 flex justify-between items-center">
+              <div class="text-sm text-gray-600">
+                Page {{ historyPage }} of {{ historyTotalPages }} • {{ historyTotal }} items
+              </div>
+
+              <div class="flex items-center gap-2">
+                <select v-model.number="historyPageSize" class="text-sm border rounded px-2 py-1">
+                  <option :value="5">5</option>
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                </select>
+
+                <button
+                  class="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+                  :disabled="historyPage <= 1"
+                  @click="historyPage--"
+                >
+                  ← Prev
+                </button>
+                <button
+                  class="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+                  :disabled="historyPage >= historyTotalPages"
+                  @click="historyPage++"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===================== DATE MODAL (Schedules) ===================== -->
+    <div v-if="showDateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-green-800">Schedules for {{ formatDate(selectedDateYMD) }}</h3>
+            <button @click="closeDateModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          </div>
+
+          <div v-if="dateSchedules.length === 0" class="text-gray-500 text-sm">
+            No schedules for this date.
+          </div>
+
+          <div v-else class="space-y-3">
+            <div v-for="s in dateSchedules" :key="s.id" class="border border-gray-200 rounded-lg p-4">
+              <div class="flex justify-between items-start gap-3">
+                <div>
+                  <div class="font-semibold text-gray-800">{{ s.course }}</div>
+                  <div v-if="s.course_code" class="text-xs text-gray-500">{{ s.course_code }}</div>
+                  <div class="text-sm text-gray-600 mt-1">{{ s.startTime }} - {{ s.endTime }}</div>
+                  <div class="text-sm text-gray-600">
+                    Students: {{ s.students }} <span v-if="Number.isFinite(s.totalSlots)">/ {{ s.totalSlots }}</span>
+                  </div>
+                </div>
+
+                <div class="text-right text-sm">
+                  <div :class="getStatusClassByBooked(s.students, s.totalSlots)">
+                    {{ getStatusLabelByBooked(s.students, s.totalSlots) }}
+                  </div>
+
+                  <button class="mt-2 text-blue-600 hover:text-blue-800 font-semibold" @click="openScheduleModal(s)">
+                    View
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end mt-6">
+            <button
+              @click="closeDateModal"
+              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- ===================== SCHEDULE DETAILS MODAL ===================== -->
+    <div v-if="showScheduleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-green-800">Schedule Details</h3>
+            <button @click="closeScheduleModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          </div>
+
+          <div class="space-y-2">
+            <div><span class="font-semibold">Course:</span> {{ selectedSchedule.course }}</div>
+            <div v-if="selectedSchedule.course_code">
+              <span class="font-semibold">Code:</span> {{ selectedSchedule.course_code }}
+            </div>
+            <div>
+              <span class="font-semibold">Date:</span>
+              {{ formatDate(selectedSchedule.date) }}
+              <span class="text-gray-500">({{ selectedSchedule.day || '' }})</span>
+            </div>
+            <div><span class="font-semibold">Time:</span> {{ selectedSchedule.startTime }} - {{ selectedSchedule.endTime }}</div>
+            <div>
+              <span class="font-semibold">Students:</span>
+              {{ selectedSchedule.students }}
+              <span v-if="Number.isFinite(selectedSchedule.totalSlots)">/ {{ selectedSchedule.totalSlots }}</span>
+            </div>
+            <div>
+              <span class="font-semibold">Status:</span>
+              <span :class="getStatusClassByBooked(selectedSchedule.students, selectedSchedule.totalSlots)">
+                {{ getStatusLabelByBooked(selectedSchedule.students, selectedSchedule.totalSlots) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex justify-end mt-6">
+            <button
+              @click="closeScheduleModal"
+              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </InstructorLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import axios from "axios";
+import { ref, computed, onMounted, watch } from "vue";
 import InstructorLayout from "./InstructorLayout.vue";
 
-const api = axios.create({
-  baseURL: "http://localhost:3000/api",
-  withCredentials: true,
-});
-
 export default {
-  name: "InstructorClasses",
+  name: "InstructorScheduleOnly",
   components: { InstructorLayout },
   setup() {
+    const months = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December",
+    ];
+
+    const activeTab = ref("schedules");
     const loading = ref(true);
-    const classes = ref([]);
+    const errorMsg = ref("");
 
     const searchQuery = ref("");
-    const selectedCourse = ref("");
-    const selectedStatus = ref("");
-    const sortBy = ref("dateAsc");
 
-    // ✅ course options generated from loaded classes
-    const courseOptions = ref([]);
+    // ---------- strict date helpers (fix invalid date) ----------
+    const isYMD = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
+    const safeDate = (val) => {
+      if (!val) return null;
+      const s = String(val).trim();
+      if (!s) return null;
 
-    // -----------------------------
-      const deriveStatus = (dateLike, startTime, endTime) => {
-        const now = new Date();
+      if (isYMD(s)) {
+        const [y, m, d] = s.split("-").map(Number);
+        const dt = new Date(y, m - 1, d);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+      }
 
-        const buildDateTime = (dateInput, timeInput) => {
-          const d = new Date(dateInput); // works for YYYY-MM-DD, ISO string, Date
-          if (Number.isNaN(d.getTime())) return null;
+      const normalized = s.includes(" ") && !s.includes("T") ? s.replace(" ", "T") : s;
+      const d = new Date(normalized);
+      if (Number.isNaN(d.getTime())) return null;
+      return d;
+    };
 
-          const [hh, mm] = String(timeInput || "00:00")
-            .slice(0, 5)
-            .split(":")
-            .map((x) => Number(x));
+    const toYMD = (val) => {
+      if (!val) return "";
+      const s = String(val).trim();
+      if (isYMD(s)) return s;
+      if (s.includes("T")) return s.split("T")[0];
+      if (s.includes(" ")) return s.split(" ")[0];
 
-          d.setHours(hh || 0, mm || 0, 0, 0);
-          return d;
-        };
+      const d = safeDate(s);
+      if (!d) return "";
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
 
-        const startDT = buildDateTime(dateLike, startTime);
-        const endDT = buildDateTime(dateLike, endTime);
-
-        if (!startDT || !endDT) return "upcoming";
-
-        // if end time earlier than start time (rare), push end to next day
-        if (endDT < startDT) endDT.setDate(endDT.getDate() + 1);
-
-        if (now < startDT) return "upcoming";
-        if (now >= startDT && now <= endDT) return "active";
-        return "completed";
-      };
-
-
-    // ---- helpers ----
-    const formatDate = (dateString) => {
-      const d = new Date(dateString);
+    const formatDate = (val) => {
+      const d = safeDate(val);
+      if (!d) return "(No date)";
       return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
-    const formatStatus = (s) => String(s || "").charAt(0).toUpperCase() + String(s || "").slice(1);
+    // ===================== SCHEDULES =====================
+    const schedules = ref([]);
+    const schedulesTotal = ref(0);
 
-    const statusBadgeClass = (status) => {
-      switch (status) {
-        case "active":
-          return "bg-green-100 text-green-800";
-        case "upcoming":
-          return "bg-yellow-100 text-yellow-800";
-        case "completed":
-          return "bg-gray-100 text-gray-800";
-        default:
-          return "bg-gray-100 text-gray-800";
-      }
+    const schedulesSelectedCourse = ref("");
+    const schedulesSelectedMonth = ref(months[new Date().getMonth()]);
+
+    const currentYear = ref(new Date().getFullYear());
+    const currentMonth = ref(new Date().getMonth());
+
+    const schedulesPage = ref(1);
+    const schedulesPageSize = ref(10);
+
+    const showDateModal = ref(false);
+    const selectedDateYMD = ref("");
+    const dateSchedules = ref([]);
+
+    const showScheduleModal = ref(false);
+    const selectedSchedule = ref({});
+
+    const schedulesUniqueCourses = computed(() => {
+      const set = new Set(schedules.value.map((s) => s.course).filter(Boolean));
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    });
+
+    const getStatusLabelByBooked = (students, total) => {
+      const b = Number(students) || 0;
+      const t = Number(total);
+      if (!Number.isFinite(t) || t <= 0) return "Open";
+      return b >= t ? "Full" : "Open";
     };
 
-    const clearFilters = () => {
-      searchQuery.value = "";
-      selectedCourse.value = "";
-      selectedStatus.value = "";
+    const getStatusClassByBooked = (students, total) => {
+      const label = getStatusLabelByBooked(students, total);
+      return label === "Full" ? "text-red-600 font-semibold" : "text-green-600 font-semibold";
     };
 
-    // ---- API ----
-    const fetchClasses = async () => {
-      loading.value = true;
+    const fetchSchedules = async () => {
       try {
-        const res = await api.get("/instructor/driving/classes");
+        const res = await fetch(`/api/instructor/schedules/list?page=1&limit=200`, { credentials: "include" });
+        const json = await res.json().catch(() => ({}));
 
-        classes.value = (res.data?.data ?? []).map((row) => {
-          const dayName = new Date(row.class_date).toLocaleDateString("en-US", { weekday: "short" });
+        if (!res.ok) {
+          schedules.value = [];
+          schedulesTotal.value = 0;
+          errorMsg.value = json?.debug || json?.message || `Request failed (${res.status})`;
+          return;
+        }
 
-          const start = String(row.start_time).slice(0, 5);
-          const end = String(row.end_time).slice(0, 5);
+        if (json.status === "success") {
+          schedulesTotal.value = Number(json.total || json.count || 0);
 
-          // ✅ computed status based on date/time
-          const computedStatus = deriveStatus(row.class_date, start, end);
+          schedules.value = (json.data || []).map((s) => {
+            const ymd = toYMD(s.date);
+            const d = safeDate(ymd);
+            const day = d ? d.toLocaleDateString("en-US", { weekday: "short" }) : "";
 
-          return {
-            id: row.class_id,
-            course: row.course_name,
-            section: row.section,
-            date: row.class_date,
-            startTime: start,
-            endTime: end,
-            status: computedStatus,
-            studentCount: row.student_count,
-            day: dayName,
-          };
-        });
+            const booked = Number(s.booked) || 0;
+            const totalSlots = Number.isFinite(Number(s.totalSlots)) ? Number(s.totalSlots) : Number(s.total_slots) || 0;
 
-        // ✅ update dropdown options from returned classes
-        courseOptions.value = [...new Set(classes.value.map((c) => c.course))].sort();
-      } catch (err) {
-        console.error("fetchClasses error:", err);
-        classes.value = [];
-        courseOptions.value = [];
-        alert(err.response?.data?.message || "Failed to load assigned classes");
-      } finally {
-        loading.value = false;
+            return {
+              ...s,
+              date: ymd || "",
+              day,
+              // ✅ rename booked -> students for UI
+              students: booked,
+              totalSlots,
+            };
+          });
+
+          // default month filter to all if current month not present
+          const curMonthName = months[new Date().getMonth()];
+          const hasThisMonth = schedules.value.some((s) => {
+            const d = safeDate(s.date);
+            return d ? months[d.getMonth()] === curMonthName : false;
+          });
+          if (!hasThisMonth) schedulesSelectedMonth.value = "";
+
+          schedulesPage.value = 1;
+        } else {
+          schedules.value = [];
+          schedulesTotal.value = 0;
+          errorMsg.value = json?.message || "Server returned error";
+        }
+      } catch (e) {
+        schedules.value = [];
+        schedulesTotal.value = 0;
+        errorMsg.value = e?.message || "Network error";
       }
     };
 
-    const viewClass = (cls) => {
-      alert(
-        `Class: ${cls.course}\n` +
-          `Section: ${cls.section}\n` +
-          `Date: ${formatDate(cls.date)} (${cls.day})\n` +
-          `Time: ${cls.startTime} - ${cls.endTime}\n` +
-          `Status: ${formatStatus(cls.status)}\n` +
-          `Students: ${cls.studentCount}`
-      );
-    };
+    const filteredSchedules = computed(() => {
+      let result = [...schedules.value];
+      const q = (searchQuery.value || "").toLowerCase().trim();
 
-    // ---- computed ----
-    const filteredClasses = computed(() => {
-      let result = [...classes.value];
-
-      if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase();
-        result = result.filter(
-          (c) =>
-            (c.course || "").toLowerCase().includes(q) ||
-            (c.section || "").toLowerCase().includes(q) ||
-            (c.day || "").toLowerCase().includes(q)
+      if (q) {
+        result = result.filter((s) =>
+          (s.course || "").toLowerCase().includes(q) ||
+          (s.course_code || "").toLowerCase().includes(q) ||
+          (s.day || "").toLowerCase().includes(q) ||
+          String(s.date || "").toLowerCase().includes(q)
         );
       }
 
-      if (selectedCourse.value) result = result.filter((c) => c.course === selectedCourse.value);
-      if (selectedStatus.value) result = result.filter((c) => c.status === selectedStatus.value);
+      if (schedulesSelectedCourse.value) result = result.filter((s) => s.course === schedulesSelectedCourse.value);
 
-      result.sort((a, b) => {
-        switch (sortBy.value) {
-          case "dateAsc":
-            return new Date(a.date) - new Date(b.date);
-          case "dateDesc":
-            return new Date(b.date) - new Date(a.date);
-          case "course":
-            return (a.course || "").localeCompare(b.course || "");
-          case "students":
-            return (b.studentCount || 0) - (a.studentCount || 0);
-          case "status":
-            return (a.status || "").localeCompare(b.status || "");
-          default:
-            return 0;
-        }
-      });
+      if (schedulesSelectedMonth.value) {
+        result = result.filter((s) => {
+          const d = safeDate(s.date);
+          if (!d) return false;
+          return months[d.getMonth()] === schedulesSelectedMonth.value;
+        });
+      }
 
+      result.sort((a, b) => (safeDate(a.date)?.getTime() ?? 0) - (safeDate(b.date)?.getTime() ?? 0));
       return result;
     });
 
-    const activeCount = computed(() => classes.value.filter((c) => c.status === "active").length);
-    const upcomingCount = computed(() => classes.value.filter((c) => c.status === "upcoming").length);
-    const totalStudents = computed(() => classes.value.reduce((sum, c) => sum + (c.studentCount || 0), 0));
-
-    // ✅ keep status updated while page is open (optional but helpful)
-    let timer = null;
-
-    onMounted(async () => {
-      await fetchClasses();
-
-      timer = setInterval(() => {
-        classes.value = classes.value.map((c) => ({
-          ...c,
-          status: deriveStatus(c.date, c.startTime, c.endTime),
-        }));
-      }, 60 * 1000); // every 1 minute
+    const schedulesTotalPages = computed(() => Math.max(1, Math.ceil(filteredSchedules.value.length / schedulesPageSize.value)));
+    const schedulesPaged = computed(() => {
+      const start = (schedulesPage.value - 1) * schedulesPageSize.value;
+      return filteredSchedules.value.slice(start, start + schedulesPageSize.value);
     });
 
-    onBeforeUnmount(() => {
-      if (timer) clearInterval(timer);
+    const fullDates = computed(() => {
+      const byDate = new Map();
+      for (const s of schedules.value) {
+        const ymd = toYMD(s.date);
+        if (!ymd) continue;
+        const t = Number(s.totalSlots);
+        const b = Number(s.students) || 0;
+        const isFull = Number.isFinite(t) && t > 0 ? b >= t : false;
+        const arr = byDate.get(ymd) || [];
+        arr.push(isFull);
+        byDate.set(ymd, arr);
+      }
+      let count = 0;
+      for (const arr of byDate.values()) if (arr.length && arr.every(Boolean)) count++;
+      return count;
+    });
+
+    const hasSlotsDates = computed(() => {
+      const byDate = new Map();
+      for (const s of schedules.value) {
+        const ymd = toYMD(s.date);
+        if (!ymd) continue;
+        const t = Number(s.totalSlots);
+        const b = Number(s.students) || 0;
+        const hasSlots = Number.isFinite(t) && t > 0 ? b < t : true;
+        const arr = byDate.get(ymd) || [];
+        arr.push(hasSlots);
+        byDate.set(ymd, arr);
+      }
+      let count = 0;
+      for (const arr of byDate.values()) if (arr.length && arr.some(Boolean)) count++;
+      return count;
+    });
+
+    const calendarDates = computed(() => {
+      const year = currentYear.value;
+      const month = currentMonth.value;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      const firstDayIndex = firstDay.getDay();
+
+      const pad = (n) => String(n).padStart(2, "0");
+      const makeYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+      const dates = [];
+
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = firstDayIndex - 1; i >= 0; i--) {
+        const d = new Date(year, month - 1, prevMonthLastDay - i);
+        dates.push({ key: `prev-${i}`, day: prevMonthLastDay - i, ymd: makeYMD(d), isCurrentMonth: false, isToday: false, studentsSum: null, isFull: false });
+      }
+
+      const byDate = new Map();
+      for (const s of schedules.value) {
+        const ymd = toYMD(s.date);
+        if (!ymd) continue;
+        const arr = byDate.get(ymd) || [];
+        arr.push(s);
+        byDate.set(ymd, arr);
+      }
+
+      const today = new Date();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(year, month, i);
+        const ymd = makeYMD(d);
+        const daySchedules = byDate.get(ymd) || [];
+
+        const studentsSum = daySchedules.length
+          ? daySchedules.reduce((sum, s) => sum + (Number(s.students) || 0), 0)
+          : null;
+
+        const isFull = daySchedules.length
+          ? daySchedules.every((s) => {
+              const t = Number(s.totalSlots);
+              const b = Number(s.students) || 0;
+              return Number.isFinite(t) && t > 0 ? b >= t : false;
+            })
+          : false;
+
+        dates.push({
+          key: `cur-${i}`,
+          day: i,
+          ymd,
+          isCurrentMonth: true,
+          isToday: d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear(),
+          studentsSum,
+          isFull,
+        });
+      }
+
+      const totalCells = 42;
+      const nextMonthDays = totalCells - dates.length;
+      for (let i = 1; i <= nextMonthDays; i++) {
+        const d = new Date(year, month + 1, i);
+        dates.push({ key: `next-${i}`, day: i, ymd: makeYMD(d), isCurrentMonth: false, isToday: false, studentsSum: null, isFull: false });
+      }
+
+      return dates;
+    });
+
+    const currentMonthName = computed(() => months[currentMonth.value]);
+
+    const getDateClass = (ymd) => {
+      if (!ymd) return "";
+      const daySchedules = schedules.value.filter((s) => toYMD(s.date) === ymd);
+      if (!daySchedules.length) return "";
+
+      const hasAnySlots = daySchedules.some((s) => {
+        const t = Number(s.totalSlots);
+        const b = Number(s.students) || 0;
+        return Number.isFinite(t) && t > 0 ? b < t : true;
+      });
+
+      const allFull = daySchedules.every((s) => {
+        const t = Number(s.totalSlots);
+        const b = Number(s.students) || 0;
+        return Number.isFinite(t) && t > 0 ? b >= t : false;
+      });
+
+      if (allFull) return "bg-red-50";
+      if (hasAnySlots) return "bg-green-50";
+      return "";
+    };
+
+    const clearSchedulesFilters = () => {
+      searchQuery.value = "";
+      schedulesSelectedCourse.value = "";
+      schedulesSelectedMonth.value = "";
+      schedulesPage.value = 1;
+    };
+
+    const prevMonth = () => {
+      if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value--; }
+      else currentMonth.value--;
+    };
+
+    const nextMonth = () => {
+      if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++; }
+      else currentMonth.value++;
+    };
+
+    const openDateModal = (ymd) => {
+      selectedDateYMD.value = ymd || "";
+      dateSchedules.value = schedules.value
+        .filter((s) => toYMD(s.date) === ymd)
+        .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+      showDateModal.value = true;
+    };
+
+    const closeDateModal = () => {
+      showDateModal.value = false;
+      selectedDateYMD.value = "";
+      dateSchedules.value = [];
+    };
+
+    const openScheduleModal = (s) => {
+      selectedSchedule.value = { ...s };
+      showScheduleModal.value = true;
+    };
+
+    const closeScheduleModal = () => {
+      showScheduleModal.value = false;
+      selectedSchedule.value = {};
+    };
+
+    // ===================== HISTORY =====================
+    const history = ref([]);
+    const historyTotal = ref(0);
+    const historyPage = ref(1);
+    const historyPageSize = ref(10);
+
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`/api/instructor/schedules/history?page=${historyPage.value}&limit=${historyPageSize.value}`, {
+          credentials: "include",
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          history.value = [];
+          historyTotal.value = 0;
+          return;
+        }
+
+        if (json.status === "success") {
+          historyTotal.value = Number(json.total || json.count || 0);
+          history.value = (json.data || []).map((x) => {
+            const ymd = toYMD(x.date || x.schedule_date);
+            const students = Number(x.booked || x.students) || 0;
+
+            return {
+              id: Number(x.id || x.schedule_id),
+              course: x.course || x.course_name || "(unknown)",
+              course_code: x.course_code || "",
+              date: ymd || "",
+              startTime: x.startTime || x.start_time || "",
+              endTime: x.endTime || x.end_time || "",
+              students,
+              totalSlots: Number(x.totalSlots || x.total_slots || 0),
+              status: x.status || "done",
+            };
+          });
+        } else {
+          history.value = [];
+          historyTotal.value = 0;
+        }
+      } catch (e) {
+        history.value = [];
+        historyTotal.value = 0;
+      }
+    };
+
+    const historyTotalPages = computed(() => Math.max(1, Math.ceil(historyTotal.value / historyPageSize.value)));
+
+    // ===================== header placeholder per tab =====================
+    const headerPlaceholder = computed(() => {
+      if (activeTab.value === "schedules") return "Search schedules...";
+      return "Search history...";
+    });
+
+    // ===================== TAB BUTTON CLASS =====================
+    const tabBtnClass = (active) => ([
+      "px-3 py-2 rounded-md text-sm font-semibold border",
+      active ? "bg-green-700 text-white border-green-700" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50",
+    ]);
+
+    // watchers
+    watch([schedulesSelectedCourse, schedulesSelectedMonth, schedulesPageSize, searchQuery], () => {
+      if (activeTab.value === "schedules") schedulesPage.value = 1;
+    });
+
+    watch([historyPage, historyPageSize], () => {
+      if (activeTab.value === "history") fetchHistory();
+    });
+
+    watch(activeTab, (t) => {
+      if (t === "history") fetchHistory();
+      if (t === "schedules") fetchSchedules();
+    });
+
+    onMounted(async () => {
+      loading.value = true;
+      errorMsg.value = "";
+
+      await fetchSchedules();
+      await fetchHistory();
+
+      loading.value = false;
     });
 
     return {
+      months,
+
+      activeTab,
+      tabBtnClass,
+      headerPlaceholder,
+
       loading,
-      classes,
-
+      errorMsg,
       searchQuery,
-      selectedCourse,
-      selectedStatus,
-      sortBy,
 
-      courseOptions,
+      // schedules
+      schedules,
+      schedulesTotal,
+      schedulesSelectedCourse,
+      schedulesSelectedMonth,
+      schedulesUniqueCourses,
+      filteredSchedules,
+      schedulesPage,
+      schedulesPageSize,
+      schedulesTotalPages,
+      schedulesPaged,
+      currentYear,
+      currentMonth,
+      currentMonthName,
+      calendarDates,
+      getDateClass,
+      prevMonth,
+      nextMonth,
+      fetchSchedules,
+      clearSchedulesFilters,
+      getStatusLabelByBooked,
+      getStatusClassByBooked,
+      fullDates,
+      hasSlotsDates,
 
-      filteredClasses,
-      activeCount,
-      upcomingCount,
-      totalStudents,
+      // modals
+      showDateModal,
+      selectedDateYMD,
+      dateSchedules,
+      openDateModal,
+      closeDateModal,
+      showScheduleModal,
+      selectedSchedule,
+      openScheduleModal,
+      closeScheduleModal,
 
+      // history
+      history,
+      historyTotal,
+      historyPage,
+      historyPageSize,
+      historyTotalPages,
+      fetchHistory,
+
+      // formatting
       formatDate,
-      formatStatus,
-      statusBadgeClass,
-
-      clearFilters,
-      viewClass,
     };
   },
 };

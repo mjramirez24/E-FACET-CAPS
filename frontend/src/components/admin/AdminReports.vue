@@ -1,14 +1,25 @@
 <!-- frontend/src/components/AdminReports.vue (FULL UPDATED: LTO Client ID + ECharts + Export Picker + Column Cleanup) -->
 <template>
   <AdminLayout>
-    <!-- Header-left: search only (local filter) -->
+    <!-- Header with TESDA tab button -->
     <template #header-left>
-      <input
-        type="text"
-        placeholder="Search in tables..."
-        v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-      />
+      <div class="flex items-center gap-4">
+        <input
+          type="text"
+          placeholder="Search in tables..."
+          v-model="searchQuery"
+          class="w-80 p-2 rounded-md text-gray-800 focus:outline-none"
+        />
+        
+        <!-- TESDA TAB BUTTON -->
+        <button
+          @click="$emit('switch-to-tesda')"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium"
+        >
+          <span>📋 TESDA Reports</span>
+          <span class="text-xs bg-white text-blue-600 px-2 py-0.5 rounded-full">Click to switch</span>
+        </button>
+      </div>
     </template>
 
     <div class="space-y-6">

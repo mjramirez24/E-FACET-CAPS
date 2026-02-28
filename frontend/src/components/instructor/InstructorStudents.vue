@@ -94,15 +94,16 @@
               <th class="py-3 px-4 text-left font-medium">Actions</th>
             </tr>
           </thead>
+
           <tbody>
             <tr
               v-for="student in filteredStudents"
-              :key="student.id"
+              :key="student.id ?? student.student_id"
               class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <td class="py-3 px-4 flex items-center gap-3">
                 <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm">
-                  {{ getInitials(student.name) }}
+                  {{ getInitials(student.name || '') }}
                 </div>
                 <div>
                   <p class="font-medium">{{ student.name }}</p>
@@ -110,7 +111,9 @@
                 </div>
               </td>
 
-              <td class="py-3 px-4">{{ student.course }}</td>
+              <td class="py-3 px-4">
+                {{ student.course || student.course_name || '—' }}
+              </td>
 
               <td class="py-3 px-4">
                 <span :class="getStatusClass(student.status)">
@@ -149,7 +152,7 @@
         </table>
       </div>
 
-      <!-- Pagination -->
+      <!-- Pagination (static UI only) -->
       <div v-if="filteredStudents.length > 0" class="mt-6 flex justify-between items-center">
         <div class="text-sm text-gray-600">
           Page 1 of 1 • {{ filteredStudents.length }} items
@@ -298,12 +301,16 @@ export default {
     const isEditing = ref(false)
     const studentToDelete = ref(null)
 
+    // ✅ Change this if your backend is different port/host
+    const API_BASE = import.meta?.env?.VITE_API_BASE || 'http://localhost:3000'
+
     const formData = reactive({
       id: null,
       name: '',
       email: '',
       course: '',
-      status: 'active'
+      status: 'active',
+      enrollmentDate: null
     })
 
     const filteredStudents = computed(() => {
@@ -312,14 +319,14 @@ export default {
       if (searchQuery.value) {
         const q = searchQuery.value.toLowerCase()
         result = result.filter(s =>
-          s.name.toLowerCase().includes(q) ||
-          s.email.toLowerCase().includes(q) ||
-          s.course.toLowerCase().includes(q)
+          (s.name || '').toLowerCase().includes(q) ||
+          (s.email || '').toLowerCase().includes(q) ||
+          (s.course || s.course_name || '').toLowerCase().includes(q)
         )
       }
 
       if (selectedCourse.value) {
-        result = result.filter(s => s.course === selectedCourse.value)
+        result = result.filter(s => (s.course || s.course_name) === selectedCourse.value)
       }
 
       if (selectedStatus.value) {
@@ -329,13 +336,13 @@ export default {
       result.sort((a, b) => {
         switch (sortBy.value) {
           case 'name':
-            return a.name.localeCompare(b.name)
+            return (a.name || '').localeCompare(b.name || '')
           case 'nameDesc':
-            return b.name.localeCompare(a.name)
+            return (b.name || '').localeCompare(a.name || '')
           case 'date':
-            return new Date(b.enrollmentDate) - new Date(a.enrollmentDate)
+            return new Date(b.enrollmentDate || 0) - new Date(a.enrollmentDate || 0)
           case 'status':
-            return a.status.localeCompare(b.status)
+            return (a.status || '').localeCompare(b.status || '')
           default:
             return 0
         }
@@ -344,7 +351,15 @@ export default {
       return result
     })
 
-    const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+    const getInitials = (name) =>
+      (name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2)
 
     const getStatusClass = (status) => {
       switch (status) {
@@ -355,7 +370,10 @@ export default {
       }
     }
 
-    const formatStatus = (status) => status.charAt(0).toUpperCase() + status.slice(1)
+    const formatStatus = (status) => {
+      if (!status) return 'Unknown'
+      return status.charAt(0).toUpperCase() + status.slice(1)
+    }
 
     const clearFilters = () => {
       searchQuery.value = ''
@@ -369,6 +387,7 @@ export default {
       formData.email = ''
       formData.course = ''
       formData.status = 'active'
+      formData.enrollmentDate = null
     }
 
     const openAddModal = () => {
@@ -379,7 +398,14 @@ export default {
 
     const editStudent = (student) => {
       isEditing.value = true
-      Object.assign(formData, student)
+      Object.assign(formData, {
+        id: student.id ?? student.student_id ?? null,
+        name: student.name ?? '',
+        email: student.email ?? '',
+        course: student.course ?? student.course_name ?? '',
+        status: student.status ?? 'active',
+        enrollmentDate: student.enrollmentDate ?? null
+      })
       showModal.value = true
     }
 
@@ -392,14 +418,27 @@ export default {
       resetForm()
     }
 
+    // NOTE: UI-only save (local), replace with POST/PUT later
     const saveStudent = () => {
       if (isEditing.value) {
-        const index = students.value.findIndex(s => s.id === formData.id)
-        if (index !== -1) students.value[index] = { ...formData }
+        const index = students.value.findIndex(s => (s.id ?? s.student_id) === formData.id)
+        if (index !== -1) {
+          students.value[index] = {
+            ...students.value[index],
+            id: formData.id,
+            name: formData.name,
+            email: formData.email,
+            course: formData.course,
+            status: formData.status
+          }
+        }
       } else {
         const newStudent = {
-          id: students.value.length + 1,
-          ...formData,
+          id: Date.now(),
+          name: formData.name,
+          email: formData.email,
+          course: formData.course,
+          status: formData.status,
           enrollmentDate: new Date().toISOString().split('T')[0]
         }
         students.value.unshift(newStudent)
@@ -417,25 +456,58 @@ export default {
       showDeleteModal.value = false
     }
 
+    // NOTE: UI-only delete (local), replace with DELETE later
     const deleteStudent = () => {
       if (studentToDelete.value) {
-        students.value = students.value.filter(s => s.id !== studentToDelete.value.id)
+        const delId = studentToDelete.value.id ?? studentToDelete.value.student_id
+        students.value = students.value.filter(s => (s.id ?? s.student_id) !== delId)
       }
       cancelDelete()
     }
 
-    const fetchStudents = () => {
-      setTimeout(() => {
-        students.value = [
-          { id: 1, name: 'John Doe', email: 'john@example.com', course: 'Driving NC II', status: 'active', enrollmentDate: '2025-11-01' },
-          { id: 2, name: 'Jane Smith', email: 'jane@example.com', course: 'ATDC NC I', status: 'pending', enrollmentDate: '2025-10-29' },
-          { id: 3, name: 'Michael Reyes', email: 'michael@example.com', course: 'Driving NC II', status: 'active', enrollmentDate: '2025-10-27' },
-          { id: 4, name: 'Sarah Johnson', email: 'sarah@example.com', course: 'Cookery NC II', status: 'pending', enrollmentDate: '2025-10-25' },
-          { id: 5, name: 'Robert Chen', email: 'robert@example.com', course: 'Bread & Pastry', status: 'inactive', enrollmentDate: '2025-10-23' },
-          { id: 6, name: 'Lisa Wang', email: 'lisa@example.com', course: 'Driving NC II', status: 'active', enrollmentDate: '2025-10-20' }
-        ]
+    const fetchStudents = async () => {
+      loading.value = true
+      try {
+        const url = `${API_BASE}/api/instructor/students/list`
+        const res = await fetch(url, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        })
+
+        if (res.status === 401) {
+          console.error('Not authenticated (401). Check session/cookies/CORS.')
+          students.value = []
+          return
+        }
+
+        if (res.status === 404) {
+          console.error('Route not found (404). Check backend route mounting.')
+          students.value = []
+          return
+        }
+
+        const json = await res.json()
+        if (json.status === 'success') {
+          // normalize shape
+          students.value = (json.data || []).map(s => ({
+            id: s.id ?? s.student_id,
+            name: s.name,
+            email: s.email,
+            status: s.status,
+            course: s.course ?? s.course_name ?? '',
+            enrollmentDate: s.enrollmentDate ?? null
+          }))
+        } else {
+          console.error(json.message || 'Failed to load students')
+          students.value = []
+        }
+      } catch (e) {
+        console.error('fetchStudents error:', e)
+        students.value = []
+      } finally {
         loading.value = false
-      }, 500)
+      }
     }
 
     onMounted(() => {
@@ -468,7 +540,8 @@ export default {
       saveStudent,
       confirmDelete,
       cancelDelete,
-      deleteStudent
+      deleteStudent,
+      fetchStudents
     }
   }
 }

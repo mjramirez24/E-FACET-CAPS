@@ -54,19 +54,7 @@
               : 'hover:bg-gray-200'
           ]"
         >
-          <span class="ml-2">🗓️ Schedule</span>
-        </router-link>
-
-        <!-- ✅ CHANGED: Grades/Progress -> Certificates -->
-        <router-link
-          to="/instructor-certificates"
-          :class="[
-            'flex items-center px-5 py-2 rounded-r-full',
-            $route.name === 'InstructorCertificates'
-              ? 'bg-green-100 text-green-700 font-medium'
-              : 'hover:bg-gray-200'
-          ]"
-        >
+        
           <span class="ml-2">🎓 Certificates</span>
         </router-link>
 

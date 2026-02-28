@@ -31,10 +31,20 @@ router.get("/dashboard", (req, res) => {
 const { getTesdaClasses } = require("../controllers/tesdaClassesController");
 const { getDrivingInstructorClasses } = require("../controllers/drivingInstructorClassesController");
 const { getDrivingClasses } = require("../controllers/drivingClassesController");
+const instructorScheduleController = require("../controllers/instructorScheduleController");
 
 
 router.get("/driving/classes", getDrivingClasses);
 router.get("/tesda/classes", getTesdaClasses);
 router.get("/driving/classes", getDrivingInstructorClasses);
+
+router.get(
+  "/schedules/list",
+  instructorScheduleController.getInstructorSchedulesList,
+);
+router.get(
+  "/schedules/history",
+  instructorScheduleController.getInstructorSchedulesHistory,
+);
 
 module.exports = router;

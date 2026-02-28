@@ -166,6 +166,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/messages", require("./src/routes/messageRoutes")); 
+app.use("/api/instructor", require("./src/routes/instructorRoutes"));
+app.use("/api", require("./src/routes/instructorApiRoutes"));
 
 // ==============================
 // 404 handler (MUST be last before error handler)
@@ -200,3 +202,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Backend running at http://localhost:${PORT}`);
 });
+
+
