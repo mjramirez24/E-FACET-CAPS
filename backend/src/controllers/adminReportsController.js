@@ -267,7 +267,6 @@ exports.getDetailed = async (req, res) => {
 
         sr.payment_method,
         sr.fee_option_code,
-        sr.notes,
 
         sr.created_by,
         sr.created_at,
@@ -299,6 +298,8 @@ exports.getDetailed = async (req, res) => {
 
         COALESCE(s.schedule_date, DATE(sr.created_at)) AS course_start,
         COALESCE(s.schedule_date, DATE(sr.created_at)) AS course_end,
+
+        sr.training_purpose,
 
         CASE WHEN ${isDoneConditionSql()} THEN 'DONE' ELSE 'PENDING' END AS derived_status
 
@@ -1133,6 +1134,7 @@ exports.exportDetailed = async (req, res) => {
         c.course_name,
         ${dlCodeExprSql()} AS dl_code,
         i.fullname AS instructor_name,
+        sr.training_purpose,
         sr.reservation_source,
         sr.reservation_status,
         CASE WHEN ${isDoneConditionSql()} THEN 'DONE' ELSE 'PENDING' END AS derived_status,
@@ -1170,6 +1172,7 @@ exports.exportDetailed = async (req, res) => {
       { header: "Course", key: "course_name", width: 22 },
       { header: "DL Code", key: "dl_code", width: 10 },
       { header: "Instructor", key: "instructor_name", width: 22 },
+      { header: "Training Purpose", key: "training_purpose", width: 22 },
       { header: "Source", key: "reservation_source", width: 10 },
       { header: "Status", key: "reservation_status", width: 12 },
       { header: "Derived", key: "derived_status", width: 10 },
@@ -1193,6 +1196,7 @@ exports.exportDetailed = async (req, res) => {
       course_name: r.course_name || "",
       dl_code: r.dl_code || "",
       instructor_name: r.instructor_name || "",
+      training_purpose: r.training_purpose || "",
       reservation_source: r.reservation_source || "",
       reservation_status: r.reservation_status || "",
       derived_status: r.derived_status || "",
@@ -1368,6 +1372,7 @@ exports.exportAll = async (req, res) => {
         u.birthday,
         c.course_name,
         ${dlCodeExprSql()} AS dl_code,
+        sr.training_purpose,
         sr.reservation_status,
         CASE WHEN ${isDoneConditionSql()} THEN 'DONE' ELSE 'PENDING' END AS derived_status,
         sr.payment_method,
@@ -1481,6 +1486,7 @@ exports.exportAll = async (req, res) => {
       { header: "Birthdate", key: "birthday", width: 12 },
       { header: "Course", key: "course_name", width: 22 },
       { header: "DL Code", key: "dl_code", width: 10 },
+      { header: "Training Purpose", key: "training_purpose", width: 22 },
       { header: "Status", key: "reservation_status", width: 12 },
       { header: "Derived", key: "derived_status", width: 10 },
       { header: "Payment Method", key: "payment_method", width: 12 },
@@ -1501,6 +1507,7 @@ exports.exportAll = async (req, res) => {
         birthday: r.birthday ? toISODate(r.birthday) : "",
         course_name: r.course_name || "",
         dl_code: r.dl_code || "",
+        training_purpose: r.training_purpose || "",
         reservation_status: r.reservation_status || "",
         derived_status: r.derived_status || "",
         payment_method: r.payment_method || "",

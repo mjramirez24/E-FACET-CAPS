@@ -1,3 +1,4 @@
+// backend/server.js
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -15,6 +16,7 @@ const allowedOrigins = new Set([
   "http://localhost:5179",
 ]);
 
+// ✅ serve assets (logo, seal, etc.)
 app.use("/assets", express.static(path.join(__dirname, "assets")));
 
 function isAllowedOrigin(origin) {
@@ -66,17 +68,6 @@ app.use(
   }),
 );
 
-app.use(
-  "/api/admin/certificates",
-  require("./src/routes/adminCertificateRoutes"),
-);
-
-app.use(
-  "/api/student/certificates",
-  require("./src/routes/studentCertificateRoutes"),
-);
-
-
 // ==============================
 // Static uploads
 // ==============================
@@ -90,8 +81,14 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const studentRoutes = require("./src/routes/studentRoutes");
 const instructorRoutes = require("./src/routes/instructorRoutes");
 const trainerRoutes = require("./src/routes/trainerRoutes");
+
 const adminTesdaRoutes = require("./src/routes/adminTesdaRoutes");
 const tesdaPublicRoutes = require("./src/routes/tesdaPublicRoutes");
+const tesdaRoutes = require("./src/routes/tesdaRoutes");
+
+// ✅ Certificates routes (updated: driving/tesda endpoints are inside this file)
+const adminCertificateRoutes = require("./src/routes/adminCertificateRoutes");
+const studentCertificateRoutes = require("./src/routes/studentCertificateRoutes");
 
 const studentResCtrl = require("./src/controllers/studentReservationController");
 
@@ -115,9 +112,14 @@ setInterval(async () => {
 // ORDER IS IMPORTANT
 // ==============================
 
+// ✅ Certificates (mount early ok)
+app.use("/api/admin/certificates", adminCertificateRoutes);
+app.use("/api/student/certificates", studentCertificateRoutes);
+
 // TESDA
 app.use("/api/admin/tesda", adminTesdaRoutes); // admin only
-app.use("/api/tesda", tesdaPublicRoutes); // public/student
+app.use("/api/tesda", tesdaPublicRoutes); // public/student (existing)
+app.use("/api/tesda", tesdaRoutes); // requirements upload endpoints, etc.
 
 // Core system
 app.use("/api/auth", authRoutes);
@@ -128,8 +130,6 @@ app.use("/api/trainer", trainerRoutes);
 
 // ==============================
 // ⏰ Initialize Reminder Scheduler
-// Sends email reminders 1 day before schedule
-// Runs at 8:00 AM and 8:00 PM Manila time daily
 // ==============================
 initializeReminderScheduler();
 
@@ -155,11 +155,17 @@ app.get("/", (req, res) => {
       student: "/api/student/*",
       instructor: "/api/instructor/*",
       trainer: "/api/trainer/*",
-      tesda_public: "/api/tesda/*",
+      tesda: "/api/tesda/*",
       tesda_admin: "/api/admin/tesda/*",
+      certificates_admin: "/api/admin/certificates/*",
+      certificates_student: "/api/student/certificates/*",
+      uploads: "/uploads/*",
+      assets: "/assets/*",
     },
   });
 });
+
+app.use("/api/messages", require("./src/routes/messageRoutes")); 
 
 // ==============================
 // 404 handler (MUST be last before error handler)

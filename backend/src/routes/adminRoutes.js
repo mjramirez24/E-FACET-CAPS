@@ -14,14 +14,8 @@ const courseRequirementsController = require("../controllers/courseRequirementsC
 const instructorController = require("../controllers/instructorController");
 
 const adminStudentsController = require("../controllers/adminStudentsController");
-
-// your QRPH controller (list/confirm/reject)
 const adminQrphVerifyController = require("../controllers/adminQrphVerifyController");
-
-// driving assign controller
 const drivingAssignController = require("../controllers/drivingInstructorAssignController");
-
-// NEW users controller
 const adminUsersController = require("../controllers/adminUsersController");
 
 // middlewares
@@ -60,9 +54,9 @@ safe(
   "inline dashboard handler",
 );
 
+// ================= REPORTS =================
 const adminReportsRoutes = require("./adminReportsRoutes");
 router.use("/reports", adminReportsRoutes);
-
 
 // ================= USER MANAGEMENT (NEW) =================
 safe(
@@ -89,8 +83,6 @@ safe(
   adminUsersController.updateUser,
   "adminUsersController.updateUser",
 );
-
-// Disable/Enable (soft block)
 safe(
   "put",
   "/users/:id/disable",
@@ -103,7 +95,6 @@ safe(
   adminUsersController.enableUser,
   "adminUsersController.enableUser",
 );
-
 safe(
   "delete",
   "/users/:id",
@@ -289,7 +280,7 @@ safe(
   "reservationController.getReservationDetailsAdmin",
 );
 
-// ================= PAYMENTS (generic) =================
+// ================= PAYMENTS =================
 safe(
   "get",
   "/payments",
@@ -303,21 +294,19 @@ safe(
   "paymentController.updatePayment",
 );
 
-// ================= QRPH PAYMENTS (your real endpoints) =================
+// ================= QRPH PAYMENTS =================
 safe(
   "get",
   "/payments/qrph",
   adminQrphVerifyController.listQrphPayments,
   "adminQrphVerifyController.listQrphPayments",
 );
-
 safe(
   "post",
   "/payments/qrph/:paymentRef/confirm",
   adminQrphVerifyController.confirmQrphPayment,
   "adminQrphVerifyController.confirmQrphPayment",
 );
-
 safe(
   "post",
   "/payments/qrph/:paymentRef/reject",
@@ -325,12 +314,41 @@ safe(
   "adminQrphVerifyController.rejectQrphPayment",
 );
 
-// ================= ADMIN STUDENTS (Driving confirmed) =================
+// ================= ADMIN STUDENTS =================
+// legacy
 safe(
   "get",
   "/students/confirmed",
   adminStudentsController.listDrivingStudentsConfirmed,
   "adminStudentsController.listDrivingStudentsConfirmed",
+);
+
+// unified list
+safe(
+  "get",
+  "/students",
+  adminStudentsController.listStudents,
+  "adminStudentsController.listStudents",
+);
+
+// ✅ CRUD for your Students Management page
+safe(
+  "post",
+  "/students",
+  adminStudentsController.createStudent,
+  "adminStudentsController.createStudent",
+);
+safe(
+  "put",
+  "/students/:reservationId",
+  adminStudentsController.updateStudent,
+  "adminStudentsController.updateStudent",
+);
+safe(
+  "delete",
+  "/students/:reservationId",
+  adminStudentsController.deleteStudent,
+  "adminStudentsController.deleteStudent",
 );
 
 // ================= DRIVING INSTRUCTOR ASSIGN =================
@@ -352,8 +370,5 @@ safe(
   drivingAssignController.upsertDrivingCourseInstructor,
   "drivingAssignController.upsertDrivingCourseInstructor",
 );
-
-
-
 
 module.exports = router;

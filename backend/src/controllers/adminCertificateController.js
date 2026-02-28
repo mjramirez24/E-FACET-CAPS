@@ -1,12 +1,15 @@
+// backend/src/controllers/adminCertificatesController.js
 const path = require("path");
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
 const pool = require("../config/database");
 
-function makeCertCode() {
+/* ----------------------------- helpers ----------------------------- */
+
+function makeCertCode(prefix = "CERT") {
   const y = new Date().getFullYear();
   const rand = Math.floor(100000 + Math.random() * 900000);
-  return `CERT-${y}-${rand}`;
+  return `${prefix}-${y}-${rand}`;
 }
 
 function ensureDir(absDir) {
@@ -60,12 +63,11 @@ function normalizeSex(g) {
 }
 
 function drawBorder(doc, x, y, w, h) {
-  doc.save().lineWidth(1.2).rect(x, y, w, h).stroke("#1f2937").restore();
+  doc.save().lineWidth(1.2).rect(x, y, w, h).stroke("#111827").restore();
 }
 
 function drawSectionHeader(doc, x, y, w, title) {
   doc.save().fillColor("#e5e7eb").rect(x, y, w, 22).fill().restore();
-
   doc
     .save()
     .fillColor("#111827")
@@ -76,25 +78,120 @@ function drawSectionHeader(doc, x, y, w, title) {
 }
 
 /**
- * generatePdf: LTO-style layout, FACET branding
- * - no photo
- * - no QR
- * - has watermark background (seal.png if exists)
- * Assets:
- * - backend/assets/logo.png  (FACET logo)
- * - backend/assets/seal.png  (FACET watermark/seal) optional
+ * Resolve local path for picture_2x2
+ * supports:
+ * - "uploads/xxx.jpg"
+ * - "/uploads/xxx.jpg"
+ * - "xxx.jpg" (filename only) -> will try common folders
  */
-async function generatePdf({
-  certificate_id,
+function resolveLocalImagePath(picture_2x2) {
+  const v = String(picture_2x2 || "").trim();
+  if (!v) return null;
+
+  // remote
+  if (/^https?:\/\//i.test(v)) return null;
+
+  // normalize slashes
+  const cleaned = v.replace(/\\/g, "/").replace(/^\/+/, "");
+
+  // 1) as-is relative from project root
+  const abs1 = path.join(process.cwd(), cleaned);
+  if (fileExists(abs1)) return abs1;
+
+  // 2) if filename only, try common places
+  const baseName = path.basename(cleaned);
+
+  const candidates = [
+    path.join(process.cwd(), "uploads", baseName),
+    path.join(process.cwd(), "uploads", "2x2", baseName),
+    path.join(process.cwd(), "uploads", "pictures_2x2", baseName),
+    path.join(process.cwd(), "uploads", "students", baseName),
+    path.join(process.cwd(), "uploads", "images", baseName),
+  ];
+
+  for (const c of candidates) {
+    if (fileExists(c)) return c;
+  }
+
+  return null;
+}
+
+function isPDC(course_code, course_name) {
+  const cc = String(course_code || "")
+    .trim()
+    .toUpperCase();
+  if (cc.includes("PDC")) return true;
+
+  const cn = String(course_name || "")
+    .trim()
+    .toUpperCase();
+  if (cn.includes("PRACTICAL") || cn.includes("PDC")) return true;
+
+  return false;
+}
+
+/**
+ * ✅ DL code: only A / B / AB based on course_code
+ * Examples: "PDC A", "PDC-AB", "PDC AB", "PDC (AB)"
+ */
+function parseDlFromCourseCode(course_code) {
+  const s = String(course_code || "").toUpperCase();
+  if (/\bAB\b/.test(s) || /PDC\s*[-(]?\s*AB/.test(s)) return "AB";
+  if (/\bA\b/.test(s) || /PDC\s*[-(]?\s*A\b/.test(s)) return "A";
+  if (/\bB\b/.test(s) || /PDC\s*[-(]?\s*B\b/.test(s)) return "B";
+  return "";
+}
+
+/* ---------------------- overrides (MT/AT + DL) ---------------------- */
+
+function normalizeMode(v) {
+  const s = String(v || "")
+    .trim()
+    .toUpperCase();
+  return s === "MT" || s === "AT" ? s : "";
+}
+
+function sanitizeOverrides(overrides) {
+  if (!overrides || typeof overrides !== "object") return null;
+
+  // support old field `transmission` too
+  const mode = normalizeMode(overrides.mode || overrides.transmission);
+
+  const dlIn =
+    overrides.dl && typeof overrides.dl === "object" ? overrides.dl : null;
+  const dl = {};
+
+  if (dlIn) {
+    for (const [codeRaw, val] of Object.entries(dlIn)) {
+      const code = String(codeRaw || "")
+        .trim()
+        .toUpperCase();
+      if (!code) continue;
+      const mt = val?.mt === true;
+      const at = val?.at === true;
+      if (mt || at) dl[code] = { mt, at };
+    }
+  }
+
+  if (!mode && Object.keys(dl).length === 0) return null;
+  return { mode, dl };
+}
+
+/* ----------------------------- PDF: DRIVING ----------------------------- */
+
+async function generateDrivingPdf({
   certificate_code,
   student_name,
-  student_email, // optional (pwede mo tanggalin sa details list kung ayaw mo)
+  student_email,
   course_name,
+  course_code,
   issued_at,
   done_at,
   lto_client_id,
   birthday,
   gender,
+  picture_2x2,
+  overrides,
 }) {
   const uploadsDir = path.join(process.cwd(), "uploads", "certificates");
   ensureDir(uploadsDir);
@@ -104,37 +201,34 @@ async function generatePdf({
 
   const doc = new PDFDocument({ size: "A4", margin: 40 });
   const stream = fs.createWriteStream(absFilepath);
-
   doc.pipe(stream);
 
   const pageW = doc.page.width;
   const pageH = doc.page.height;
 
-  // assets
   const logoAbs = path.join(process.cwd(), "assets", "logo.png");
-  const sealAbs = path.join(process.cwd(), "assets", "seal.png");
+  const sealAbs = path.join(process.cwd(), "assets", "seal.png"); // optional watermark
 
-  // outer border (LTO-ish)
+  // outer border
   drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
 
-  // watermark seal (center, light)
+  // watermark seal
   if (fileExists(sealAbs)) {
-    const wmSize = 380;
+    const wmSize = 420;
     const wmX = (pageW - wmSize) / 2;
-    const wmY = (pageH - wmSize) / 2 + 20;
+    const wmY = (pageH - wmSize) / 2 + 40;
 
     doc.save();
-    doc.opacity(0.08);
+    doc.opacity(0.07);
     doc.image(sealAbs, wmX, wmY, { width: wmSize, height: wmSize });
     doc.opacity(1);
     doc.restore();
   }
 
-  // Header top
   const headerTop = 40;
   const headerLeft = 40;
 
-  // FACET logo (left)
+  // left logo
   if (fileExists(logoAbs)) {
     doc.image(logoAbs, headerLeft, headerTop, { width: 62, height: 62 });
   } else {
@@ -149,7 +243,42 @@ async function generatePdf({
       .restore();
   }
 
-  // Center header text (FACET, LTO-style spacing)
+  // 2x2 (right)
+  const photoBoxW = 95;
+  const photoBoxH = 95;
+  const photoX = pageW - 40 - photoBoxW;
+  const photoY = headerTop;
+
+  doc
+    .save()
+    .rect(photoX, photoY, photoBoxW, photoBoxH)
+    .stroke("#9ca3af")
+    .restore();
+
+  const photoAbs = resolveLocalImagePath(picture_2x2);
+  if (photoAbs && fileExists(photoAbs)) {
+    doc.image(photoAbs, photoX + 2, photoY + 2, {
+      width: photoBoxW - 4,
+      height: photoBoxH - 4,
+      fit: [photoBoxW - 4, photoBoxH - 4],
+      align: "center",
+      valign: "center",
+    });
+  } else {
+    // ✅ requirement: kapag walang upload, placeholder lang (no crash)
+    doc
+      .save()
+      .font("Helvetica")
+      .fontSize(8)
+      .fillColor("#6b7280")
+      .text("2x2 PHOTO", photoX, photoY + 40, {
+        width: photoBoxW,
+        align: "center",
+      })
+      .restore();
+  }
+
+  // header center text
   doc
     .save()
     .fillColor("#111827")
@@ -161,31 +290,30 @@ async function generatePdf({
     .text("LAND TRANSPORTATION OFFICE", { align: "center" })
     .font("Helvetica")
     .fontSize(9)
-    .text("E-FACET Accredited Training Partner", { align: "center" })
+    .text("East Avenue, Quezon City", { align: "center" })
     .restore();
 
-  // Big Title
+  const titleY = headerTop + 88;
+  const isPdc = isPDC(course_code, course_name);
+
   doc
     .save()
     .font("Helvetica-Bold")
     .fontSize(16)
     .fillColor("#111827")
-    .text("CERTIFICATE OF COMPLETION", 0, headerTop + 82, { align: "center" })
+    .text("CERTIFICATE OF COMPLETION", 0, titleY, { align: "center" })
     .fontSize(12)
-    .text(String(course_name || "DRIVING COURSE").toUpperCase(), {
+    .text(isPdc ? "PRACTICAL DRIVING COURSE" : "THEORETICAL DRIVING COURSE", {
       align: "center",
     })
     .restore();
 
-  // content blocks
-  let y = headerTop + 122;
-
+  let y = titleY + 40;
   const boxX = 40;
   const boxW = pageW - 80;
 
-  // ============ Student Driver's Details (NO PHOTO) ============
-  const box1H = 170;
-
+  // Student Driver's Details
+  const box1H = 185;
   drawSectionHeader(doc, boxX, y, boxW, "Student Driver's Details");
 
   doc
@@ -199,20 +327,17 @@ async function generatePdf({
   const textY = y + 22 + pad;
   const lineGap = 16;
 
-  const issuedStr = fmtDate(issued_at);
   const doneStr = done_at ? fmtDate(done_at) : "—";
   const sex = normalizeSex(gender);
   const bdayStr = fmtDate(birthday);
   const age = computeAge(birthday);
 
-  // LTO-like detail rows (fields galing DB)
   const details = [
     ["LTO Client ID", lto_client_id || "—"],
     ["Name", student_name || "—"],
     ["Date of Birth", bdayStr],
     ["Age", String(age)],
     ["Sex", sex],
-    // optional email (comment out if ayaw mo)
     ["Email", student_email || "—"],
   ];
 
@@ -220,22 +345,20 @@ async function generatePdf({
 
   let ty = textY;
   details.forEach(([k, v]) => {
+    doc.font("Helvetica-Bold").text(`${k}:`, textX, ty, { width: 120 });
     doc
-      .font("Helvetica-Bold")
-      .text(`${k}:`, textX, ty, { width: 120 })
       .font("Helvetica")
-      .text(String(v), textX + 130, ty, { width: boxW - 130 - pad * 2 });
+      .text(String(v), textX + 130, ty, { width: boxW - 160 });
     ty += lineGap;
   });
 
   doc.restore();
 
-  // ============ Training Info ============
-  y = y + box1H + 18;
+  // Training Info
+  y = y + box1H + 14;
   const box2H = 120;
 
   drawSectionHeader(doc, boxX, y, boxW, "Driving Course Training Information");
-
   doc
     .save()
     .rect(boxX, y + 22, boxW, box2H - 22)
@@ -248,9 +371,9 @@ async function generatePdf({
   doc.save().fillColor("#111827").fontSize(10);
 
   doc.font("Helvetica-Bold").text("Course:", tX, tY, { width: 120 });
-  doc.font("Helvetica").text(course_name || "—", tX + 130, tY, {
-    width: boxW - 160,
-  });
+  doc
+    .font("Helvetica")
+    .text(course_name || "—", tX + 130, tY, { width: boxW - 160 });
 
   doc
     .font("Helvetica-Bold")
@@ -263,34 +386,177 @@ async function generatePdf({
   doc.font("Helvetica").text(doneStr, tX + 130, tY + 36);
 
   doc.font("Helvetica-Bold").text("Issued Date:", tX, tY + 54, { width: 120 });
-  doc.font("Helvetica").text(issuedStr, tX + 130, tY + 54);
+  doc.font("Helvetica").text(fmtDate(issued_at), tX + 130, tY + 54);
 
   doc.restore();
 
-  // Footer statement (no QR)
-  const footerY = pageH - 165;
+  // ✅ PDC only: DL Code tables (checks controlled by overrides + mode)
+  if (isPdc) {
+    y = y + box2H + 14;
 
-  doc.save();
-  doc.fillColor("#111827").font("Helvetica").fontSize(9);
+    const dlBoxH = 160;
+    const halfW = (boxW - 16) / 2;
+
+    const leftX = boxX;
+    const rightX = boxX + halfW + 16;
+
+    const left = [
+      ["A", "(L1,L2,L3)"],
+      ["A1", "(L4,L5,L6,L7)"],
+      ["B", "(M1)"],
+      ["B1", "(M2)"],
+      ["B2", "(N1)"],
+    ];
+    const right = [
+      ["BE", "(O1,O2)"],
+      ["C", "(N2,N3)"],
+      ["CE", "(O3,O4)"],
+      ["D", "(M3)"],
+    ];
+
+    const drawX = (x, y, w, h) => {
+      doc.save().strokeColor("#111827").lineWidth(1.2);
+      doc
+        .moveTo(x + 2, y + 2)
+        .lineTo(x + w - 2, y + h - 2)
+        .stroke();
+      doc
+        .moveTo(x + w - 2, y + 2)
+        .lineTo(x + 2, y + h - 2)
+        .stroke();
+      doc.restore();
+    };
+
+    const parsed = parseDlFromCourseCode(course_code); // "A"|"B"|"AB"|""
+    const fallbackA = parsed === "A" || parsed === "AB";
+    const fallbackB = parsed === "B" || parsed === "AB";
+
+    const mode = normalizeMode(overrides?.mode); // "MT" | "AT" | ""
+    const dlOverride =
+      overrides?.dl && typeof overrides.dl === "object" ? overrides.dl : null;
+
+    const resolveDlCheck = (code) => {
+      const c = String(code || "").toUpperCase();
+
+      // 1) Explicit checkbox overrides
+      if (dlOverride && dlOverride[c]) {
+        return { mt: !!dlOverride[c].mt, at: !!dlOverride[c].at };
+      }
+
+      // 2) Fallback: based on course_code A/B/AB, but column depends on mode
+      if (c === "A") {
+        if (!fallbackA) return { mt: false, at: false };
+        return mode === "AT"
+          ? { mt: false, at: true }
+          : { mt: true, at: false };
+      }
+      if (c === "B") {
+        if (!fallbackB) return { mt: false, at: false };
+        return mode === "AT"
+          ? { mt: false, at: true }
+          : { mt: true, at: false };
+      }
+
+      return { mt: false, at: false };
+    };
+
+    const drawDlTable = (x, y0, w, rowsData) => {
+      doc.save().rect(x, y0, w, dlBoxH).stroke("#d1d5db").restore();
+
+      doc.save().fillColor("#f3f4f6").rect(x, y0, w, 22).fill().restore();
+      doc
+        .save()
+        .font("Helvetica-Bold")
+        .fontSize(10)
+        .fillColor("#111827")
+        .text("DL Code (Vehicle Category)", x + 8, y0 + 6, { width: w - 16 })
+        .restore();
+
+      // headers
+      const headY = y0 + 28;
+      doc.save().font("Helvetica-Bold").fontSize(9).fillColor("#374151");
+      doc.text("DL Code", x + 8, headY, { width: w - 16 - 80 });
+      doc.text("MT", x + w - 72, headY, { width: 30, align: "center" });
+      doc.text("AT", x + w - 38, headY, { width: 30, align: "center" });
+      doc.restore();
+
+      let rowY = headY + 16;
+      rowsData.forEach(([code, desc]) => {
+        doc
+          .save()
+          .strokeColor("#e5e7eb")
+          .lineWidth(1)
+          .moveTo(x, rowY - 6)
+          .lineTo(x + w, rowY - 6)
+          .stroke()
+          .restore();
+
+        doc.save().font("Helvetica-Bold").fontSize(9).fillColor("#111827");
+        doc.text(code, x + 8, rowY, { width: 40 });
+        doc.restore();
+
+        doc.save().font("Helvetica").fontSize(9).fillColor("#4b5563");
+        doc.text(desc, x + 40, rowY, { width: w - 16 - 90 });
+        doc.restore();
+
+        const check = resolveDlCheck(code);
+
+        // checkboxes
+        const mtX = x + w - 66;
+        const atX = x + w - 32;
+        const cbY = rowY + 1;
+
+        doc.save().rect(mtX, cbY, 12, 12).stroke("#9ca3af").restore();
+        doc.save().rect(atX, cbY, 12, 12).stroke("#9ca3af").restore();
+
+        if (check.mt) drawX(mtX, cbY, 12, 12);
+        if (check.at) drawX(atX, cbY, 12, 12);
+
+        rowY += 22;
+      });
+    };
+
+    drawDlTable(leftX, y, halfW, left);
+    drawDlTable(rightX, y, halfW, right);
+
+    y = y + dlBoxH + 10;
+  }
+
+  // footer statement + QR placeholder
+  const footerTop = pageH - 170;
+  const qrBox = { w: 95, h: 95, x: pageW - 40 - 95, y: pageH - 155 };
+
+  doc.save().fillColor("#111827").font("Helvetica").fontSize(9);
   doc.text(
-    `This certificate with control number ${certificate_code} has been issued as proof of completion under the E-FACET Enrollment Portal.`,
+    `This Certificate with Control Number ${certificate_code} has been issued in compliance with the applicable LTO training requirements.`,
     boxX,
-    footerY,
-    { width: boxW, align: "center" },
+    footerTop,
+    { width: boxW - 110, align: "left" },
   );
   doc.restore();
 
-  // Signature lines (LTO-ish)
-  const sigY = pageH - 100;
+  // QR placeholder box
+  doc
+    .save()
+    .rect(qrBox.x, qrBox.y, qrBox.w, qrBox.h)
+    .stroke("#6b7280")
+    .restore();
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#6b7280")
+    .text("QR", qrBox.x, qrBox.y + 38, { width: qrBox.w, align: "center" })
+    .restore();
 
-  doc.save();
-  doc.strokeColor("#9ca3af").lineWidth(1);
+  // signature lines
+  const sigY = pageH - 85;
+  doc.save().strokeColor("#9ca3af").lineWidth(1);
   doc.moveTo(70, sigY).lineTo(245, sigY).stroke();
   doc.moveTo(295, sigY).lineTo(470, sigY).stroke();
   doc.restore();
 
-  doc.save();
-  doc.fillColor("#374151").font("Helvetica").fontSize(8);
+  doc.save().fillColor("#374151").font("Helvetica").fontSize(8);
   doc.text("Authorized Representative", 70, sigY + 6, {
     width: 175,
     align: "center",
@@ -312,7 +578,132 @@ async function generatePdf({
   return toRelUploadsPath(filename);
 }
 
-// ✅ GET: list DONE schedule_reservations + certificate info
+/* ----------------------------- PDF: TESDA ----------------------------- */
+
+async function generateTesdaPdf({
+  certificate_code,
+  student_name,
+  course_name,
+  issued_at,
+  done_at,
+}) {
+  const uploadsDir = path.join(process.cwd(), "uploads", "certificates");
+  ensureDir(uploadsDir);
+
+  const filename = `${certificate_code}.pdf`;
+  const absFilepath = path.join(uploadsDir, filename);
+
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const stream = fs.createWriteStream(absFilepath);
+  doc.pipe(stream);
+
+  const pageW = doc.page.width;
+  const pageH = doc.page.height;
+
+  const logoAbs = path.join(process.cwd(), "assets", "logo.png");
+
+  drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
+
+  const top = 55;
+
+  if (fileExists(logoAbs))
+    doc.image(logoAbs, 60, top, { width: 60, height: 60 });
+  else doc.save().rect(60, top, 60, 60).stroke("#9ca3af").restore();
+
+  doc
+    .save()
+    .fillColor("#111827")
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text("TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY", 0, top + 5, {
+      align: "center",
+    })
+    .font("Helvetica")
+    .fontSize(9)
+    .text(
+      "National Institute for Technical Education and Skills Development (NITESD)",
+      { align: "center" },
+    )
+    .text("eTESDA Online Program", { align: "center" })
+    .restore();
+
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#6b7280")
+    .text("Certificate Code", pageW - 190, top + 5, {
+      width: 130,
+      align: "right",
+    })
+    .font("Courier-Bold")
+    .fontSize(10)
+    .fillColor("#111827")
+    .text(certificate_code, pageW - 240, top + 20, {
+      width: 180,
+      align: "right",
+    })
+    .restore();
+
+  doc.save().font("Helvetica-Bold").fontSize(24).fillColor("#111827");
+  doc.text("CERTIFICATE OF COMPLETION", 0, 170, { align: "center" });
+  doc.restore();
+
+  doc.save().font("Helvetica").fontSize(10).fillColor("#6b7280");
+  doc.text("THIS IS TO CERTIFY THAT", 0, 210, { align: "center" });
+  doc.restore();
+
+  doc.save().font("Helvetica-Bold").fontSize(26).fillColor("#111827");
+  doc.text(student_name || "—", 0, 240, { align: "center" });
+  doc.restore();
+
+  doc.save().font("Helvetica").fontSize(10).fillColor("#6b7280");
+  doc.text("HAS COMPLETED THE COURSE", 0, 285, { align: "center" });
+  doc.restore();
+
+  doc.save().font("Helvetica-Bold").fontSize(16).fillColor("#111827");
+  doc.text(course_name || "—", 0, 305, { align: "center" });
+  doc.restore();
+
+  doc.save().font("Helvetica").fontSize(10).fillColor("#111827");
+  doc.text(`ON ${fmtDate(done_at || issued_at)}`, 0, 340, { align: "center" });
+  doc.restore();
+
+  doc.save().font("Helvetica").fontSize(9).fillColor("#374151");
+  doc.text("This is a computer generated certificate,", 60, pageH - 140);
+  doc.text("it is valid even without a signature.", 60, pageH - 126);
+
+  doc.text("For verification purposes, contact:", pageW - 260, pageH - 140, {
+    width: 200,
+    align: "right",
+  });
+  doc.text("eTESDA Division", pageW - 260, pageH - 126, {
+    width: 200,
+    align: "right",
+  });
+  doc.text("tesdaonlineprogram@tesda.gov.ph", pageW - 260, pageH - 112, {
+    width: 200,
+    align: "right",
+  });
+  doc.text("(02) 8893 - 8297", pageW - 260, pageH - 98, {
+    width: 200,
+    align: "right",
+  });
+  doc.restore();
+
+  doc.end();
+
+  await new Promise((resolve, reject) => {
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+    doc.on("error", reject);
+  });
+
+  return toRelUploadsPath(filename);
+}
+
+/* ----------------------------- LIST DONE ----------------------------- */
+
 exports.listCompletions = async (req, res) => {
   try {
     const [rows] = await pool.execute(`
@@ -322,6 +713,8 @@ exports.listCompletions = async (req, res) => {
         r.student_id,
         r.course_id,
         r.lto_client_id,
+        r.picture_2x2,
+        r.reservation_type,
         r.reservation_status,
         r.done_at,
         r.updated_at,
@@ -332,11 +725,13 @@ exports.listCompletions = async (req, res) => {
         u.gender AS gender,
 
         c.course_name,
+        c.course_code,
 
         cert.certificate_id,
         cert.certificate_code,
         cert.status AS certificate_status,
-        cert.issued_at
+        cert.issued_at,
+        cert.pdf_path
       FROM schedule_reservations r
       JOIN users u ON u.id = r.student_id
       JOIN courses c ON c.id = r.course_id
@@ -353,8 +748,14 @@ exports.listCompletions = async (req, res) => {
       if (r.certificate_id && r.certificate_status === "revoked")
         ui_status = "revoked";
 
+      const rt = String(r.reservation_type || "")
+        .trim()
+        .toUpperCase();
+      const track = rt === "TESDA" ? "tesda" : "driving";
+
       return {
         ...r,
+        track,
         age: computeAge(r.birthday),
         sex: normalizeSex(r.gender),
         ui_status,
@@ -372,15 +773,19 @@ exports.listCompletions = async (req, res) => {
   }
 };
 
-// ✅ POST: generate certificate (only if reservation_status = DONE)
-exports.generate = async (req, res) => {
+/* ----------------------------- GENERATE: DRIVING ----------------------------- */
+
+exports.generateDriving = async (req, res) => {
   try {
-    const { reservation_id } = req.body;
+    const { reservation_id, overrides } = req.body;
+
     if (!reservation_id) {
       return res
         .status(400)
         .json({ status: "error", message: "reservation_id is required" });
     }
+
+    const cleanOverrides = sanitizeOverrides(overrides);
 
     const [rRows] = await pool.execute(
       `
@@ -389,11 +794,16 @@ exports.generate = async (req, res) => {
         r.reservation_status,
         r.done_at,
         r.lto_client_id,
+        r.picture_2x2,
+        r.reservation_type,
+
         u.fullname AS student_name,
         u.email AS student_email,
         u.birthday AS birthday,
         u.gender AS gender,
-        c.course_name
+
+        c.course_name,
+        c.course_code
       FROM schedule_reservations r
       JOIN users u ON u.id = r.student_id
       JOIN courses c ON c.id = r.course_id
@@ -403,13 +813,20 @@ exports.generate = async (req, res) => {
       [reservation_id],
     );
 
-    if (!rRows.length) {
+    if (!rRows.length)
       return res
         .status(404)
         .json({ status: "error", message: "Reservation not found" });
-    }
 
     const r = rRows[0];
+
+    const rt = String(r.reservation_type || "").toUpperCase();
+    if (rt === "TESDA") {
+      return res.status(400).json({
+        status: "error",
+        message: "This reservation is TESDA. Use TESDA generate endpoint.",
+      });
+    }
 
     if (r.reservation_status !== "DONE") {
       return res
@@ -428,7 +845,7 @@ exports.generate = async (req, res) => {
       });
     }
 
-    const certificate_code = makeCertCode();
+    const certificate_code = makeCertCode("DRIVE");
     const issued_at = new Date();
 
     const [ins] = await pool.execute(
@@ -439,17 +856,19 @@ exports.generate = async (req, res) => {
 
     const certificate_id = ins.insertId;
 
-    const pdf_path = await generatePdf({
-      certificate_id,
+    const pdf_path = await generateDrivingPdf({
       certificate_code,
       student_name: r.student_name,
       student_email: r.student_email,
-      course_name: r.course_name || "Course",
+      course_name: r.course_name || "Driving Course",
+      course_code: r.course_code,
       issued_at,
       done_at: r.done_at,
       lto_client_id: r.lto_client_id,
       birthday: r.birthday,
       gender: r.gender,
+      picture_2x2: r.picture_2x2,
+      overrides: cleanOverrides,
     });
 
     await pool.execute(
@@ -459,87 +878,239 @@ exports.generate = async (req, res) => {
 
     return res.json({
       status: "success",
-      message: "Certificate generated",
-      data: { certificate_id, certificate_code, pdf_path },
+      message: "Driving certificate generated",
+      data: {
+        certificate_id,
+        certificate_code,
+        pdf_path,
+        overrides: cleanOverrides || null,
+      },
     });
   } catch (err) {
-    console.error("generate error:", err);
+    console.error("generateDriving error:", err);
     return res.status(500).json({
       status: "error",
-      message: "Failed to generate certificate",
+      message: "Failed to generate driving certificate",
       debug: err.sqlMessage || err.message,
     });
   }
 };
 
-exports.viewPdf = async (req, res) => {
-  try {
-    const certId = req.params.id;
+/* ----------------------------- GENERATE: TESDA ----------------------------- */
 
-    const [rows] = await pool.execute(
-      `SELECT pdf_path, certificate_code FROM certificates WHERE certificate_id = ? LIMIT 1`,
-      [certId],
+exports.generateTesda = async (req, res) => {
+  try {
+    const { reservation_id } = req.body;
+    if (!reservation_id) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "reservation_id is required" });
+    }
+
+    const [rRows] = await pool.execute(
+      `
+      SELECT
+        r.reservation_id,
+        r.reservation_status,
+        r.done_at,
+        r.reservation_type,
+
+        u.fullname AS student_name,
+        c.course_name
+      FROM schedule_reservations r
+      JOIN users u ON u.id = r.student_id
+      JOIN courses c ON c.id = r.course_id
+      WHERE r.reservation_id = ?
+      LIMIT 1
+      `,
+      [reservation_id],
     );
 
-    if (!rows.length || !rows[0].pdf_path) {
+    if (!rRows.length)
+      return res
+        .status(404)
+        .json({ status: "error", message: "Reservation not found" });
+
+    const r = rRows[0];
+
+    const rt = String(r.reservation_type || "").toUpperCase();
+    if (rt !== "TESDA") {
+      return res.status(400).json({
+        status: "error",
+        message: "This reservation is DRIVING. Use DRIVING generate endpoint.",
+      });
+    }
+
+    if (r.reservation_status !== "DONE") {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Student is not DONE yet." });
+    }
+
+    const [existing] = await pool.execute(
+      `SELECT certificate_id FROM certificates WHERE reservation_id = ? LIMIT 1`,
+      [reservation_id],
+    );
+    if (existing.length) {
+      return res.status(409).json({
+        status: "error",
+        message: "Certificate already exists for this reservation.",
+      });
+    }
+
+    const certificate_code = makeCertCode("TESDA");
+    const issued_at = new Date();
+
+    const [ins] = await pool.execute(
+      `INSERT INTO certificates (reservation_id, certificate_code, issued_at, status)
+       VALUES (?, ?, ?, 'issued')`,
+      [reservation_id, certificate_code, issued_at],
+    );
+
+    const certificate_id = ins.insertId;
+
+    const pdf_path = await generateTesdaPdf({
+      certificate_code,
+      student_name: r.student_name,
+      course_name: r.course_name || "TESDA Course",
+      issued_at,
+      done_at: r.done_at,
+    });
+
+    await pool.execute(
+      `UPDATE certificates SET pdf_path = ? WHERE certificate_id = ?`,
+      [pdf_path, certificate_id],
+    );
+
+    return res.json({
+      status: "success",
+      message: "TESDA certificate generated",
+      data: { certificate_id, certificate_code, pdf_path },
+    });
+  } catch (err) {
+    console.error("generateTesda error:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to generate TESDA certificate",
+      debug: err.sqlMessage || err.message,
+    });
+  }
+};
+
+/* ----------------------------- VIEW / DOWNLOAD ----------------------------- */
+
+async function getCertPdfInfo(certId) {
+  const [rows] = await pool.execute(
+    `SELECT pdf_path, certificate_code FROM certificates WHERE certificate_id = ? LIMIT 1`,
+    [certId],
+  );
+
+  if (!rows.length || !rows[0].pdf_path) return null;
+
+  const abs = path.join(process.cwd(), String(rows[0].pdf_path));
+  if (!fs.existsSync(abs))
+    return { missing: true, certificate_code: rows[0].certificate_code };
+
+  return { abs, certificate_code: rows[0].certificate_code };
+}
+
+exports.viewDrivingPdf = async (req, res) => {
+  try {
+    const info = await getCertPdfInfo(req.params.id);
+    if (!info)
       return res
         .status(404)
         .json({ status: "error", message: "PDF not found" });
-    }
-
-    const abs = path.join(process.cwd(), rows[0].pdf_path);
-    if (!fs.existsSync(abs)) {
+    if (info.missing)
       return res
         .status(404)
         .json({ status: "error", message: "PDF file missing on server" });
-    }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="${rows[0].certificate_code}.pdf"`,
+      `inline; filename="${info.certificate_code}.pdf"`,
     );
-    fs.createReadStream(abs).pipe(res);
+    fs.createReadStream(info.abs).pipe(res);
   } catch (err) {
-    console.error("viewPdf error:", err);
+    console.error("viewDrivingPdf error:", err);
     return res
       .status(500)
       .json({ status: "error", message: "Failed to open PDF" });
   }
 };
 
-exports.downloadPdf = async (req, res) => {
+exports.downloadDrivingPdf = async (req, res) => {
   try {
-    const certId = req.params.id;
-
-    const [rows] = await pool.execute(
-      `SELECT pdf_path, certificate_code FROM certificates WHERE certificate_id = ? LIMIT 1`,
-      [certId],
-    );
-
-    if (!rows.length || !rows[0].pdf_path) {
+    const info = await getCertPdfInfo(req.params.id);
+    if (!info)
       return res
         .status(404)
         .json({ status: "error", message: "PDF not found" });
-    }
-
-    const abs = path.join(process.cwd(), rows[0].pdf_path);
-    if (!fs.existsSync(abs)) {
+    if (info.missing)
       return res
         .status(404)
         .json({ status: "error", message: "PDF file missing on server" });
-    }
 
-    return res.download(abs, `${rows[0].certificate_code}.pdf`);
+    return res.download(info.abs, `${info.certificate_code}.pdf`);
   } catch (err) {
-    console.error("downloadPdf error:", err);
+    console.error("downloadDrivingPdf error:", err);
     return res
       .status(500)
       .json({ status: "error", message: "Failed to download PDF" });
   }
 };
 
-exports.revoke = async (req, res) => {
+exports.viewTesdaPdf = async (req, res) => {
+  try {
+    const info = await getCertPdfInfo(req.params.id);
+    if (!info)
+      return res
+        .status(404)
+        .json({ status: "error", message: "PDF not found" });
+    if (info.missing)
+      return res
+        .status(404)
+        .json({ status: "error", message: "PDF file missing on server" });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${info.certificate_code}.pdf"`,
+    );
+    fs.createReadStream(info.abs).pipe(res);
+  } catch (err) {
+    console.error("viewTesdaPdf error:", err);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Failed to open PDF" });
+  }
+};
+
+exports.downloadTesdaPdf = async (req, res) => {
+  try {
+    const info = await getCertPdfInfo(req.params.id);
+    if (!info)
+      return res
+        .status(404)
+        .json({ status: "error", message: "PDF not found" });
+    if (info.missing)
+      return res
+        .status(404)
+        .json({ status: "error", message: "PDF file missing on server" });
+
+    return res.download(info.abs, `${info.certificate_code}.pdf`);
+  } catch (err) {
+    console.error("downloadTesdaPdf error:", err);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Failed to download PDF" });
+  }
+};
+
+/* ----------------------------- REVOKE ----------------------------- */
+
+exports.revokeDriving = async (req, res) => {
   try {
     const certId = req.params.id;
 
@@ -548,24 +1119,57 @@ exports.revoke = async (req, res) => {
       [certId],
     );
 
-    if (!rows.length) {
+    if (!rows.length)
       return res
         .status(404)
         .json({ status: "error", message: "Certificate not found" });
-    }
-
-    if (rows[0].status === "revoked") {
+    if (rows[0].status === "revoked")
       return res.json({ status: "success", message: "Already revoked" });
-    }
 
     await pool.execute(
       `UPDATE certificates SET status='revoked' WHERE certificate_id = ?`,
       [certId],
     );
 
-    return res.json({ status: "success", message: "Certificate revoked" });
+    return res.json({
+      status: "success",
+      message: "Driving certificate revoked",
+    });
   } catch (err) {
-    console.error("revoke error:", err);
+    console.error("revokeDriving error:", err);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Failed to revoke certificate" });
+  }
+};
+
+exports.revokeTesda = async (req, res) => {
+  try {
+    const certId = req.params.id;
+
+    const [rows] = await pool.execute(
+      `SELECT certificate_id, status FROM certificates WHERE certificate_id = ? LIMIT 1`,
+      [certId],
+    );
+
+    if (!rows.length)
+      return res
+        .status(404)
+        .json({ status: "error", message: "Certificate not found" });
+    if (rows[0].status === "revoked")
+      return res.json({ status: "success", message: "Already revoked" });
+
+    await pool.execute(
+      `UPDATE certificates SET status='revoked' WHERE certificate_id = ?`,
+      [certId],
+    );
+
+    return res.json({
+      status: "success",
+      message: "TESDA certificate revoked",
+    });
+  } catch (err) {
+    console.error("revokeTesda error:", err);
     return res
       .status(500)
       .json({ status: "error", message: "Failed to revoke certificate" });

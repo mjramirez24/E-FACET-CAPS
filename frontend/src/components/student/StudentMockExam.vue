@@ -2,17 +2,20 @@
   <StudentLayout active-page="student-quiz">
     <!-- Header Content Slot -->
     <template #header-left>
-      <div class="flex-1">
-        <h1 class="text-2xl font-bold">🧠 Quizzes & Mock Exams</h1>
-      </div>
+      <input 
+        type="text" 
+        placeholder="Search quizzes..." 
+        v-model="searchQuery"
+        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+      >
       <div class="flex items-center gap-3">
         <select 
           v-model="currentLanguage" 
           @change="updateUserLanguage"
           class="bg-white text-green-800 px-3 py-1 rounded border border-green-600"
         >
-          <option value="english">🇺🇸 English</option>
-          <option value="tagalog">🇵🇭 Tagalog</option>
+          <option value="en">🇺🇸 English</option>
+          <option value="tl">🇵🇭 Tagalog</option>
         </select>
         <button @click="showTutorialModal = true" class="bg-white text-green-800 px-3 py-1 rounded">❓ Tutorial</button>
       </div>
@@ -20,19 +23,20 @@
 
     <!-- Main Content -->
     <div class="space-y-6">
-      <!-- Welcome Message for First-Time Users -->
-      <section v-if="!hasTakenExams" class="bg-white rounded-xl shadow p-6 mb-6 border border-green-200">
-        <h2 class="text-lg font-bold text-green-800 mb-2">Welcome to Mock Exams!</h2>
-        <p class="text-gray-600 mb-4">It looks like this is your first time here. To get started, take our initial assessment exam to identify your strengths and areas for improvement.</p>
-        <div class="flex gap-4">
-          <button 
-            @click="startInitialExam" 
-            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition"
-            :disabled="loading"
-          >
-            <span v-if="loading">Loading...</span>
-            <span v-else>Start Initial Assessment</span>
-          </button>
+      <!-- Welcome Section - Always Visible -->
+      <section class="bg-white rounded-xl shadow p-6 mb-6 border border-green-200">
+        <div class="flex justify-between items-start">
+          <div>
+            <h2 class="text-lg font-bold text-green-800 mb-2">
+              {{ hasTakenExams ? '📊 Welcome Back!' : '🎉 Welcome to Mock Exams!' }}
+            </h2>
+            <p class="text-gray-600 mb-4">
+              {{ hasTakenExams 
+                ? 'Continue your learning journey. Take the comprehensive assessment again to track your progress or try topic-specific quizzes below.' 
+                : 'It looks like this is your first time here. To get started, take our initial assessment exam to identify your strengths and areas for improvement.' 
+              }}
+            </p>
+          </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-600">Language:</span>
             <select 
@@ -40,9 +44,59 @@
               class="border border-gray-300 rounded px-2 py-1"
               @change="updateUserLanguage"
             >
-              <option value="english">English</option>
-              <option value="tagalog">Tagalog</option>
+              <option value="en">English</option>
+              <option value="tl">Tagalog</option>
             </select>
+          </div>
+        </div>
+        
+        <div class="flex gap-4 mt-2">
+          <button 
+            @click="startInitialExam" 
+            class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md transition font-semibold"
+            :disabled="loading"
+          >
+            <span v-if="loading" class="flex items-center gap-2">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Loading...
+            </span>
+            <span v-else class="flex items-center gap-2">
+              <span class="text-xl">📝</span>
+              {{ hasTakenExams ? 'Take Comprehensive Assessment Again' : 'Start Initial Assessment' }}
+            </span>
+          </button>
+          
+          <button 
+            v-if="hasTakenExams"
+            @click="scrollToQuizzes" 
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md transition font-semibold"
+          >
+            <span class="flex items-center gap-2">
+              <span class="text-xl">📚</span>
+              Browse Topic Quizzes
+            </span>
+          </button>
+        </div>
+
+        <!-- Progress Stats (if may exams na) -->
+        <div v-if="hasTakenExams" class="mt-6 pt-4 border-t border-green-100">
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="bg-green-50 p-3 rounded-lg">
+              <div class="text-2xl font-bold text-green-700">{{ examResults.length }}</div>
+              <div class="text-sm text-gray-600">Exams Taken</div>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg">
+              <div class="text-2xl font-bold text-green-700">
+                {{ Math.round(examResults.reduce((acc, curr) => acc + curr.score, 0) / examResults.length) || 0 }}%
+              </div>
+              <div class="text-sm text-gray-600">Average Score</div>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg">
+              <div class="text-2xl font-bold text-green-700">
+                {{ examResults.filter(r => r.score >= 70).length }}
+              </div>
+              <div class="text-sm text-gray-600">Passed Exams</div>
+            </div>
           </div>
         </div>
       </section>
@@ -106,15 +160,9 @@
       </section>
 
       <!-- Quizzes Table -->
-      <section class="bg-white rounded-xl shadow p-6 mb-6 border border-green-200">
+      <section class="bg-white rounded-xl shadow p-6 mb-6 border border-green-200 quizzes-section">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-bold text-green-800">Available Quizzes</h2>
-          <input 
-            v-model="searchQuery"
-            type="text" 
-            placeholder="Search quizzes..." 
-            class="w-1/3 p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
         </div>
         <div class="overflow-hidden rounded-lg border border-green-700">
           <table class="w-full border-collapse text-sm text-left">
@@ -265,30 +313,30 @@
         <div v-if="currentQuestion" class="fade-in p-4 border rounded-lg bg-gray-50">
           <div class="mb-4">
             <h3 class="text-lg font-semibold text-gray-800">
-              {{ currentQuestionIndex + 1 }}. {{ currentQuestion.question_text }}
+              {{ currentQuestionIndex + 1 }}. {{ getLocalizedText(currentQuestion.stem) }}
             </h3>
           </div>
           
           <div class="space-y-3">
             <div 
-              v-for="option in options" 
-              :key="option.value"
+              v-for="choice in currentQuestion.choices" 
+              :key="choice.key"
               class="flex items-center"
             >
               <input 
                 type="radio" 
-                :id="`option-${currentQuestionIndex}-${option.value}`"
+                :id="`option-${currentQuestionIndex}-${choice.key}`"
                 :name="`answer-${currentQuestionIndex}`"
-                :value="option.value"
-                :checked="userAnswers[currentQuestionIndex] === option.value"
-                @change="selectAnswer(currentQuestionIndex, option.value)"
+                :value="choice.key.toUpperCase()"
+                :checked="userAnswers[currentQuestionIndex] === choice.key.toUpperCase()"
+                @change="selectAnswer(currentQuestionIndex, choice.key.toUpperCase())"
                 class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
               >
               <label 
-                :for="`option-${currentQuestionIndex}-${option.value}`"
+                :for="`option-${currentQuestionIndex}-${choice.key}`"
                 class="ml-3 block text-gray-700"
               >
-                {{ option.value }}. {{ option.text }}
+                {{ choice.key.toUpperCase() }}. {{ getLocalizedText(choice) }}
               </label>
             </div>
           </div>
@@ -324,96 +372,127 @@
       </div>
     </div>
 
-    <!-- Exam Results Modal -->
-    <div v-if="showResultsModal" class="fixed inset-0 flex items-center justify-center backdrop z-50" @click.self="showResultsModal = false">
-      <div class="bg-white w-3/4 max-w-2xl p-6 rounded-xl shadow-lg">
-        <h3 class="text-xl font-bold text-green-800 mb-4">AI-Powered Exam Results</h3>
-        <div class="text-center mb-6">
-          <div class="text-4xl font-bold mb-2" :class="getScoreColorClass(currentScore)">{{ currentScore }}%</div>
-          <p class="text-lg text-gray-700">{{ getResultMessage(currentScore) }}</p>
-        </div>
-        
-        <div class="mb-6">
-          <h4 class="font-bold text-gray-700 mb-2">AI Performance Breakdown</h4>
-          <div class="space-y-3">
-            <div v-for="item in currentWeaknessAnalysis" :key="item.category" class="mb-4">
-              <div class="flex justify-between mb-1">
-                <span class="text-sm font-medium">{{ item.category }}</span>
-                <span class="text-sm font-medium">{{ item.score }}%</span>
+      <!-- Exam Results Modal -->
+      <div v-if="showResultsModal" class="fixed inset-0 flex items-center justify-center backdrop z-50" @click.self="showResultsModal = false">
+        <div class="bg-white w-3/4 max-w-2xl rounded-xl shadow-lg flex flex-col max-h-[80vh]">
+          <!-- Fixed Header -->
+          <div class="flex justify-between items-center p-6 border-b border-gray-200">
+            <h3 class="text-xl font-bold text-green-800">AI-Powered Exam Results</h3>
+            <button @click="showResultsModal = false" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+          </div>
+          
+          <!-- Scrollable Content -->
+          <div class="p-6 overflow-y-auto flex-1">
+            <!-- Score Section -->
+            <div class="text-center mb-6">
+              <div class="text-4xl font-bold mb-2" :class="getScoreColorClass(currentScore)">{{ currentScore }}%</div>
+              <p class="text-lg text-gray-700">{{ getResultMessage(currentScore) }}</p>
+            </div>
+            
+            <!-- Performance Breakdown -->
+            <div class="mb-6">
+              <h4 class="font-bold text-gray-700 mb-4">AI Performance Breakdown</h4>
+              <div class="space-y-4">
+                <div v-for="item in currentWeaknessAnalysis" :key="item.category" class="bg-gray-50 p-4 rounded-lg">
+                  <div class="flex justify-between mb-2">
+                    <span class="font-medium">{{ item.category }}</span>
+                    <span class="font-semibold" :class="getScoreColorClass(item.score)">{{ item.score }}%</span>
+                  </div>
+                  <div class="progress-bar bg-gray-200 h-2 rounded-full overflow-hidden mb-2">
+                    <div 
+                      class="progress-fill h-full transition-all duration-500" 
+                      :class="getScoreColorClass(item.score).replace('text', 'bg')"
+                      :style="{ width: item.score + '%' }"
+                    ></div>
+                  </div>
+                  <p class="text-sm text-gray-600 mb-1">
+                    {{ item.feedback || getWeaknessFeedback(item.category, item.score) }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    {{ item.correct_answers || 0 }} correct out of {{ item.total_questions || 0 }}
+                  </p>
+                </div>
               </div>
-              <div class="progress-bar bg-gray-200">
-                <div 
-                  class="progress-fill" 
-                  :class="getScoreColorClass(item.score)"
-                  :style="{ width: item.score + '%' }"
-                ></div>
-              </div>
-              <p class="text-xs text-gray-600 mt-1">
-                {{ item.feedback || getWeaknessFeedback(item.category, item.score) }}
-              </p>
-              <p class="text-xs text-gray-500 mt-1">
-                {{ item.correct_answers || 0 }} correct out of {{ item.total_questions || 0 }}
+            </div>
+            
+            <!-- AI Recommendations -->
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 class="font-bold text-blue-800 mb-2">AI Recommendations</h4>
+              <p class="text-sm text-gray-700">
+                {{ currentRecommendation }}
               </p>
             </div>
           </div>
-        </div>
-        
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
-          <h4 class="font-bold text-blue-800 mb-2">AI Recommendations</h4>
-          <p class="text-sm text-gray-700">
-            {{ currentRecommendation }}
-          </p>
-        </div>
-        
-        <div class="flex justify-end">
-          <button @click="showResultsModal = false" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition">Close</button>
+          
+          <!-- Fixed Footer -->
+          <div class="p-6 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+            <div class="flex justify-end">
+              <button @click="showResultsModal = false" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition font-medium">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Review Exam Modal -->
-    <div v-if="showReviewModal" class="fixed inset-0 flex items-center justify-center backdrop z-50" @click.self="showReviewModal = false">
-      <div class="bg-white w-4/5 max-w-4xl p-6 rounded-xl shadow-lg overflow-y-auto max-h-[80vh]">
-        <h3 class="text-xl font-bold text-green-800 mb-4">Exam Review: {{ currentReviewAttempt?.exam_title }}</h3>
-        <div class="space-y-4">
-          <div v-for="(question, index) in currentQuestions" :key="index" class="p-4 border rounded-lg" :class="getReviewQuestionClass(index)">
-            <div class="flex justify-between items-start mb-2">
-              <h4 class="font-semibold">Question {{ index + 1 }}</h4>
-              <span class="text-sm px-2 py-1 rounded" :class="getReviewStatusClass(index)">
-                {{ getReviewStatus(index) }}
-              </span>
+      <!-- Review Exam Modal -->
+      <div v-if="showReviewModal" class="fixed inset-0 flex items-center justify-center backdrop z-50" @click.self="showReviewModal = false">
+        <div class="bg-white w-4/5 max-w-4xl rounded-xl shadow-lg flex flex-col max-h-[80vh]">
+          <!-- Fixed Header -->
+          <div class="flex justify-between items-center p-6 border-b border-gray-200">
+            <h3 class="text-xl font-bold text-green-800">Exam Review: {{ currentReviewAttempt?.exam_title }}</h3>
+            <button @click="showReviewModal = false" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+          </div>
+          
+          <!-- Scrollable Content -->
+          <div class="p-6 overflow-y-auto flex-1">
+            <div class="space-y-4">
+              <div v-for="(question, index) in currentQuestions" :key="index" class="p-4 border rounded-lg" :class="getReviewQuestionClass(index)">
+                <div class="flex justify-between items-start mb-3">
+                  <h4 class="font-semibold text-gray-800">Question {{ index + 1 }}</h4>
+                  <span class="text-sm px-3 py-1 rounded-full font-medium" :class="getReviewStatusClass(index)">
+                    {{ getReviewStatus(index) }}
+                  </span>
+                </div>
+                
+                <p class="text-gray-700 mb-4">{{ getLocalizedText(question.stem) }}</p>
+                
+                <div class="space-y-2 mb-4">
+                    <div v-for="option in ['A', 'B', 'C']" :key="option" 
+    class="flex items-start p-2 rounded border"
+    :class="{ 
+      'bg-green-100 border-green-500': currentReviewAnswers[index]?.toLowerCase() === option.toLowerCase() && option.toLowerCase() === question.correct_key?.toLowerCase(),
+      'bg-red-100 border-red-400': currentReviewAnswers[index]?.toLowerCase() === option.toLowerCase() && option.toLowerCase() !== question.correct_key?.toLowerCase(),
+      'bg-green-100 border-green-400': option.toLowerCase() === question.correct_key?.toLowerCase() && currentReviewAnswers[index]?.toLowerCase() !== option.toLowerCase(),
+      'border-transparent': option.toLowerCase() !== question.correct_key?.toLowerCase() && currentReviewAnswers[index]?.toLowerCase() !== option.toLowerCase()
+    }">
+                    <span class="w-8 font-medium">{{ option }}.</span>
+                    <span class="flex-1">{{ getOptionText(question, option) }}</span>
+                    <span v-if="option === question.correct_key" class="ml-2 text-green-600">✓</span>
+                  </div>
+                </div>
+                
+                <div class="text-sm border-t pt-3 mt-2">
+                  <p class="mb-1"><span class="font-medium">Your answer:</span> {{ currentReviewAnswers[index] || 'Not answered' }}</p>
+                  <p class="mb-1"><span class="font-medium">Correct answer:</span> {{ question.correct_key }}</p>
+                  <p v-if="question.rationale && getLocalizedText(question.rationale)" class="mt-2 text-blue-600 bg-blue-50 p-2 rounded">
+                    <span class="font-medium">Explanation:</span> {{ getLocalizedText(question.rationale) }}
+                  </p>
+                </div>
+              </div>
             </div>
-            <p class="mb-3">{{ question.question_text }}</p>
-            <div class="space-y-2 text-sm">
-              <div class="flex items-center">
-                <span class="w-6 font-medium">A.</span>
-                <span :class="{ 'font-bold': currentReviewAnswers[index] === 'A' }">{{ question.option_a }}</span>
-              </div>
-              <div class="flex items-center">
-                <span class="w-6 font-medium">B.</span>
-                <span :class="{ 'font-bold': currentReviewAnswers[index] === 'B' }">{{ question.option_b }}</span>
-              </div>
-              <div class="flex items-center">
-                <span class="w-6 font-medium">C.</span>
-                <span :class="{ 'font-bold': currentReviewAnswers[index] === 'C' }">{{ question.option_c }}</span>
-              </div>
-              <div class="flex items-center">
-                <span class="w-6 font-medium">D.</span>
-                <span :class="{ 'font-bold': currentReviewAnswers[index] === 'D' }">{{ question.option_d }}</span>
-              </div>
-            </div>
-            <div class="mt-3 text-sm">
-              <p><strong>Your answer:</strong> {{ currentReviewAnswers[index] || 'Not answered' }}</p>
-              <p><strong>Correct answer:</strong> {{ question.correct_answer }}</p>
-              <p v-if="question.explanation" class="mt-2 text-blue-600"><strong>Explanation:</strong> {{ question.explanation }}</p>
+          </div>
+          
+          <!-- Fixed Footer -->
+          <div class="p-6 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+            <div class="flex justify-end">
+              <button @click="showReviewModal = false" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition font-medium">
+                Close
+              </button>
             </div>
           </div>
         </div>
-        <div class="mt-6 text-right">
-          <button @click="showReviewModal = false" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition">Close</button>
-        </div>
       </div>
-    </div>
   </StudentLayout>
 </template>
 
@@ -428,7 +507,7 @@ export default {
   },
   
   setup() {
-    // API Configuration - Replace with your actual API endpoint
+    // API Configuration
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
     
     // State
@@ -436,11 +515,12 @@ export default {
       id: null,
       name: '',
       email: '',
-      preferred_language: 'english'
+      preferred_language: 'en'
     })
     
-    const currentLanguage = ref('english')
+    const currentLanguage = ref('en')
     const availableQuizzes = ref([])
+    const comprehensiveExam = ref(null) // Separate storage for comprehensive exam
     const examResults = ref([])
     const searchQuery = ref('')
     
@@ -473,6 +553,133 @@ export default {
     // Review State
     const currentReviewAttempt = ref(null)
     const currentReviewAnswers = ref([])
+    const questionBank = ref(null)
+
+    // Load questions from JSON file
+    const loadQuestionBank = async () => {
+      try {
+        console.log('Fetching question bank...')
+        const response = await fetch('/question_bank.json')
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const data = await response.json()
+        console.log('Question bank loaded:', data)
+        console.log('Number of questions:', data.questions?.length)
+        return data
+      } catch (error) {
+        console.error('Error loading question bank:', error)
+        return { questions: [] }
+      }
+    }
+    
+    // Helper function to get localized text
+    const getLocalizedText = (textObj) => {
+      if (!textObj) return ''
+      return textObj[currentLanguage.value] || textObj.en || ''
+    }
+    
+    // Helper function to get option text
+    const getOptionText = (question, optionKey) => {
+      if (!question || !question.choices) return ''
+      const option = question.choices.find(c => c.key.toLowerCase() === optionKey.toLowerCase())
+      return option ? getLocalizedText(option) : ''
+    }
+    
+    // Create topic-based quizzes only (no comprehensive exam)
+    const createTopicQuizzes = (questions) => {
+      // Define topic categories for grouping
+      const topicCategories = {
+        'Traffic Rules & Signs': ['traffic_rules', 'traffic_signs', 'road_signs', 'traffic_lights', 'road_markings', 'lane_lines', 'yellow_lines', 'signals', 'regulatory', 'prohibitory', 'warning', 'lane_use_signs'],
+        'Safe Driving': ['defensive_driving', 'safe_driving_rules', 'road_safety', 'hazard_awareness', 'driver_attitude', 'road_discipline'],
+        'Licensing & Documents': ['licensing', 'driver_classification', 'professional_driver', 'requirements', 'age', 'renewal', 'validity', 'dl_codes', 'authorized_vehicles', 'lending_license'],
+        'Violations & Penalties': ['violations', 'penalties', 'settlement_period', 'lto_process', 'temporary_operator_permit', 'suspension', 'confiscation', 'adjudication'],
+        'Vehicle Operations': ['parking', 'overtaking', 'lane_change', 'turning', 'hand_signals', 'backing_up', 'vehicle_control', 'braking'],
+        'Emergency & Accidents': ['road_emergency', 'road_crash', 'first_aid', 'breakdown', 'ewd', 'tire_blowout', 'emergency_vehicles'],
+        'Special Vehicles': ['motorcycle', 'motorcycle_safety', 'public_utility_vehicle', 'bike_lane', 'cyclists'],
+        'Driver Wellness': ['driver_fatigue', 'drowsy_driving', 'stress_management', 'road_rage'],
+        'Child Safety': ['child_safety', 'child_restraint', 'children'],
+        'Vehicle Maintenance': ['vehicle_maintenance', 'inspection', 'roadworthiness'],
+        'Weather & Conditions': ['weather_driving', 'heavy_rain', 'night_driving', 'visibility', 'headlights'],
+        'Right of Way': ['right_of_way', 'yield_sign', 'stop_sign', 'uncontrolled_intersection', 'pedestrians', 'crosswalk']
+      }
+      
+      // Group questions by category
+      const categoryGroups = {}
+      
+      // Initialize category groups
+      Object.keys(topicCategories).forEach(category => {
+        categoryGroups[category] = []
+      })
+      
+      // Add an "Other" category for uncategorized topics
+      categoryGroups['Other Topics'] = []
+      
+      // Assign questions to categories
+      questions.forEach(question => {
+        let assigned = false
+        
+        if (question.topic && Array.isArray(question.topic)) {
+          for (const topic of question.topic) {
+            for (const [category, topics] of Object.entries(topicCategories)) {
+              if (topics.includes(topic)) {
+                categoryGroups[category].push(question)
+                assigned = true
+                break
+              }
+            }
+            if (assigned) break
+          }
+        }
+        
+        if (!assigned) {
+          categoryGroups['Other Topics'].push(question)
+        }
+      })
+      
+      // Create quizzes for each category
+      const quizzes = []
+      let quizIndex = 1
+      
+      Object.entries(categoryGroups).forEach(([category, categoryQuestions]) => {
+        const uniqueQuestions = Array.from(new Map(categoryQuestions.map(q => [q.id, q])).values())
+        
+        if (uniqueQuestions.length > 0) {
+          quizzes.push({
+            id: `quiz-${quizIndex}`,
+            title: category,
+            course_name: 'Driving Theory',
+            questions: uniqueQuestions,
+            time_limit: uniqueQuestions.length * 60
+          })
+          quizIndex++
+        }
+      })
+      
+      return quizzes
+    }
+    
+    // Initialize data
+    const initializeData = async () => {
+      const bankData = await loadQuestionBank()
+      const questions = bankData.questions || []
+      
+      // Store comprehensive exam separately with ALL questions
+      const allUniqueQuestions = Array.from(new Map(questions.map(q => [q.id, q])).values())
+      comprehensiveExam.value = {
+        id: 'quiz-0',
+        title: 'Comprehensive Assessment',
+        course_name: 'Full Exam',
+        questions: allUniqueQuestions,
+        time_limit: Math.min(allUniqueQuestions.length * 60, 7200) // Max 2 hours
+      }
+      
+      // Create topic-based quizzes (without comprehensive exam)
+      availableQuizzes.value = createTopicQuizzes(questions)
+      
+      console.log('Comprehensive exam stored:', comprehensiveExam.value)
+      console.log('Topic quizzes:', availableQuizzes.value)
+    }
     
     // Computed Properties
     const hasTakenExams = computed(() => {
@@ -496,17 +703,6 @@ export default {
     // Exam Modal Computed
     const currentQuestion = computed(() => {
       return currentQuestions.value[currentQuestionIndex.value]
-    })
-    
-    const options = computed(() => {
-      if (!currentQuestion.value) return []
-      
-      return [
-        { value: 'A', text: currentQuestion.value.option_a },
-        { value: 'B', text: currentQuestion.value.option_b },
-        { value: 'C', text: currentQuestion.value.option_c },
-        { value: 'D', text: currentQuestion.value.option_d }
-      ]
     })
     
     const formattedTime = computed(() => {
@@ -543,7 +739,6 @@ export default {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, options)
         
         if (response.status === 401) {
-          // Token expired or invalid
           localStorage.removeItem('token')
           localStorage.removeItem('user')
           window.location.href = '/login'
@@ -561,7 +756,6 @@ export default {
       }
     }
     
-    // API Service Functions
     async function fetchUserData() {
       try {
         const userData = localStorage.getItem('user')
@@ -579,7 +773,7 @@ export default {
           id: null,
           name: 'Student',
           email: '',
-          preferred_language: 'english'
+          preferred_language: 'en'
         }
       } catch (error) {
         console.error('Error fetching user data:', error)
@@ -587,24 +781,15 @@ export default {
       }
     }
     
-    async function fetchAvailableQuizzes() {
-      try {
-        const response = await apiCall('/student/quizzes')
-        return response.data || response.quizzes || []
-      } catch (error) {
-        console.error('Error fetching quizzes:', error)
-        return []
+    async function fetchExamQuestions(examId) {
+      // If it's the comprehensive exam, get from comprehensiveExam ref
+      if (examId === 'quiz-0' && comprehensiveExam.value) {
+        return comprehensiveExam.value.questions
       }
-    }
-    
-    async function fetchExamQuestions(examId, language = 'english') {
-      try {
-        const response = await apiCall(`/student/exams/${examId}/questions?language=${language}`)
-        return response.data || response.questions || []
-      } catch (error) {
-        console.error('Error fetching exam questions:', error)
-        return []
-      }
+      
+      // Otherwise, get from topic-based quizzes
+      const quiz = availableQuizzes.value.find(q => q.id === examId)
+      return quiz ? quiz.questions : []
     }
     
     async function submitExamAttempt(attemptData) {
@@ -629,88 +814,87 @@ export default {
         return performLocalAnalysis(questions, userAnswers)
       }
     }
-    
-    async function fetchUserResults() {
-      try {
-        const response = await apiCall('/student/exam-results')
-        return response.data || response.results || []
-      } catch (error) {
-        console.error('Error fetching user results:', error)
-        return []
-      }
-    }
-    
-    async function updateUserLanguageApi(userId, language) {
-      try {
-        await apiCall(`/users/${userId}/language`, 'PUT', { language })
-      } catch (error) {
-        console.error('Error updating language:', error)
-      }
-    }
-    
-    // Local Analysis Fallback
-    function performLocalAnalysis(questions, userAnswers) {
-      const categories = [
-        'Vehicle Maintenance', 
-        'Traffic Rules', 
-        'Road Signs', 
-        'Driving Techniques',
-        'Safety Procedures'
-      ]
-      
-      const categoryScores = {}
-      
-      // Initialize categories
-      categories.forEach(category => {
-        categoryScores[category] = { correct: 0, total: 0, score: 0 }
-      })
-
-      // Analyze each answer
-      questions.forEach((question, index) => {
-        const category = question.category || categories[index % categories.length]
-        const userAnswer = userAnswers[index]
-        const isCorrect = userAnswer === question.correct_answer
+      // Local Analysis Fallback
+      function performLocalAnalysis(questions, userAnswers) {
+        const categories = {}
+        let totalCorrect = 0
         
-        if (!categoryScores[category]) {
-          categoryScores[category] = { correct: 0, total: 0, score: 0 }
-        }
+        console.log('Analyzing questions:', questions.length)
+        console.log('User answers:', userAnswers)
         
-        categoryScores[category].total++
-        if (isCorrect) {
-          categoryScores[category].correct++
-        }
-      })
+        questions.forEach((question, index) => {
+          const userAnswer = userAnswers[index]
+          const isCorrect = userAnswer?.toLowerCase() === question.correct_key?.toLowerCase()
+          
+          if (isCorrect) totalCorrect++
+          
+          // Check if question has topics
+          if (question.topic && Array.isArray(question.topic)) {
+            question.topic.forEach(topic => {
+              if (!categories[topic]) {
+                categories[topic] = { correct: 0, total: 0, score: 0 }
+              }
+              
+              categories[topic].total++
+              if (isCorrect) {
+                categories[topic].correct++
+              }
+            })
+          } else {
+            // If no topic, put in "General" category
+            if (!categories['general']) {
+              categories['general'] = { correct: 0, total: 0, score: 0 }
+            }
+            categories['general'].total++
+            if (isCorrect) {
+              categories['general'].correct++
+            }
+          }
+        })
 
-      // Calculate scores
-      const weaknessAnalysis = []
-      Object.keys(categoryScores).forEach(category => {
-        const data = categoryScores[category]
-        if (data.total > 0) {
-          data.score = Math.round((data.correct / data.total) * 100)
+        console.log('Categories data:', categories)
+
+        // Calculate scores for each category
+        const weaknessAnalysis = []
+        Object.keys(categories).forEach(category => {
+          const data = categories[category]
+          // Calculate percentage
+          data.score = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0
+          
+          // Format category name for display
+          const formattedCategory = category.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
           
           weaknessAnalysis.push({
-            category: category,
+            category: formattedCategory,
             score: data.score,
             correct_answers: data.correct,
             total_questions: data.total,
-            weakness_score: 100 - data.score
+            weakness_score: 100 - data.score,
+            feedback: getWeaknessFeedback(formattedCategory, data.score)
           })
+        })
+
+        // Sort by weakness (lowest score first)
+        weaknessAnalysis.sort((a, b) => a.score - b.score)
+
+        const totalScore = Math.round((totalCorrect / questions.length) * 100)
+
+        console.log('Total correct:', totalCorrect)
+        console.log('Total questions:', questions.length)
+        console.log('Total score:', totalScore)
+        console.log('Weakness analysis:', weaknessAnalysis)
+
+        return {
+          overall_score: totalScore,
+          weakness_analysis: weaknessAnalysis,
+          total_questions: questions.length,
+          correct_answers: totalCorrect,
+          used_model: false,
+          recommendation: generateRecommendation(weaknessAnalysis)
         }
-      })
-
-      const totalScore = Math.round((userAnswers.filter((answer, index) => 
-        answer === questions[index].correct_answer
-      ).length / questions.length) * 100)
-
-      return {
-        overall_score: totalScore,
-        weakness_analysis: weaknessAnalysis.sort((a, b) => b.weakness_score - a.weakness_score),
-        total_questions: questions.length,
-        correct_answers: userAnswers.filter((answer, index) => answer === questions[index].correct_answer).length,
-        used_model: false,
-        recommendation: generateRecommendation(weaknessAnalysis)
-      }
-    }
+}
     
     function generateRecommendation(weaknessAnalysis) {
       if (weaknessAnalysis.length === 0) return "Complete more exams to get better recommendations."
@@ -778,73 +962,62 @@ export default {
     }
     
     function getWeaknessFeedback(category, score) {
+      const level = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low'
+      
       const feedback = {
-        'Vehicle Maintenance': {
-          high: "You have excellent knowledge of vehicle maintenance procedures.",
-          medium: "You understand basic maintenance but need to learn more advanced procedures.",
-          low: "Focus on learning basic vehicle maintenance like oil changes, tire pressure, and brake checks."
-        },
-        'Traffic Rules': {
-          high: "Strong understanding of traffic rules and regulations.",
-          medium: "Good knowledge but review specific traffic laws and right-of-way rules.",
-          low: "Study traffic rules thoroughly - pay attention to speed limits, signaling, and intersection rules."
-        },
-        'Road Signs': {
-          high: "Excellent recognition and understanding of road signs.",
-          medium: "You know most signs but need to review less common ones.",
-          low: "Memorize all road signs - especially warning, regulatory, and guide signs."
-        },
-        'Driving Techniques': {
-          high: "You demonstrate advanced driving techniques and awareness.",
-          medium: "Good basic techniques but practice defensive driving strategies.",
-          low: "Practice basic driving maneuvers, parking, and defensive driving techniques."
-        },
-        'Safety Procedures': {
-          high: "Excellent safety awareness and emergency procedures knowledge.",
-          medium: "Good safety knowledge but review emergency procedures.",
-          low: "Learn safety procedures for emergencies, accidents, and hazardous conditions."
-        }
+        high: `Excellent knowledge of ${category}.`,
+        medium: `Good understanding of ${category} with room for improvement.`,
+        low: `Focus on learning more about ${category}.`
+      }
+      
+      return feedback[level]
+    }
+    
+      function getReviewQuestionClass(index) {
+        const userAnswer = currentReviewAnswers.value[index]  // ← add .value
+        const correctAnswer = currentQuestions.value[index]?.correct_key
+        const isCorrect = userAnswer?.toLowerCase() === correctAnswer?.toLowerCase()  // ← case-insensitive
+        return isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
       }
 
-      const level = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low'
-      return feedback[category] ? feedback[category][level] : "Continue practicing this area."
+      function getReviewStatusClass(index) {
+        const userAnswer = currentReviewAnswers.value[index]  // ← add .value
+        const correctAnswer = currentQuestions.value[index]?.correct_key
+        const isCorrect = userAnswer?.toLowerCase() === correctAnswer?.toLowerCase()  // ← case-insensitive
+        return isCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+      }
+
+      function getReviewStatus(index) {
+        const userAnswer = currentReviewAnswers.value[index]  // ← add .value
+        const correctAnswer = currentQuestions.value[index]?.correct_key
+        const isCorrect = userAnswer?.toLowerCase() === correctAnswer?.toLowerCase()  // ← case-insensitive
+        return isCorrect ? '✓ Correct' : '✗ Incorrect'
+      }
+    
+    // Method to scroll to quizzes section
+    const scrollToQuizzes = () => {
+      const quizzesSection = document.querySelector('.quizzes-section')
+      if (quizzesSection) {
+        quizzesSection.scrollIntoView({ behavior: 'smooth' })
+      }
     }
     
-    // Review Modal Helpers
-    function getReviewQuestionClass(index) {
-      const userAnswer = currentReviewAnswers[index]
-      const correctAnswer = currentQuestions.value[index]?.correct_answer
-      const isCorrect = userAnswer === correctAnswer
-      return isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-    }
-    
-    function getReviewStatusClass(index) {
-      const userAnswer = currentReviewAnswers[index]
-      const correctAnswer = currentQuestions.value[index]?.correct_answer
-      const isCorrect = userAnswer === correctAnswer
-      return isCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
-    }
-    
-    function getReviewStatus(index) {
-      const userAnswer = currentReviewAnswers[index]
-      const correctAnswer = currentQuestions.value[index]?.correct_answer
-      const isCorrect = userAnswer === correctAnswer
-      return isCorrect ? '✓ Correct' : '✗ Incorrect'
-    }
-    
-    // Main Methods
     const loadInitialData = async () => {
       loading.value = true
       try {
+        await initializeData()
+        
         // Load user data
         user.value = await fetchUserData()
-        currentLanguage.value = user.value.preferred_language || 'english'
+        currentLanguage.value = user.value.preferred_language || 'en'
         
-        // Load available quizzes
-        availableQuizzes.value = await fetchAvailableQuizzes()
-        
-        // Load user's exam results
-        examResults.value = await fetchUserResults()
+        // Load user's exam results from localStorage
+        const savedResults = localStorage.getItem('examResults')
+        if (savedResults) {
+          examResults.value = JSON.parse(savedResults)
+        } else {
+          examResults.value = []
+        }
         
         // Load AI recommendations if user has taken exams
         if (hasTakenExams.value) {
@@ -852,6 +1025,7 @@ export default {
         }
       } catch (error) {
         console.error('Error loading initial data:', error)
+        availableQuizzes.value = []
       } finally {
         loading.value = false
       }
@@ -861,7 +1035,6 @@ export default {
       if (!hasTakenExams.value || !user.value.id) return
       
       try {
-        const latestAttempt = examResults.value[0]
         const analysis = await analyzePerformanceWithAI([], [])
         
         if (analysis) {
@@ -880,15 +1053,20 @@ export default {
     const startExam = async (examId) => {
       loading.value = true
       try {
-        // Reset exam state
-        currentExam.value = availableQuizzes.value.find(q => q.id === examId)
+        // Determine which exam to use
+        if (examId === 'quiz-0' && comprehensiveExam.value) {
+          currentExam.value = comprehensiveExam.value
+        } else {
+          currentExam.value = availableQuizzes.value.find(q => q.id === examId)
+        }
+        
         if (!currentExam.value) {
           alert('Exam not found.')
           return
         }
         
         // Load questions
-        currentQuestions.value = await fetchExamQuestions(examId, currentLanguage.value)
+        currentQuestions.value = await fetchExamQuestions(examId)
         
         if (currentQuestions.value.length === 0) {
           alert('No questions found for this exam.')
@@ -898,7 +1076,7 @@ export default {
         // Initialize exam state
         currentQuestionIndex.value = 0
         userAnswers.value = new Array(currentQuestions.value.length).fill(null)
-        timeRemaining.value = currentExam.value.time_limit || 1800
+        timeRemaining.value = currentExam.value.time_limit || 3600
         
         // Start timer
         startTimer()
@@ -913,16 +1091,29 @@ export default {
       }
     }
     
+    const takeExam = (examId) => {
+      startExam(examId)
+    }
+    
     const startInitialExam = () => {
-      // Start the first available exam
-      if (availableQuizzes.value.length > 0) {
-        startExam(availableQuizzes.value[0].id)
+      if (comprehensiveExam.value) {
+        startExam(comprehensiveExam.value.id)
+      } else {
+        alert('Comprehensive exam not available.')
       }
     }
     
     const startRecommendedExam = () => {
-      // Start exam based on AI recommendation
-      if (availableQuizzes.value.length > 0) {
+      if (aiRecommendations.value.length > 0) {
+        const recommendedQuiz = availableQuizzes.value.find(q => 
+          q.title.toLowerCase().includes(aiRecommendations.value[0].title.toLowerCase())
+        )
+        if (recommendedQuiz) {
+          startExam(recommendedQuiz.id)
+        } else if (availableQuizzes.value.length > 0) {
+          startExam(availableQuizzes.value[0].id)
+        }
+      } else if (availableQuizzes.value.length > 0) {
         startExam(availableQuizzes.value[0].id)
       }
     }
@@ -956,67 +1147,81 @@ export default {
       }
     }
     
-    const submitExam = async () => {
-      try {
-        // Clear timer
-        if (timerInterval.value) {
-          clearInterval(timerInterval.value)
-          timerInterval.value = null
-        }
-        
-        // Close exam modal
-        showExamModal.value = false
-        
-        // Calculate score
-        const correctAnswers = currentQuestions.value.filter((q, index) => 
-          userAnswers.value[index] === q.correct_answer
-        ).length
-        
-        const score = Math.round((correctAnswers / currentQuestions.value.length) * 100)
-        currentScore.value = score
-        
-        // Call AI analysis
-        const analysis = await analyzePerformanceWithAI(currentQuestions.value, userAnswers.value)
-        
-        currentWeaknessAnalysis.value = analysis.weakness_analysis || []
-        currentRecommendation.value = analysis.recommendation || generateRecommendation(currentWeaknessAnalysis.value)
-        usedAIModel.value = analysis.used_model || false
-        
-        // Submit exam attempt
-        const attemptData = {
-          student_id: user.value.id,
-          exam_id: currentExam.value.id,
-          score: score,
-          total_questions: currentQuestions.value.length,
-          correct_answers: correctAnswers,
-          time_taken: (currentExam.value.time_limit || 1800) - timeRemaining.value,
-          answers: [...userAnswers.value],
-          language: currentLanguage.value
-        }
-        
-        const savedAttempt = await submitExamAttempt(attemptData)
-        
-        // Update local results
-        examResults.value.unshift({
-          ...savedAttempt,
-          exam_title: currentExam.value.title,
-          completed_at: new Date().toISOString()
-        })
-        
-        // Update AI recommendations
-        if (examResults.value.length === 1) {
-          await loadAIRecommendations()
-        }
-        
-        // Show results modal
-        showResultsModal.value = true
-      } catch (error) {
-        console.error('Error submitting exam:', error)
-        alert('Failed to submit exam. Please try again.')
-      }
+const submitExam = async () => {
+  try {
+    if (timerInterval.value) {
+      clearInterval(timerInterval.value)
+      timerInterval.value = null
     }
     
+    showExamModal.value = false
+    
+    // FIX: Better answer comparison
+      const correctAnswers = currentQuestions.value.filter((q, index) => {
+        const userAnswer = userAnswers.value[index]
+        const correctKey = q.correct_key
+        
+        // Convert both to lowercase for comparison
+        return userAnswer?.toLowerCase() === correctKey?.toLowerCase()
+      }).length
+          
+    const score = Math.round((correctAnswers / currentQuestions.value.length) * 100)
+    currentScore.value = score
+    
+    // FIX: Show loading state
+    loading.value = true
+    
+    // Call AI analysis (this causes delay)
+    const analysis = await analyzePerformanceWithAI(currentQuestions.value, userAnswers.value)
+    
+    currentWeaknessAnalysis.value = analysis.weakness_analysis || []
+    currentRecommendation.value = analysis.recommendation || generateRecommendation(currentWeaknessAnalysis.value)
+    usedAIModel.value = analysis.used_model || false
+    
+    // Submit exam attempt
+    const attemptData = {
+      student_id: user.value.id || 'demo-user',
+      exam_id: currentExam.value.id,
+      exam_title: currentExam.value.title,
+      score: score,
+      total_questions: currentQuestions.value.length,
+      correct_answers: correctAnswers,
+      time_taken: (currentExam.value.time_limit || 3600) - timeRemaining.value,
+      answers: [...userAnswers.value],
+      language: currentLanguage.value,
+      completed_at: new Date().toISOString()
+    }
+    
+    const savedAttempt = await submitExamAttempt(attemptData)
+    
+    examResults.value.unshift({
+      ...savedAttempt,
+      exam_title: currentExam.value.title,
+      completed_at: new Date().toISOString()
+    })
+    
+    localStorage.setItem('examResults', JSON.stringify(examResults.value))
+    
+    if (examResults.value.length === 1) {
+      await loadAIRecommendations()
+    }
+    
+    // FIX: Turn off loading before showing modal
+    loading.value = false
+    showResultsModal.value = true
+  } catch (error) {
+    console.error('Error submitting exam:', error)
+    alert('Failed to submit exam. Please try again.')
+    loading.value = false
+  }
+}
+    
     const reviewExam = (attempt) => {
+      const quiz = availableQuizzes.value.find(q => q.title === attempt.exam_title)
+      if (quiz) {
+        currentQuestions.value = quiz.questions
+      }
+      
       currentReviewAttempt.value = attempt
       currentReviewAnswers.value = attempt.answers || []
       showReviewModal.value = true
@@ -1025,6 +1230,10 @@ export default {
     const updateUserLanguage = async () => {
       if (user.value.id) {
         await updateUserLanguageApi(user.value.id, currentLanguage.value)
+      }
+      if (user.value) {
+        user.value.preferred_language = currentLanguage.value
+        localStorage.setItem('user', JSON.stringify(user.value))
       }
     }
     
@@ -1038,7 +1247,6 @@ export default {
       }
     }
     
-    // Lifecycle
     onMounted(() => {
       loadInitialData()
     })
@@ -1075,12 +1283,16 @@ export default {
       filteredQuizzes,
       filteredResults,
       currentQuestion,
-      options,
       formattedTime,
       timerClass,
       progressWidth,
       
+      // Helper Functions
+      getLocalizedText,
+      getOptionText,
+      
       // Methods
+      takeExam,
       startExam,
       startInitialExam,
       startRecommendedExam,
@@ -1091,6 +1303,7 @@ export default {
       reviewExam,
       updateUserLanguage,
       closeExamModal,
+      scrollToQuizzes,
       getScoreColorClass,
       getStatusClass,
       getButtonClass,

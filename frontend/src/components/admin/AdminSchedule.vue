@@ -13,7 +13,15 @@
     <div>
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold text-green-800">📅 Schedule Management</h2>
+        <div>
+          <h2 class="text-lg font-bold text-green-800">📅 Schedule Management</h2>
+
+          <div v-if="activeTrack === 'tesda'" class="text-xs text-gray-600 mt-1">
+            TESDA is <b>batch-based</b>. System auto-assigns students to batches with capacity <b>25</b>.
+            Admin does <b>not</b> set slots manually. You may create a batch even if start date is <b>TBA</b>.
+          </div>
+        </div>
+
         <button
           @click="openAddModal"
           class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
@@ -55,15 +63,29 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-lg font-bold text-green-800">📅 Schedule Overview</h3>
+
           <div class="flex gap-3 text-sm">
-            <span class="flex items-center gap-1">
-              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-              Available: {{ availableSlots }}
-            </span>
-            <span class="flex items-center gap-1">
-              <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-              Full: {{ fullDates }}
-            </span>
+            <template v-if="activeTrack !== 'tesda'">
+              <span class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                Available: {{ availableSlots }}
+              </span>
+              <span class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                Full: {{ fullDates }}
+              </span>
+            </template>
+
+            <template v-else>
+              <span class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                Scheduled batches: {{ tesdaScheduledCount }}
+              </span>
+              <span class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-gray-500 rounded-full"></div>
+                TBA batches: {{ tesdaTbaCount }}
+              </span>
+            </template>
           </div>
         </div>
 
@@ -83,7 +105,10 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Month</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Month
+              <span v-if="activeTrack==='tesda'" class="text-xs text-gray-500">(scheduled only)</span>
+            </label>
             <select
               v-model="selectedMonth"
               class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -108,6 +133,10 @@
             >
               Refresh
             </button>
+          </div>
+
+          <div v-if="activeTrack==='tesda'" class="w-full text-xs text-gray-600">
+            Calendar shows <b>scheduled batches only</b>. TBA batches are visible in the list below.
           </div>
         </div>
 
@@ -138,18 +167,32 @@
             v-for="date in calendarDates"
             :key="date.key"
             :class="[
-              'p-3 border rounded text-center cursor-pointer transition-colors',
+              'p-3 border rounded text-center cursor-pointer transition-colors relative',
               date.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400',
               date.isToday ? 'border-green-500' : 'border-gray-200',
-              getDateClass(date.date),
+              getDateClass(date),
             ]"
             @click="openDayModal(date.date)"
           >
             <div class="font-medium">{{ date.day }}</div>
-            <div v-if="date.slotCount !== null" class="text-xs mt-1">
+
+            <!-- ✅ DRIVING: show slots like before -->
+            <div v-if="activeTrack !== 'tesda' && date.slotCount !== null" class="text-xs mt-1">
               <span :class="date.slotCount === 0 ? 'text-red-600' : 'text-green-700'">
                 {{ date.slotCount === 0 ? 'Full' : `${date.slotCount} Slots` }}
               </span>
+            </div>
+
+            <!-- ✅ TESDA: show batch start marker (not slots) -->
+            <div
+              v-if="activeTrack === 'tesda' && date.isTesdaStart"
+              class="text-xs mt-1"
+            >
+              <span class="text-green-700 font-semibold">Batch Start</span>
+            </div>
+
+            <div v-if="activeTrack === 'tesda' && !date.isTesdaStart && date.isTesdaEnd" class="text-xs mt-1">
+              <span class="text-gray-700 font-semibold">END</span>
             </div>
           </div>
         </div>
@@ -157,13 +200,20 @@
         <!-- Legend -->
         <div class="mt-4 flex gap-4 text-sm text-gray-600">
           <span class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-green-100 rounded"></div> Available
-          </span>
-          <span class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-red-100 rounded"></div> Full
+            <div class="w-3 h-3 bg-green-100 rounded"></div> Has schedule
           </span>
           <span class="flex items-center gap-2">
             <div class="w-3 h-3 border-2 border-green-500 rounded"></div> Today
+          </span>
+
+          <span v-if="activeTrack==='tesda'" class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-green-600"></div> Range day (dot)
+          </span>
+          <span v-if="activeTrack==='tesda'" class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded bg-green-100 border-2 border-green-600"></div> Start day
+          </span>
+          <span v-if="activeTrack==='tesda'" class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded bg-gray-100 border-2 border-gray-400"></div> End day
           </span>
         </div>
       </div>
@@ -182,10 +232,13 @@
               <div class="text-xs text-gray-500 mt-1">
                 *Top filters (Course/Month/Search) affects both Calendar + List.
               </div>
+
+              <div v-if="activeTrack==='tesda'" class="text-xs text-gray-600 mt-1">
+                TESDA is batch-based: <b>25 trainees per batch</b>. TBA batches are listed here.
+              </div>
             </div>
 
             <div class="flex flex-wrap gap-3 items-end">
-              <!-- ✅ NEW: Course filter inside LIST (does NOT affect calendar) -->
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Course (List)</label>
                 <select
@@ -209,6 +262,7 @@
                   <option value="Open">Open</option>
                   <option value="Full">Full</option>
                   <option value="Closed">Closed</option>
+                  <option value="TBA" v-if="activeTrack==='tesda'">TBA</option>
                 </select>
               </div>
 
@@ -252,12 +306,17 @@
             <thead class="bg-green-800 text-white">
               <tr>
                 <th class="py-3 px-4 text-left font-medium">Course</th>
-                <th class="py-3 px-4 text-left font-medium">Date</th>
+                <th class="py-3 px-4 text-left font-medium">
+                  {{ activeTrack==='tesda' ? 'Batch Range' : 'Date' }}
+                </th>
                 <th class="py-3 px-4 text-left font-medium">Time</th>
                 <th class="py-3 px-4 text-left font-medium">
                   {{ activeTrack === "tesda" ? "Trainer" : "Instructor" }}
                 </th>
-                <th class="py-3 px-4 text-left font-medium">Slots</th>
+
+                <th v-if="activeTrack !== 'tesda'" class="py-3 px-4 text-left font-medium">Slots</th>
+                <th v-else class="py-3 px-4 text-left font-medium">Batch</th>
+
                 <th class="py-3 px-4 text-left font-medium">Status</th>
                 <th class="py-3 px-4 text-left font-medium">Actions</th>
               </tr>
@@ -271,23 +330,61 @@
               >
                 <td class="py-3 px-4">
                   <div class="font-medium">{{ schedule.course }}</div>
+                  <div v-if="activeTrack==='tesda'" class="text-xs text-gray-500">
+                    Duration: {{ getCourseDurationLabel(schedule) }}
+                  </div>
                 </td>
+
                 <td class="py-3 px-4">
-                  {{ formatDate(schedule.date) }}
-                  <div class="text-xs text-gray-500">{{ schedule.day }}</div>
+                  <div class="font-medium">
+                    <template v-if="activeTrack!=='tesda'">
+                      {{ formatDate(schedule.date) }}
+                    </template>
+
+                    <template v-else>
+                      <template v-if="isTesdaScheduled(schedule)">
+                        {{ formatDate(schedule.date) }} → {{ formatDate(getTesdaEndDate(schedule)) }}
+                      </template>
+                      <template v-else>
+                        <span class="text-gray-700 font-semibold">TBA</span>
+                        <span class="text-xs text-gray-500 ml-2">(pooling batch)</span>
+                      </template>
+                    </template>
+                  </div>
+
+                  <div v-if="activeTrack !== 'tesda'" class="text-xs text-gray-500">{{ schedule.day }}</div>
+                  <div v-else class="text-xs text-gray-500">
+                    {{ isTesdaScheduled(schedule) ? 'Batch scheduled' : 'Waiting for start date' }}
+                  </div>
                 </td>
+
                 <td class="py-3 px-4">
                   <div class="font-medium">{{ schedule.startTime }} - {{ schedule.endTime }}</div>
                 </td>
-                <td class="py-3 px-4">{{ schedule.instructor }}</td>
+
                 <td class="py-3 px-4">
+                  {{ schedule.instructor || (activeTrack==='tesda' ? '—' : '') }}
+                </td>
+
+                <td v-if="activeTrack !== 'tesda'" class="py-3 px-4">
                   <div>{{ schedule.availableSlots }} / {{ schedule.totalSlots }}</div>
                 </td>
+
+                <td v-else class="py-3 px-4">
+                  <div class="font-semibold text-gray-800">
+                    Batch {{ getTesdaBatchNo(schedule) }}
+                  </div>
+                  <div class="text-xs text-gray-600">
+                    Enrollees: {{ getTesdaEnrolled(schedule) }}/25 • Remaining: {{ getTesdaRemaining(schedule) }}/25
+                  </div>
+                </td>
+
                 <td class="py-3 px-4">
                   <span :class="getStatusClass(schedule)">
                     {{ schedule.computedStatus || (schedule.availableSlots === 0 ? "Full" : "Open") }}
                   </span>
                 </td>
+
                 <td class="py-3 px-4">
                   <button
                     @click="viewSchedule(schedule)"
@@ -391,6 +488,10 @@
                   (Top Course Filter applied)
                 </span>
               </div>
+
+              <div v-if="activeTrack==='tesda'" class="text-xs text-gray-500 mt-1">
+                TESDA calendar shows scheduled batches only.
+              </div>
             </div>
             <button @click="closeDayModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
           </div>
@@ -408,7 +509,9 @@
                   <th class="py-3 px-4 text-left font-medium">
                     {{ activeTrack === "tesda" ? "Trainer" : "Instructor" }}
                   </th>
-                  <th class="py-3 px-4 text-left font-medium">Slots</th>
+                  <th class="py-3 px-4 text-left font-medium">
+                    {{ activeTrack === 'tesda' ? 'Batch' : 'Slots' }}
+                  </th>
                   <th class="py-3 px-4 text-left font-medium">Status</th>
                   <th class="py-3 px-4 text-left font-medium">Actions</th>
                 </tr>
@@ -421,14 +524,31 @@
                 >
                   <td class="py-3 px-4">
                     <div class="font-medium">{{ s.course }}</div>
+                    <div v-if="activeTrack==='tesda'" class="text-xs text-gray-500">
+                      {{ formatDate(s.date) }} → {{ formatDate(getTesdaEndDate(s)) }}
+                    </div>
                   </td>
                   <td class="py-3 px-4">
                     <div class="font-medium">{{ s.startTime }} - {{ s.endTime }}</div>
                   </td>
-                  <td class="py-3 px-4">{{ s.instructor }}</td>
-                  <td class="py-3 px-4">{{ s.availableSlots }} / {{ s.totalSlots }}</td>
+                  <td class="py-3 px-4">{{ s.instructor || (activeTrack==='tesda' ? '—' : '') }}</td>
+
                   <td class="py-3 px-4">
-                    <span :class="getStatusClass(s)">{{ s.computedStatus || (s.availableSlots === 0 ? "Full" : "Open") }}</span>
+                    <template v-if="activeTrack !== 'tesda'">
+                      {{ s.availableSlots }} / {{ s.totalSlots }}
+                    </template>
+                    <template v-else>
+                      <div class="font-semibold">Batch {{ getTesdaBatchNo(s) }}</div>
+                      <div class="text-xs text-gray-600">
+                        Enrollees: {{ getTesdaEnrolled(s) }}/25 • Remaining: {{ getTesdaRemaining(s) }}/25
+                      </div>
+                    </template>
+                  </td>
+
+                  <td class="py-3 px-4">
+                    <span :class="getStatusClass(s)">
+                      {{ s.computedStatus || (s.availableSlots === 0 ? "Full" : "Open") }}
+                    </span>
                   </td>
                   <td class="py-3 px-4">
                     <button
@@ -475,7 +595,7 @@
         <div class="p-6">
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-lg font-bold text-green-800">
-              {{ isEditing ? "Edit Schedule" : "Add New Schedule" }}
+              {{ isEditing ? (activeTrack==='tesda' ? "Edit TESDA Batch" : "Edit Schedule") : (activeTrack==='tesda' ? "Add TESDA Batch" : "Add New Schedule") }}
             </h3>
             <button @click="closeModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
           </div>
@@ -518,16 +638,6 @@
             <div class="mt-2 text-xs text-gray-500">
               Weekly/Monthly generates many dates and will create schedules automatically.
             </div>
-
-            <!-- ✅ NEW UI NOTE FOR TDC -->
-            <div
-              v-if="isTdcCourse && createMode !== 'single'"
-              class="mt-3 p-3 rounded-md border bg-yellow-50 text-yellow-800 text-xs"
-            >
-              <b>TDC Note:</b> TDC auto-splits into multiple days. Kaya kapag Weekly/Monthly,
-              <b>ini-skip namin ang consecutive start dates</b> para walang overlap (hal. 22,24,26...).
-              Preview below shows the actual dates that will be created.
-            </div>
           </div>
 
           <form @submit.prevent="saveSchedule">
@@ -545,17 +655,13 @@
                   </option>
                 </select>
 
-                <p v-if="courseRuleHint" class="text-xs text-gray-500 mt-1">
-                  Auto-duration: {{ courseRuleHint }}
-                </p>
-
-                <p v-if="activeTrack==='driving' && isTdcCourse" class="text-xs text-gray-600 mt-1">
-                  TDC weekly cap: <b>48 slots per week</b>. (Backend enforces.)
+                <p v-if="activeTrack==='tesda'" class="text-xs text-gray-600 mt-1">
+                  TESDA batch capacity is fixed: <b>25 trainees per batch</b> (system-managed).
                 </p>
               </div>
 
-              <!-- SINGLE date -->
-              <div v-if="isEditing || activeTrack === 'tesda' || createMode === 'single'">
+              <!-- ✅ DATE -->
+              <div v-if="activeTrack !== 'tesda' && (isEditing || createMode === 'single')">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <input
                   type="date"
@@ -563,6 +669,22 @@
                   required
                   class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                 />
+              </div>
+
+              <!-- ✅ TESDA: Start Date optional -->
+              <div v-if="activeTrack === 'tesda'">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date <span class="text-xs text-gray-500">(optional / TBA)</span>
+                </label>
+                <input
+                  type="date"
+                  v-model="formData.schedule_date"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <div class="text-xs text-gray-500 mt-1">
+                  Leave blank = batch is <b>TBA</b> (pooling). When date is set, it shows on calendar.
+                  <span class="block mt-1 text-red-600">*TESDA training days are Monday–Saturday only (no Sundays).</span>
+                </div>
               </div>
 
               <!-- BULK range (Driving only) -->
@@ -591,14 +713,16 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   {{ activeTrack === 'tesda' ? 'Trainer' : 'Instructor' }}
+                  <span v-if="activeTrack==='tesda'" class="text-xs text-gray-500">(optional)</span>
                 </label>
+
                 <select
                   v-model.number="personId"
-                  required
+                  :required="activeTrack !== 'tesda'"
                   class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
-                  <option value="" disabled>
-                    {{ activeTrack === 'tesda' ? 'Select trainer' : 'Select instructor' }}
+                  <option :value="0">
+                    {{ activeTrack === 'tesda' ? '— (none yet)' : 'Select instructor' }}
                   </option>
                   <option
                     v-for="p in instructors"
@@ -610,163 +734,32 @@
                 </select>
               </div>
 
-              <!-- Weekly days -->
-              <div v-if="!isEditing && activeTrack === 'driving' && createMode === 'weekly'" class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
-                <div class="flex flex-wrap gap-2">
-                  <label
-                    v-for="d in weekdayOptions"
-                    :key="d.key"
-                    class="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
-                  >
-                    <input type="checkbox" v-model="weekly.days" :value="d.key" />
-                    <span>{{ d.label }}</span>
-                  </label>
-                </div>
-
-                <!-- ✅ NEW UI HINT -->
-                <p v-if="isTdcCourse" class="text-xs text-yellow-700 mt-2">
-                  Note: Kahit i-check mo lahat, TDC will still skip consecutive start dates (para iwas overlap).
-                </p>
-              </div>
-
-              <!-- Monthly options -->
-              <div v-if="!isEditing && activeTrack === 'driving' && createMode === 'monthly'" class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Pattern</label>
-
-                <div class="flex flex-wrap gap-2 mb-3">
-                  <button
-                    type="button"
-                    class="px-3 py-2 rounded-md border text-sm font-medium"
-                    @click="monthly.mode = 'dayOfMonth'"
-                    :class="monthly.mode === 'dayOfMonth'
-                      ? 'bg-green-700 text-white border-green-700'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                  >
-                    Day of Month
-                  </button>
-                  <button
-                    type="button"
-                    class="px-3 py-2 rounded-md border text-sm font-medium"
-                    @click="monthly.mode = 'weekdayOfMonth'"
-                    :class="monthly.mode === 'weekdayOfMonth'
-                      ? 'bg-green-700 text-white border-green-700'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                  >
-                    Weekday Pattern
-                  </button>
-                </div>
-
-                <div v-if="monthly.mode === 'dayOfMonth'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Day (1-31)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="31"
-                      v-model.number="monthly.day"
-                      class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-                  <div class="text-xs text-gray-500 flex items-end">
-                    If a month has no such day (e.g. day 31), it will skip that month.
-                  </div>
-                </div>
-
-                <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Week</label>
-                    <select
-                      v-model="monthly.week"
-                      class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                    >
-                      <option value="1">1st</option>
-                      <option value="2">2nd</option>
-                      <option value="3">3rd</option>
-                      <option value="4">4th</option>
-                      <option value="last">Last</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Weekday</label>
-                    <select
-                      v-model="monthly.weekday"
-                      class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                    >
-                      <option v-for="d in weekdayOptions" :key="d.key" :value="d.key">
-                        {{ d.label }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="text-xs text-gray-500 flex items-end">Example: 2nd Saturday of every month.</div>
-                </div>
-              </div>
-
-
-              <!-- ✅ PDC A&B Only: AM/PM Option -->
-<div v-if="showPdcABTimeOptions" class="md:col-span-2">
-  <label class="block text-sm font-medium text-gray-700 mb-2">PDC A&B Time Slot</label>
-  <div class="flex gap-2">
-    <button
-      type="button"
-      @click="pdcSlot = 'AM'"
-      class="px-3 py-2 rounded-md border text-sm font-medium"
-      :class="pdcSlot === 'AM'
-        ? 'bg-green-700 text-white border-green-700'
-        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-    >
-      08:00 - 12:00
-    </button>
-
-    <button
-      type="button"
-      @click="pdcSlot = 'PM'"
-      class="px-3 py-2 rounded-md border text-sm font-medium"
-      :class="pdcSlot === 'PM'
-        ? 'bg-green-700 text-white border-green-700'
-        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-    >
-      13:00 - 17:00
-    </button>
-  </div>
-  <p class="text-xs text-gray-500 mt-2">
-    Applies to both Day 1 and Day 2.
-  </p>
-</div>
-
-
-
-
               <!-- Time -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-<input
-  type="time"
-  v-model="formData.start_time"
-  required
-  :readonly="showPdcABTimeOptions"
-  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-/>
-
+                <input
+                  type="time"
+                  v-model="formData.start_time"
+                  required
+                  :readonly="activeTrack === 'tesda'"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
                 <p class="text-xs text-gray-500 mt-1">FACET hours: 08:00 - 17:00</p>
               </div>
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-<input
-  type="time"
-  v-model="formData.end_time"
-  required
-  :readonly="Boolean(activeCourseRule) && !isEditing && activeTrack === 'driving'"
-  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-/>
-
-                <p v-if="activeCourseRule && !isEditing && activeTrack === 'driving'" class="text-xs text-gray-500 mt-1">
-                  End time is auto-computed for this course (when creating).
-                </p>
+                <input
+                  type="time"
+                  v-model="formData.end_time"
+                  required
+                  :readonly="activeTrack === 'tesda'"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
               </div>
 
-              <div class="md:col-span-2">
+              <!-- ✅ Total Slots: DRIVING only -->
+              <div v-if="activeTrack !== 'tesda'" class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Total Slots</label>
                 <input
                   type="number"
@@ -778,39 +771,28 @@
                 />
               </div>
 
-              <!-- Preview (Driving bulk) -->
-              <div v-if="!isEditing && activeTrack === 'driving' && createMode !== 'single'" class="md:col-span-2">
-                <div class="p-3 rounded-md border bg-gray-50">
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="text-sm text-gray-700">
-                      <b>Preview:</b> will create <b>{{ previewCount }}</b> schedule(s)
-                    </div>
-                    <button
-                      type="button"
-                      class="px-3 py-2 rounded-md border text-sm font-medium bg-white hover:bg-gray-50"
-                      @click="recomputePreview"
-                    >
-                      Recompute
-                    </button>
-                  </div>
-                  <div class="mt-2 text-xs text-gray-600 max-h-28 overflow-auto">
-                    <div v-if="previewDates.length === 0">No dates selected yet.</div>
-                    <div v-else class="flex flex-wrap gap-2">
-                      <span
-                        v-for="d in previewDates.slice(0, 30)"
-                        :key="d"
-                        class="px-2 py-1 rounded bg-white border"
-                      >
-                        {{ d }}
-                      </span>
-                      <span v-if="previewDates.length > 30" class="px-2 py-1 text-gray-500">
-                        +{{ previewDates.length - 30 }} more...
-                      </span>
-                    </div>
-                  </div>
+              <!-- ✅ TESDA: fixed capacity display -->
+              <div v-else class="md:col-span-2">
+                <div class="p-3 rounded-md border bg-gray-50 text-sm text-gray-700">
+                  <b>TESDA batch capacity:</b> 25 trainees per batch (system-managed).
+                </div>
+              </div>
 
-                  <div v-if="isTdcCourse" class="mt-2 text-[11px] text-gray-600">
-                    TDC preview is already adjusted to avoid overlaps.
+              <!-- ✅ TESDA computed range preview -->
+              <div v-if="activeTrack==='tesda'" class="md:col-span-2">
+                <div class="p-3 rounded-md border bg-gray-50 text-sm">
+                  <div class="text-gray-700">
+                    <b>TESDA Batch Range:</b>
+                    <template v-if="formData.schedule_date">
+                      {{ formatDate(formData.schedule_date) }} →
+                      {{ formatDate(tesdaEndDateFromStart(formData.schedule_date, activeCourse?.duration)) }}
+                    </template>
+                    <template v-else>
+                      <span class="font-semibold text-gray-700">TBA</span>
+                    </template>
+                  </div>
+                  <div class="text-xs text-gray-600 mt-1">
+                    Duration: {{ activeCourse?.duration || '—' }} hours (auto). Sundays are skipped.
                   </div>
                 </div>
               </div>
@@ -845,10 +827,15 @@
           <p class="text-gray-600">
             Are you sure you want to delete schedule for
             <span class="font-semibold">{{ scheduleToDelete?.course }}</span>
-            on
-            <span class="font-semibold">{{ scheduleToDelete ? formatDate(scheduleToDelete.date) : "" }}</span
-            >?
-            This action cannot be undone.
+            <template v-if="activeTrack !== 'tesda'">
+              on <span class="font-semibold">{{ scheduleToDelete ? formatDate(scheduleToDelete.date) : "" }}</span>
+            </template>
+            <template v-else>
+              <span class="font-semibold">
+                ({{ scheduleToDelete?.date ? `Start ${formatDate(scheduleToDelete.date)}` : 'TBA batch' }})
+              </span>
+            </template>
+            ?
           </p>
         </div>
         <div class="flex justify-end gap-2">
@@ -881,7 +868,6 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// ✅ LOCAL date string (no UTC shift)
 const toLocalYMD = (dateLike) => {
   const d = new Date(dateLike);
   if (Number.isNaN(d.getTime())) return String(dateLike || "");
@@ -891,29 +877,12 @@ const toLocalYMD = (dateLike) => {
   return `${y}-${m}-${day}`;
 };
 
-/* ===============================
-   FACET OPERATING HOURS + RULES
-   =============================== */
 const OPEN_TIME = "08:00";
 const CLOSE_TIME = "17:00";
-const MAX_HOURS_PER_DAY = 9;
-
-const pad2 = (n) => String(n).padStart(2, "0");
 
 const timeToMins = (t) => {
   const [h, m] = String(t || "0:0").split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
-};
-
-const minsToTime = (mins) => {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${pad2(h)}:${pad2(m)}`;
-};
-
-const addHoursToTime = (startTime, hours) => {
-  const start = timeToMins(startTime);
-  return minsToTime(start + Math.round(hours * 60));
 };
 
 const addDaysYMD = (ymd, addDays) => {
@@ -930,119 +899,72 @@ const withinFacetHours = (start, end) => {
   );
 };
 
-// ✅ course rules (Driving auto-duration)
-const COURSE_HOURS_RULES = [
-  // PDC A & B / PDC AB / PDC-AB / (AB)
-  { match: /\bPDC\s*-?\s*(A\s*&\s*B|A\s*AND\s*B|AB)\b|\(AB\)/i, days: 2, hoursPerDay: 4 },
+// TESDA batch constants
+const TESDA_BATCH_CAP = 25;
 
-  // TDC
-  { match: /\bTDC\b|THEORETICAL.*DRIVING.*COURSE/i, days: 2, hoursPerDay: 7.5 },
+// ===============================
+// ✅ TESDA: duration -> training days (Mon–Sat), skipping Sundays
+// IMPORTANT: order matters (avoid hoisting issues)
+// ===============================
+const TESDA_HOURS_PER_DAY = 9;
 
-  // PDC A (allow: "PDC A", "PDC-A", "Practical ... A")
-  { match: /\bPDC\s*-?\s*A\b|PRACTICAL.*\bA\b/i, days: 1 },
-
-  // PDC B (allow: "PDC B", "PDC-B", "Practical ... B")
-  // ⚠️ NOTE: dapat 1 day lang ito (backend mo 1 day, 8 hours)
-  { match: /\bPDC\s*-?\s*B\b|PRACTICAL.*\bB\b/i, days: 1 },
-];
-
-
-
-
-const getCourseRule = (courseName) => {
-  const name = String(courseName || "");
-  return COURSE_HOURS_RULES.find((r) => r.match.test(name)) || null;
+const parseDurationHours = (duration) => {
+  const m = String(duration || "").match(/(\d+(?:\.\d+)?)/);
+  const n = m ? Number(m[1]) : 0;
+  return Number.isFinite(n) ? n : 0;
 };
 
-const buildSessionsByRule = ({ courseName, startDate, startTime, endTime }) => {
-  const rule = getCourseRule(courseName);
-  if (!rule) return null;
-
-  const st = startTime || OPEN_TIME;
-  const et = endTime || "12:00";
-
-  // 1 day
-  if (rule.days === 1) {
-    return [{ date: startDate, start_time: st, end_time: et }];
-  }
-
-  // 2 days
-  if (rule.days === 2) {
-    return [
-      { date: startDate, start_time: st, end_time: et },
-      { date: addDaysYMD(startDate, 1), start_time: st, end_time: et },
-    ];
-  }
-
-  return null;
+const tesdaDaysFromDuration = (duration) => {
+  const totalHours = parseDurationHours(duration);
+  return totalHours > 0 ? Math.max(1, Math.ceil(totalHours / TESDA_HOURS_PER_DAY)) : 1;
 };
 
-
-/* ===============================
-   BULK DATE GENERATORS (Driving)
-   =============================== */
-const ymdToDate = (ymd) => new Date(`${ymd}T00:00:00`);
-const dateToYmd = (d) => toLocalYMD(d);
-
-const clampRange = (startYmd, endYmd) => {
-  const a = ymdToDate(startYmd);
-  const b = ymdToDate(endYmd);
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null;
-  if (a.getTime() > b.getTime()) return { start: endYmd, end: startYmd };
-  return { start: startYmd, end: endYmd };
+const isSundayYMD = (ymd) => {
+  if (!ymd) return false;
+  const d = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getDay() === 0;
 };
 
-const iterateDays = (startYmd, endYmd, cb) => {
-  const s = ymdToDate(startYmd);
-  const e = ymdToDate(endYmd);
-  for (let d = new Date(s); d.getTime() <= e.getTime(); d.setDate(d.getDate() + 1)) {
-    cb(new Date(d));
-  }
+const isMonToSatYMD = (ymd) => {
+  if (!ymd) return false;
+  const d = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return false;
+  const day = d.getDay(); // 0..6
+  return day >= 1 && day <= 6;
 };
 
-const nthWeekdayOfMonth = (year, monthIdx, weekday, nth) => {
-  const first = new Date(year, monthIdx, 1);
-  const last = new Date(year, monthIdx + 1, 0);
+const addDaysSkipSundays = (startYmd, addTrainingDays) => {
+  let d = new Date(`${startYmd}T00:00:00`);
+  let added = 0;
 
-  if (nth === "last") {
-    for (let d = new Date(last); d.getMonth() === monthIdx; d.setDate(d.getDate() - 1)) {
-      if (d.getDay() === weekday) return d;
-    }
-    return null;
+  while (added < addTrainingDays) {
+    d.setDate(d.getDate() + 1);
+    const ymd = toLocalYMD(d);
+    if (isMonToSatYMD(ymd)) added++;
   }
-
-  const targetNth = Number(nth);
-  if (![1, 2, 3, 4].includes(targetNth)) return null;
-
-  let count = 0;
-  for (let d = new Date(first); d.getMonth() === monthIdx; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() === weekday) {
-      count++;
-      if (count === targetNth) return d;
-    }
-  }
-  return null;
+  return toLocalYMD(d);
 };
 
-// ✅ NEW: for TDC (avoid overlap): remove consecutive start dates
-const skipConsecutiveStartDates = (dates) => {
-  const sorted = [...dates].filter(Boolean).sort(); // YYYY-MM-DD sort ok
-  const out = [];
-  let lastKept = null;
+const listTesdaTrainingDays = (startYmd, duration) => {
+  if (!startYmd) return [];
+  if (!isMonToSatYMD(startYmd)) return []; // start date must be Mon-Sat
 
-  for (const d of sorted) {
-    if (!lastKept) {
-      out.push(d);
-      lastKept = d;
-      continue;
-    }
-    const nextDay = addDaysYMD(lastKept, 1);
-    if (d === nextDay) continue; // skip consecutive
-    out.push(d);
-    lastKept = d;
+  const daysNeeded = tesdaDaysFromDuration(duration); // ex: 3 days
+  const out = [startYmd];
+
+  let cur = startYmd;
+  while (out.length < daysNeeded) {
+    cur = addDaysSkipSundays(cur, 1); // next training day
+    out.push(cur);
   }
-
   return out;
+};
+
+const tesdaEndDateFromStart = (startYmd, duration) => {
+  if (!startYmd) return "";
+  const days = listTesdaTrainingDays(startYmd, duration);
+  return days.length ? days[days.length - 1] : "";
 };
 
 export default {
@@ -1058,11 +980,11 @@ export default {
 
     const schedules = ref([]);
     const coursesRaw = ref([]);
-    const instructors = ref([]); // reused: instructors OR trainers
+    const instructors = ref([]);
 
     const searchQuery = ref("");
     const selectedCourseId = ref(0);
-    const selectedMonth = ref(months[new Date().getMonth()]);
+    const selectedMonth = ref("");
     const currentYear = ref(new Date().getFullYear());
     const currentMonth = ref(new Date().getMonth());
 
@@ -1074,25 +996,22 @@ export default {
     const saving = ref(false);
     const deleting = ref(false);
 
-    // ✅ Day modal
     const showDayModal = ref(false);
     const dayModalDate = ref("");
     const dayModalSchedules = ref([]);
 
-    // ✅ robust ID getter (FIX DELETE)
     const getScheduleId = (s) => {
       const raw = s?.id;
       const id = Number(String(raw ?? "").trim());
       return Number.isInteger(id) && id > 0 ? id : null;
     };
 
-    // ✅ person select for tesda/driving
     const formData = reactive({
       id: null,
       course_id: "",
       instructor_id: "",
       trainer_id: "",
-      schedule_date: toLocalYMD(new Date()),
+      schedule_date: "",
       start_time: OPEN_TIME,
       end_time: "12:00",
       total_slots: 10,
@@ -1109,41 +1028,13 @@ export default {
       },
     });
 
-    // ✅ BULK MODE (Driving only)
-    const createMode = ref("single"); // single | weekly | monthly
+    // BULK MODE (Driving only)
+    const createMode = ref("single");
     const range = reactive({
       start: toLocalYMD(new Date()),
       end: toLocalYMD(new Date()),
     });
 
-    const weekdayOptions = [
-      { key: 0, label: "Sun" },
-      { key: 1, label: "Mon" },
-      { key: 2, label: "Tue" },
-      { key: 3, label: "Wed" },
-      { key: 4, label: "Thu" },
-      { key: 5, label: "Fri" },
-      { key: 6, label: "Sat" },
-    ];
-
-    const weekly = reactive({
-      days: [1, 3, 5],
-    });
-
-    const monthly = reactive({
-      mode: "dayOfMonth",
-      day: 1,
-      week: "1",
-      weekday: 6,
-    });
-
-    const previewDates = ref([]);
-
-    // ✅ PDC A&B time slot (AM = 08-12, PM = 13-17)
-    const pdcSlot = ref("AM"); // "AM" | "PM"
-
-
-    // ✅ LIST FILTERS + PAGINATION
     const listCourseFilter = ref(0);
     const listStatusFilter = ref("");
     const listPersonFilter = ref("");
@@ -1151,26 +1042,72 @@ export default {
     const pageJump = ref(1);
     const pageSize = ref(10);
 
-    // ✅ endpoints per track
+    // endpoints
     const scheduleUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/schedules" : "/admin/schedules");
     const coursesUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/courses" : "/admin/courses");
     const peopleUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/trainers" : "/admin/instructors");
 
-    // -------------------------
-    // ✅ TOP FILTERS: affects calendar + list
-    // -------------------------
+    const courseById = computed(() => {
+      const m = new Map();
+      for (const c of coursesRaw.value) m.set(Number(c.id), c);
+      return m;
+    });
+
+    const activeCourse = computed(
+      () => coursesRaw.value.find((c) => Number(c.id) === Number(formData.course_id)) || null
+    );
+
+    // TESDA scheduled check
+    const isTesdaScheduled = (s) => {
+      const d = String(s?.date || "").trim();
+      return Boolean(d) && /^\d{4}-\d{2}-\d{2}$/.test(d);
+    };
+
+    const getCourseDurationLabel = (s) => {
+      const c = courseById.value.get(Number(s.course_id));
+      const dur = c?.duration;
+      if (!dur) return "—";
+      const n = parseDurationHours(dur);
+      return n ? `${n} Hours` : String(dur);
+    };
+
+    const getTesdaEndDate = (s) => {
+      if (!isTesdaScheduled(s)) return "";
+      const c = courseById.value.get(Number(s.course_id));
+      const start = String(s.date || "");
+      return tesdaEndDateFromStart(start, c?.duration);
+    };
+
+    const scheduleCoversDate = (s, ymd) => {
+      if (activeTrack.value !== "tesda") return String(s.date) === String(ymd);
+      if (!isTesdaScheduled(s)) return false;
+
+      // ✅ exclude Sundays from TESDA range display
+      if (!isMonToSatYMD(ymd)) return false;
+
+      const c = courseById.value.get(Number(s.course_id));
+      const start = String(s.date || "");
+      if (!start) return false;
+
+      const days = listTesdaTrainingDays(start, c?.duration);
+      return days.includes(String(ymd));
+    };
+
+    // TOP FILTERS (calendar + list)
     const baseFilteredSchedules = computed(() => {
       let result = [...schedules.value];
 
       if (searchQuery.value) {
         const q = searchQuery.value.toLowerCase().trim();
-        result = result.filter(
-          (s) =>
+        result = result.filter((s) => {
+          const dateText = isTesdaScheduled(s) ? String(s.date || "") : "TBA";
+          return (
             String(s.course || "").toLowerCase().includes(q) ||
             String(s.instructor || "").toLowerCase().includes(q) ||
             String(s.day || "").toLowerCase().includes(q) ||
-            String(s.date || "").toLowerCase().includes(q)
-        );
+            dateText.toLowerCase().includes(q)
+          );
+        });
       }
 
       if (Number(selectedCourseId.value) > 0) {
@@ -1179,7 +1116,9 @@ export default {
 
       if (selectedMonth.value) {
         result = result.filter((s) => {
+          if (activeTrack.value === "tesda" && !isTesdaScheduled(s)) return false;
           const d = new Date(String(s.date) + "T00:00:00");
+          if (Number.isNaN(d.getTime())) return false;
           return months[d.getMonth()] === selectedMonth.value;
         });
       }
@@ -1213,9 +1152,8 @@ export default {
       }
 
       if (listStatusFilter.value) {
-        result = result.filter(
-          (s) => String(s.computedStatus || "").toLowerCase() === String(listStatusFilter.value).toLowerCase()
-        );
+        const want = String(listStatusFilter.value).toLowerCase();
+        result = result.filter((s) => String(s.computedStatus || "").toLowerCase() === want);
       }
 
       if (listPersonFilter.value) {
@@ -1223,11 +1161,15 @@ export default {
         result = result.filter((s) => String(s.instructor || "").toLowerCase().includes(q));
       }
 
+      // sort: scheduled first, TBA last
       result.sort((a, b) => {
+        const aSched = isTesdaScheduled(a) ? 1 : 0;
+        const bSched = isTesdaScheduled(b) ? 1 : 0;
+        if (aSched !== bSched) return bSched - aSched;
         const ad = String(a.date || "");
         const bd = String(b.date || "");
         if (ad !== bd) return bd.localeCompare(ad);
-        return String(b.startTime || "").localeCompare(String(a.startTime || ""));
+        return Number(a.id) - Number(b.id);
       });
 
       return result;
@@ -1263,9 +1205,65 @@ export default {
       pageSize.value = 10;
     };
 
-    const availableSlots = computed(() => baseFilteredSchedules.value.filter((s) => Number(s.availableSlots) > 0).length);
-    const fullDates = computed(() => baseFilteredSchedules.value.filter((s) => Number(s.availableSlots) === 0).length);
+    // DRIVING counters
+    const availableSlots = computed(() =>
+      baseFilteredSchedules.value.filter((s) => Number(s.availableSlots) > 0).length
+    );
+    const fullDates = computed(() =>
+      baseFilteredSchedules.value.filter((s) => Number(s.availableSlots) === 0).length
+    );
 
+    // TESDA counters
+    const tesdaScheduledCount = computed(() =>
+      schedules.value.filter((s) => isTesdaScheduled(s)).length
+    );
+    const tesdaTbaCount = computed(() =>
+      schedules.value.filter((s) => !isTesdaScheduled(s)).length
+    );
+
+    // ✅ TESDA batch number (frontend fallback)
+    const tesdaBatchNoByScheduleId = computed(() => {
+      if (activeTrack.value !== "tesda") return new Map();
+
+      const byCourse = new Map();
+      for (const s of schedules.value) {
+        const cid = Number(s.course_id);
+        if (!byCourse.has(cid)) byCourse.set(cid, []);
+        byCourse.get(cid).push(s);
+      }
+
+      const map = new Map();
+      for (const [, arr] of byCourse.entries()) {
+        const sorted = [...arr].sort((a, b) => Number(a.id) - Number(b.id));
+        let idx = 1;
+        for (const s of sorted) {
+          map.set(Number(s.id), idx);
+          idx++;
+        }
+      }
+      return map;
+    });
+
+    const getTesdaBatchNo = (s) => {
+      const b = Number(s?.batch_no || 0);
+      if (b > 0) return b;
+      const id = Number(s?.id || 0);
+      return tesdaBatchNoByScheduleId.value.get(id) || 1;
+    };
+
+    const getTesdaEnrolled = (s) => {
+      const total = Number(s.totalSlots || TESDA_BATCH_CAP) || TESDA_BATCH_CAP;
+      const avail = Number(s.availableSlots ?? 0);
+      const enrolled = Math.max(0, total - avail);
+      return Math.min(TESDA_BATCH_CAP, enrolled);
+    };
+
+    const getTesdaRemaining = (s) => {
+      const enrolled = getTesdaEnrolled(s);
+      return Math.max(0, TESDA_BATCH_CAP - enrolled);
+    };
+
+    // CALENDAR
     const calendarDates = computed(() => {
       const year = currentYear.value;
       const month = currentMonth.value;
@@ -1279,7 +1277,17 @@ export default {
 
       for (let i = firstDayIndex - 1; i >= 0; i--) {
         const d = new Date(year, month - 1, prevMonthLastDay - i);
-        dates.push({ key: `prev-${i}`, day: prevMonthLastDay - i, date: d, isCurrentMonth: false, isToday: false, slotCount: null });
+        dates.push({
+          key: `prev-${i}`,
+          day: prevMonthLastDay - i,
+          date: d,
+          isCurrentMonth: false,
+          isToday: false,
+          slotCount: null,
+          isTesdaStart: false,
+          isTesdaEnd: false,
+          hasTesdaRange: false,
+        });
       }
 
       const today = new Date();
@@ -1287,17 +1295,34 @@ export default {
         const d = new Date(year, month, i);
         const dStr = toLocalYMD(d);
 
-        const daySchedules = baseFilteredSchedules.value.filter((s) => s.date === dStr);
+        if (activeTrack.value !== "tesda") {
+          const daySchedules = baseFilteredSchedules.value.filter((s) => String(s.date) === String(dStr));
+          const uniq = new Map();
+          for (const r of daySchedules) if (r?.id) uniq.set(r.id, r);
+          const slotCount = Array.from(uniq.values()).reduce((sum, s) => sum + Number(s.availableSlots || 0), 0);
 
-        const uniq = new Map();
-        for (const r of daySchedules) {
-          if (r?.id) uniq.set(r.id, r);
+          dates.push({
+            key: `current-${i}`,
+            day: i,
+            date: d,
+            isCurrentMonth: true,
+            isToday: d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear(),
+            slotCount: daySchedules.length > 0 ? slotCount : null,
+            isTesdaStart: false,
+            isTesdaEnd: false,
+            hasTesdaRange: false,
+          });
+          continue;
         }
 
-        const slotCount = Array.from(uniq.values()).reduce(
-          (sum, s) => sum + Number(s.availableSlots || 0),
-          0
-        );
+        // TESDA calendar: scheduled batches only
+        const scheduled = baseFilteredSchedules.value.filter((s) => isTesdaScheduled(s));
+        const inRange = scheduled.filter((s) => scheduleCoversDate(s, dStr));
+        const startBatches = scheduled.filter((s) => String(s.date) === String(dStr));
+        const endBatches = scheduled.filter((s) => {
+          const end = getTesdaEndDate(s);
+          return end === dStr && String(s.date) !== String(dStr);
+        });
 
         dates.push({
           key: `current-${i}`,
@@ -1305,7 +1330,10 @@ export default {
           date: d,
           isCurrentMonth: true,
           isToday: d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear(),
-          slotCount: daySchedules.length > 0 ? slotCount : null,
+          slotCount: null,
+          isTesdaStart: startBatches.length > 0,
+          isTesdaEnd: endBatches.length > 0,
+          hasTesdaRange: inRange.length > 0,
         });
       }
 
@@ -1313,7 +1341,17 @@ export default {
       const nextMonthDays = totalCells - dates.length;
       for (let i = 1; i <= nextMonthDays; i++) {
         const d = new Date(year, month + 1, i);
-        dates.push({ key: `next-${i}`, day: i, date: d, isCurrentMonth: false, isToday: false, slotCount: null });
+        dates.push({
+          key: `next-${i}`,
+          day: i,
+          date: d,
+          isCurrentMonth: false,
+          isToday: false,
+          slotCount: null,
+          isTesdaStart: false,
+          isTesdaEnd: false,
+          hasTesdaRange: false,
+        });
       }
 
       return dates;
@@ -1322,32 +1360,34 @@ export default {
     const currentMonthName = computed(() => months[currentMonth.value]);
 
     const formatDate = (ymd) => {
+      if (!ymd) return "—";
       const d = new Date(String(ymd) + "T00:00:00");
+      if (Number.isNaN(d.getTime())) return "—";
       return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
-    const getDateClass = (dateObj) => {
-      const dateStr = toLocalYMD(dateObj);
-      const daySchedules = baseFilteredSchedules.value.filter((s) => s.date === dateStr);
-      if (daySchedules.length === 0) return "";
+    const getDateClass = (dateCell) => {
+      const dateStr = toLocalYMD(dateCell.date);
+      const matched = baseFilteredSchedules.value.filter((s) => scheduleCoversDate(s, dateStr));
+      if (matched.length === 0) return "";
 
-      const uniq = new Map();
-      for (const r of daySchedules) {
-        if (r?.id) uniq.set(r.id, r);
+      if (activeTrack.value !== "tesda") {
+        const uniq = new Map();
+        for (const r of matched) if (r?.id) uniq.set(r.id, r);
+        const totalAvailable = Array.from(uniq.values()).reduce((sum, s) => sum + Number(s.availableSlots || 0), 0);
+        return totalAvailable === 0 ? "bg-red-50" : "bg-green-50";
       }
 
-      const totalAvailable = Array.from(uniq.values()).reduce(
-        (sum, s) => sum + Number(s.availableSlots || 0),
-        0
-      );
-
-      return totalAvailable === 0 ? "bg-red-50" : "bg-green-50";
+      if (dateCell.isTesdaStart) return "bg-green-100 border-2 border-green-600";
+      if (dateCell.isTesdaEnd) return "bg-gray-100 border-2 border-gray-400";
+      return "tesda-dot tesda-dot-green";
     };
 
     const getStatusClass = (schedule) => {
       const status = schedule.computedStatus || (Number(schedule.availableSlots) === 0 ? "Full" : "Open");
       if (status === "Full") return "text-red-600 font-semibold";
       if (status === "Closed") return "text-gray-600 font-semibold";
+      if (status === "TBA") return "text-gray-700 font-semibold";
       return "text-green-600 font-semibold";
     };
 
@@ -1374,20 +1414,17 @@ export default {
       } else currentMonth.value++;
     };
 
-    // ✅ Calendar click -> modal details
     const openDayModal = (dateObj) => {
       const dateStr = toLocalYMD(dateObj);
       dayModalDate.value = dateStr;
 
-      const raw = baseFilteredSchedules.value.filter((s) => s.date === dateStr);
-
+      const raw = baseFilteredSchedules.value.filter((s) => scheduleCoversDate(s, dateStr));
       const uniq = new Map();
-      for (const r of raw) {
-        if (r?.id) uniq.set(r.id, r);
-      }
+      for (const r of raw) if (r?.id) uniq.set(r.id, r);
 
-      const rows = Array.from(uniq.values())
-        .sort((a, b) => String(a.startTime || "").localeCompare(String(b.startTime || "")));
+      const rows = Array.from(uniq.values()).sort((a, b) =>
+        String(a.startTime || "").localeCompare(String(b.startTime || ""))
+      );
 
       dayModalSchedules.value = rows;
       showDayModal.value = true;
@@ -1399,7 +1436,7 @@ export default {
       dayModalSchedules.value = [];
     };
 
-    // ---------------- API CALLS ----------------
+    // API CALLS
     const fetchCourses = async () => {
       const res = await api.get(coursesUrl());
       coursesRaw.value = Array.isArray(res.data?.data) ? res.data.data : [];
@@ -1420,12 +1457,25 @@ export default {
             const idNum = Number(s.id);
             const fixedId = Number.isFinite(idNum) ? idNum : Number(String(s.id).trim());
 
+            const rawDate = s.date ?? s.schedule_date ?? "";
+            const dateStr = String(rawDate || "");
+            const normalizedDate = dateStr && dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+
+            const instructorName = String(s.instructor || "").trim();
+
             return {
               ...s,
               id: Number.isFinite(fixedId) && fixedId > 0 ? fixedId : null,
               course_id: Number(s.course_id),
               instructor_id: Number(s.instructor_id || 0),
-              date: String(s.date || "").includes("T") ? String(s.date).split("T")[0] : String(s.date || ""),
+              date: normalizedDate || "",
+              instructor: instructorName || (activeTrack.value === "tesda" ? "" : instructorName),
+              startTime: s.startTime || OPEN_TIME,
+              endTime: s.endTime || CLOSE_TIME,
+              totalSlots: Number(s.totalSlots ?? s.total_slots ?? (activeTrack.value === "tesda" ? TESDA_BATCH_CAP : 0)),
+              availableSlots: Number(s.availableSlots ?? 0),
+              computedStatus: s.computedStatus || s.scheduleStatus || "",
+              batch_no: s.batch_no || null,
             };
           })
           .filter((s) => s.id);
@@ -1435,230 +1485,31 @@ export default {
       }
     };
 
-    // ==============================
-    // AUTO RULES: Driving only
-    // ==============================
-    const activeCourse = computed(
-      () => coursesRaw.value.find((c) => Number(c.id) === Number(formData.course_id)) || null
-    );
-
-    const isTdcCourse = computed(() => {
-      if (activeTrack.value !== "driving") return false;
-      return /TDC/i.test(String(activeCourse.value?.course_name || ""));
-    });
-
-    const activeCourseRule = computed(() => {
-      if (activeTrack.value !== "driving") return null;
-      return getCourseRule(activeCourse.value?.course_name || "");
-    });
-
-    // ✅ show AM/PM option only when course is PDC A & B (2 days, 4h/day)
-const showPdcABTimeOptions = computed(() => {
-  const code = String(activeCourse.value?.course_code || "").toUpperCase().replace(/\s+/g, "");
-  return activeTrack.value === "driving" && !isEditing.value && (code === "PDC-AB".replace("-", "") || code === "PDCAB");
-});
-
-
-
-
-
-const courseRuleHint = computed(() => {
-  const rule = activeCourseRule.value;
-  if (!rule) return "";
-  if (rule.days === 1) return `1 day schedule`;
-  if (rule.days === 2) return `2 days schedule`;
-  return "";
-});
-
-
-    watch(
-      () => formData.course_id,
-      (cid) => {
-        if (activeTrack.value !== "driving") return;
-
-        const c = coursesRaw.value.find((x) => Number(x.id) === Number(cid));
-        if (!c) return;
-
-        const rule = getCourseRule(c.course_name);
-        if (!rule) return;
-
-        formData.start_time = OPEN_TIME;
-
-        // ✅ If PDC A&B, set start/end based on selected slot (default AM)
-// If PDC A&B, force AM/PM times
-const isPdcAB = String(c.course_code || "").toUpperCase() === "PDC-AB";
-
-if (isPdcAB) {
-  const start = pdcSlot.value === "PM" ? "13:00" : "08:00";
-  const end = pdcSlot.value === "PM" ? "17:00" : "12:00";
-  formData.start_time = start;
-  formData.end_time = end;
-  recomputePreview();
-  return;
-}
-
-
-// Default: wag na auto compute, keep user input
-recomputePreview();
-
-      }
-    );
-
-    watch(
-      () => [
-        activeTrack.value,
-        createMode.value,
-        range.start,
-        range.end,
-        weekly.days.slice(),
-        monthly.mode,
-        monthly.day,
-        monthly.week,
-        monthly.weekday,
-        formData.schedule_date,
-      ],
-      () => {
-        if (activeTrack.value === "driving") recomputePreview();
-      },
-      { deep: true }
-    );
-
-      watch(
-  () => pdcSlot.value,
-  () => {
-    if (!showPdcABTimeOptions.value) return;
-
-    const start = pdcSlot.value === "PM" ? "13:00" : "08:00";
-    const end = pdcSlot.value === "PM" ? "17:00" : "12:00";
-
-    formData.start_time = start;
-    formData.end_time = end;
-  }
-);
-
-
-
-    const normalizeUniqueSorted = (arr) => {
-      const set = new Set(arr.filter(Boolean));
-      return Array.from(set).sort();
-    };
-
-    // ✅ FIXED + CLEAN: weekly + monthly both apply TDC skip
-    const computeDatesByMode = () => {
-      if (activeTrack.value !== "driving") return [String(formData.schedule_date)];
-      if (isEditing.value) return [String(formData.schedule_date)];
-      if (createMode.value === "single") return [String(formData.schedule_date)];
-
-      const fixed = clampRange(range.start, range.end);
-      if (!fixed) return [];
-      const { start, end } = fixed;
-
-      let result = [];
-
-      if (createMode.value === "weekly") {
-        const allowed = new Set((weekly.days || []).map(Number));
-        if (allowed.size === 0) return [];
-        const out = [];
-        iterateDays(start, end, (d) => {
-          if (allowed.has(d.getDay())) out.push(dateToYmd(d));
-        });
-        result = normalizeUniqueSorted(out);
-      } else if (createMode.value === "monthly") {
-        const out = [];
-        const s = ymdToDate(start);
-        const e = ymdToDate(end);
-
-        let y = s.getFullYear();
-        let m = s.getMonth();
-
-        const endY = e.getFullYear();
-        const endM = e.getMonth();
-
-        while (y < endY || (y === endY && m <= endM)) {
-          let d = null;
-
-          if (monthly.mode === "dayOfMonth") {
-            const dayNum = Number(monthly.day);
-            if (Number.isFinite(dayNum) && dayNum >= 1 && dayNum <= 31) {
-              const cand = new Date(y, m, dayNum);
-              if (cand.getMonth() === m) d = cand;
-            }
-          } else {
-            const wd = Number(monthly.weekday);
-            d = nthWeekdayOfMonth(y, m, wd, monthly.week);
-          }
-
-          if (d) {
-            const ymd = dateToYmd(d);
-            if (ymd >= start && ymd <= end) out.push(ymd);
-          }
-
-          m++;
-          if (m > 11) {
-            m = 0;
-            y++;
-          }
-        }
-
-        result = normalizeUniqueSorted(out);
-      } else {
-        result = [String(formData.schedule_date)];
-      }
-
-      // ✅ APPLY TDC overlap fix in weekly/monthly
-      if (isTdcCourse.value && createMode.value !== "single") {
-        result = skipConsecutiveStartDates(result);
-      }
-
-      return result;
-    };
-
-    const recomputePreview = () => {
-      previewDates.value = computeDatesByMode();
-    };
-
-    const previewCount = computed(() => previewDates.value.length);
-
-    // ==============================
     // MODAL ACTIONS
-    // ==============================
     const resetForm = () => {
       formData.id = null;
       formData.course_id = "";
       formData.instructor_id = "";
       formData.trainer_id = "";
-      formData.schedule_date = toLocalYMD(new Date());
+      formData.schedule_date = "";
       formData.start_time = OPEN_TIME;
-      formData.end_time = "12:00";
-      formData.total_slots = 10;
-      formData.status = "open";
-      pdcSlot.value = "AM";
-
-
+      formData.end_time = activeTrack.value === "tesda" ? CLOSE_TIME : "12:00";
+      formData.total_slots = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : 10;
+      formData.status = activeTrack.value === "tesda" ? "tba" : "open";
       createMode.value = "single";
       range.start = toLocalYMD(new Date());
       range.end = toLocalYMD(new Date());
-      weekly.days = [1, 3, 5];
-
-      monthly.mode = "dayOfMonth";
-      monthly.day = 1;
-      monthly.week = "1";
-      monthly.weekday = 6;
-
-      previewDates.value = [];
     };
 
     const openAddModal = () => {
       isEditing.value = false;
       resetForm();
       showModal.value = true;
-      recomputePreview();
     };
 
     const editSchedule = (schedule) => {
       const id = getScheduleId(schedule);
       if (!id) {
-        console.log("Bad schedule object:", schedule);
         alert("Invalid schedule id. Please refresh.");
         return;
       }
@@ -1669,24 +1520,36 @@ recomputePreview();
       formData.course_id = Number(schedule.course_id);
 
       if (activeTrack.value === "tesda") {
-        formData.trainer_id = Number(schedule.instructor_id || 0);
+        formData.trainer_id = Number(schedule.instructor_id || 0) || 0;
         formData.instructor_id = "";
       } else {
         formData.instructor_id = Number(schedule.instructor_id || 0);
         formData.trainer_id = "";
       }
 
-      formData.schedule_date = String(schedule.date);
-      formData.start_time = String(schedule.startTime);
-      formData.end_time = String(schedule.endTime);
-      formData.total_slots = Number(schedule.totalSlots);
-      formData.status = schedule.scheduleStatus || "open";
+      formData.schedule_date = String(schedule.date || "");
+      formData.start_time = activeTrack.value === "tesda" ? OPEN_TIME : String(schedule.startTime);
+      formData.end_time = activeTrack.value === "tesda" ? CLOSE_TIME : String(schedule.endTime);
+
+      formData.total_slots = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : Number(schedule.totalSlots);
+
+      formData.status =
+        schedule.scheduleStatus ||
+        schedule.computedStatus ||
+        (activeTrack.value === "tesda" ? (schedule.date ? "open" : "tba") : "open");
 
       showModal.value = true;
-      previewDates.value = [String(schedule.date)];
     };
 
     const viewSchedule = (schedule) => {
+      if (activeTrack.value === "tesda") {
+        const start = isTesdaScheduled(schedule) ? formatDate(schedule.date) : "TBA";
+        const end = isTesdaScheduled(schedule) ? formatDate(getTesdaEndDate(schedule)) : "—";
+        alert(
+          `TESDA Batch\nCourse: ${schedule.course}\nBatch: ${getTesdaBatchNo(schedule)}\nStart: ${start}\nEnd: ${end}\nEnrollees: ${getTesdaEnrolled(schedule)}/25`
+        );
+        return;
+      }
       alert(`View schedule: ${schedule.course} on ${formatDate(schedule.date)} (${schedule.startTime}-${schedule.endTime})`);
     };
 
@@ -1695,7 +1558,6 @@ recomputePreview();
       resetForm();
     };
 
-    // ✅ CONFIRM DELETE
     const confirmDelete = (schedule) => {
       const id = getScheduleId(schedule);
       if (!id) {
@@ -1711,127 +1573,56 @@ recomputePreview();
       showDeleteModal.value = false;
     };
 
-    // ==============================
     // SAVE
-    // ==============================
     const saveSchedule = async () => {
       if (saving.value) return;
 
-      const selectedPersonId = Number(personId.value);
       const courseId = Number(formData.course_id);
+      const selectedPersonId = Number(personId.value || 0);
 
-      if (!courseId || !selectedPersonId) {
-        alert(activeTrack.value === "tesda" ? "Course and Trainer are required" : "Course and Instructor are required");
-        return;
-      }
+      if (!courseId) return alert("Course is required");
+      if (activeTrack.value !== "tesda" && !selectedPersonId) return alert("Instructor is required");
 
-      if (!Number.isFinite(Number(formData.total_slots)) || Number(formData.total_slots) < 1) {
-        alert("Total slots must be >= 1");
-        return;
-      }
-
-      const dates = computeDatesByMode();
-      if (!dates.length) {
-        alert("No dates generated. Please check your mode and range/day selection.");
-        return;
-      }
-
-      const courseName = activeCourse.value?.course_name || "";
-      const rule = activeCourseRule.value;
-
-let createRows = [];
-
-const isTwoDayCourse =
-  activeTrack.value === "driving" &&
-  !isEditing.value &&
-  rule?.days === 2;
-
-if (!isEditing.value && activeTrack.value === "driving" && rule) {
-  if (createMode.value === "single") {
-    if (isTwoDayCourse) {
-      const start = showPdcABTimeOptions.value
-        ? (pdcSlot.value === "PM" ? "13:00" : "08:00")
-        : String(formData.start_time || OPEN_TIME);
-
-      const end = showPdcABTimeOptions.value
-        ? (pdcSlot.value === "PM" ? "17:00" : "12:00")
-        : String(formData.end_time || "12:00");
-
-      createRows = [
-        { schedule_date: dates[0], start_time: start, end_time: end },
-        { schedule_date: addDaysYMD(dates[0], 1), start_time: start, end_time: end },
-      ];
-    } else {
-      // 1-day courses (PDC-A, PDC-B etc.)
-      createRows = [
-        {
-          schedule_date: dates[0],
-          start_time: String(formData.start_time || OPEN_TIME),
-          end_time: String(formData.end_time || "12:00"),
-        },
-      ];
-    }
-  } else {
-    for (const d of dates) {
-      if (isTwoDayCourse) {
-        const start = showPdcABTimeOptions.value
-          ? (pdcSlot.value === "PM" ? "13:00" : "08:00")
-          : String(formData.start_time || OPEN_TIME);
-
-        const end = showPdcABTimeOptions.value
-          ? (pdcSlot.value === "PM" ? "17:00" : "12:00")
-          : String(formData.end_time || "12:00");
-
-        createRows.push(
-          { schedule_date: d, start_time: start, end_time: end },
-          { schedule_date: addDaysYMD(d, 1), start_time: start, end_time: end }
-        );
-      } else {
-        createRows.push({
-          schedule_date: d,
-          start_time: String(formData.start_time || OPEN_TIME),
-          end_time: String(formData.end_time || "12:00"),
-        });
-      }
-    }
-  }
-
-  // ✅ SAFETY NET: if no rule matched, default to single-day rows using user times
-if (!isEditing.value && createRows.length === 0) {
-  // Use generated dates; if createMode is weekly/monthly, it will create 1 row per date
-  createRows = dates.map(d => ({
-    schedule_date: d,
-    start_time: String(formData.start_time || OPEN_TIME),
-    end_time: String(formData.end_time || "12:00"),
-  }));
-}
-
-}
-
-
-
-
-      for (const r of createRows) {
-        if (!withinFacetHours(r.start_time, r.end_time)) {
-          alert(`Invalid time. FACET hours only: ${OPEN_TIME} - ${CLOSE_TIME}. (Got ${r.start_time}-${r.end_time})`);
-          return;
+      // ✅ TESDA: block Sunday BEFORE API call
+      if (activeTrack.value === "tesda" && formData.schedule_date) {
+        const ymd = String(formData.schedule_date);
+        if (!isMonToSatYMD(ymd)) {
+          return alert("Bawal ang Sunday sa TESDA. Piliin ang Monday–Saturday.");
         }
-        if (String(r.start_time) >= String(r.end_time)) {
-          alert(`End time must be after start time (${r.start_time} - ${r.end_time})`);
-          return;
-        }
+      }
+
+      const totalSlotsToSend = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : Number(formData.total_slots);
+      if (!Number.isFinite(totalSlotsToSend) || totalSlotsToSend < 1) {
+        return alert("Total slots must be >= 1");
+      }
+
+      if (!withinFacetHours(formData.start_time, formData.end_time)) {
+        return alert(`Invalid time. FACET hours only: ${OPEN_TIME} - ${CLOSE_TIME}.`);
       }
 
       saving.value = true;
       try {
         const base = {
           course_id: courseId,
-          total_slots: Number(formData.total_slots),
-          status: formData.status || "open",
+          total_slots: totalSlotsToSend,
+          status:
+            activeTrack.value === "tesda"
+              ? (formData.schedule_date ? "open" : "tba")
+              : (formData.status || "open"),
         };
 
-        if (activeTrack.value === "tesda") base.trainer_id = selectedPersonId;
+        if (activeTrack.value === "tesda") base.trainer_id = selectedPersonId || null;
         else base.instructor_id = selectedPersonId;
+
+        const payload = {
+          ...base,
+          schedule_date:
+            activeTrack.value === "tesda"
+              ? (formData.schedule_date ? String(formData.schedule_date) : null)
+              : String(formData.schedule_date),
+          start_time: activeTrack.value === "tesda" ? OPEN_TIME : String(formData.start_time),
+          end_time: activeTrack.value === "tesda" ? CLOSE_TIME : String(formData.end_time),
+        };
 
         if (isEditing.value) {
           const id = parseInt(formData.id, 10);
@@ -1839,22 +1630,9 @@ if (!isEditing.value && createRows.length === 0) {
             alert("Invalid schedule id (client). Please refresh and try again.");
             return;
           }
-
-          await api.put(`${scheduleUrl()}/${id}`, {
-            ...base,
-            schedule_date: String(formData.schedule_date),
-            start_time: String(formData.start_time),
-            end_time: String(formData.end_time),
-          });
+          await api.put(`${scheduleUrl()}/${id}`, payload);
         } else {
-          for (const row of createRows) {
-            await api.post(scheduleUrl(), {
-              ...base,
-              schedule_date: row.schedule_date,
-              start_time: row.start_time,
-              end_time: row.end_time,
-            });
-          }
+          await api.post(scheduleUrl(), payload);
         }
 
         await fetchSchedules();
@@ -1867,15 +1645,12 @@ if (!isEditing.value && createRows.length === 0) {
       }
     };
 
-    // ✅ DELETE
+    // DELETE
     const deleteSchedule = async () => {
       if (!scheduleToDelete.value || deleting.value) return;
 
       const id = getScheduleId(scheduleToDelete.value);
-      if (!id) {
-        alert("Invalid schedule id. Refresh and try again.");
-        return;
-      }
+      if (!id) return alert("Invalid schedule id. Refresh and try again.");
 
       deleting.value = true;
       try {
@@ -1892,7 +1667,7 @@ if (!isEditing.value && createRows.length === 0) {
 
     const initForActiveTrack = async () => {
       selectedCourseId.value = 0;
-      selectedMonth.value = months[new Date().getMonth()];
+      selectedMonth.value = "";
       listCourseFilter.value = 0;
       resetForm();
       resetListFilters();
@@ -1902,7 +1677,6 @@ if (!isEditing.value && createRows.length === 0) {
         console.error("dropdown fetch error:", e);
       }
       await fetchSchedules();
-      recomputePreview();
     };
 
     const switchTrack = async (track) => {
@@ -1952,6 +1726,8 @@ if (!isEditing.value && createRows.length === 0) {
       pagedSchedules,
       availableSlots,
       fullDates,
+      tesdaScheduledCount,
+      tesdaTbaCount,
       calendarDates,
       currentMonthName,
 
@@ -1976,16 +1752,6 @@ if (!isEditing.value && createRows.length === 0) {
 
       createMode,
       range,
-      weekly,
-      monthly,
-      weekdayOptions,
-      previewDates,
-      previewCount,
-      recomputePreview,
-
-      activeCourseRule,
-      courseRuleHint,
-      isTdcCourse,
 
       listCourseFilter,
       listCourses,
@@ -1997,10 +1763,34 @@ if (!isEditing.value && createRows.length === 0) {
       pageSize,
       totalPages,
 
-      pdcSlot,
-showPdcABTimeOptions,
+      // TESDA helpers
+      getTesdaEndDate,
+      tesdaEndDateFromStart,
+      activeCourse,
+      isTesdaScheduled,
+      getCourseDurationLabel,
 
+      // TESDA batch UI helpers
+      getTesdaBatchNo,
+      getTesdaEnrolled,
+      getTesdaRemaining,
     };
   },
 };
 </script>
+
+<style scoped>
+.tesda-dot::after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+.tesda-dot-green::after {
+  background: #16a34a;
+}
+</style>

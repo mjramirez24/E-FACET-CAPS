@@ -2,12 +2,14 @@
 const pool = require("../config/database");
 
 // 🔥 ADD THIS: Import email service
-const { sendReservationConfirmation, sendAdminNotification } = require("../services/emailService");
+const {
+  sendReservationConfirmation,
+  sendAdminNotification,
+} = require("../services/emailService");
 
 // ✅ these statuses OCCUPY a slot (counted against total_slots)
 const OCCUPYING_STATUSES = ["PENDING", "CONFIRMED", "APPROVED", "ACTIVE"];
 
-// helper: normalize date to YYYY-MM-DD
 // helper: normalize date to YYYY-MM-DD (accepts Date string too)
 const toYMD = (dateLike) => {
   if (!dateLike) return "";
@@ -87,12 +89,10 @@ exports.getAvailability = async (req, res) => {
       });
     }
 
-    // If no course_id, keep your original behavior (simple list)
-    // (Recommended: force course selection in frontend)
+    // If no course_id, keep original behavior (simple list)
     if (!course_id) {
       const where = ["s.schedule_date = ?", "LOWER(s.status) = 'open'"];
       const params = [...OCCUPYING_STATUSES, schedule_date];
-
       const whereSql = `WHERE ${where.join(" AND ")}`;
 
       const [rows] = await pool.execute(
@@ -165,8 +165,6 @@ exports.getAvailability = async (req, res) => {
     if (isTwoDay) {
       const day2 = addDaysYMD(schedule_date, 1);
 
-      // NOTE:
-      // we pair schedules by same course_id + instructor_id + time and next-day date
       const [rows] = await pool.execute(
         `
         SELECT
@@ -261,7 +259,7 @@ exports.getAvailability = async (req, res) => {
       return res.json({ status: "success", data });
     }
 
-    // ✅ NORMAL (1-day course): your original query
+    // ✅ NORMAL (1-day course)
     {
       const where = [
         "s.schedule_date = ?",
@@ -341,7 +339,7 @@ exports.getAvailability = async (req, res) => {
  *    student sends schedule_id = day1_schedule_id
  *    backend auto-locks day2 schedule (next day, same time/instructor/course)
  *    inserts 2 reservation rows in ONE transaction
- * 
+ *
  * 🔥 SENDS EMAIL TO STUDENT + ADMIN!
  */
 exports.createReservation = async (req, res) => {
@@ -361,7 +359,6 @@ exports.createReservation = async (req, res) => {
       payment_method,
       requirements_mode,
       payment_ref,
-      notes,
       fee_option_code,
       lto_client_id,
     } = req.body;
@@ -394,7 +391,7 @@ exports.createReservation = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 1) lock schedule (DAY 1) + get course_id + schedule_date + instructor/time
+    // 1) lock schedule (DAY 1)
     const [schedRows] = await conn.execute(
       `
       SELECT schedule_id, status, total_slots, course_id, schedule_date, instructor_id, start_time, end_time
@@ -441,7 +438,7 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    // ✅ prevent reserving past schedules (DAY 1)
+    // ✅ prevent past schedules (DAY 1)
     const [pastRows] = await conn.execute(
       `SELECT 1 FROM schedules WHERE schedule_id = ? AND schedule_date < CURDATE() LIMIT 1`,
       [sid],
@@ -454,7 +451,7 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    // ✅ course_code check: is this a 2-day package (TDC / PDC-AB)?
+    // ✅ course_code check
     const [courseRows] = await conn.execute(
       `SELECT id, course_code, course_name, course_fee FROM courses WHERE id = ? LIMIT 1`,
       [course_id],
@@ -516,7 +513,6 @@ exports.createReservation = async (req, res) => {
 
       const pay = payRows[0];
 
-      // ✅ For 2-day packages, we still require proof tied to DAY 1 schedule_id
       if (
         Number(pay.schedule_id) !== sid ||
         Number(pay.course_id) !== course_id
@@ -537,7 +533,7 @@ exports.createReservation = async (req, res) => {
       }
     }
 
-    // 4) count occupied slots (DAY 1) (lock)
+    // 4) count occupied slots (DAY 1)
     const [cntRows] = await conn.execute(
       `
       SELECT COUNT(*) AS reservedCount
@@ -559,7 +555,7 @@ exports.createReservation = async (req, res) => {
         .json({ status: "error", message: "Schedule is full" });
     }
 
-    // 5) prevent duplicate same schedule (extra safety)
+    // 5) prevent duplicate same schedule
     const [dupRows] = await conn.execute(
       `
       SELECT reservation_id
@@ -618,13 +614,12 @@ exports.createReservation = async (req, res) => {
 
       if (String(day2Schedule.status).toLowerCase() !== "open") {
         await conn.rollback();
-        return res.status(400).json({
-          status: "error",
-          message: "Day 2 schedule is not open.",
-        });
+        return res
+          .status(400)
+          .json({ status: "error", message: "Day 2 schedule is not open." });
       }
 
-      // prevent reserving past schedules (DAY 2)
+      // prevent past schedules (DAY 2)
       const [past2] = await conn.execute(
         `SELECT 1 FROM schedules WHERE schedule_id = ? AND schedule_date < CURDATE() LIMIT 1`,
         [Number(day2Schedule.schedule_id)],
@@ -654,10 +649,9 @@ exports.createReservation = async (req, res) => {
 
       if (avail2 <= 0) {
         await conn.rollback();
-        return res.status(400).json({
-          status: "error",
-          message: "Day 2 schedule is full.",
-        });
+        return res
+          .status(400)
+          .json({ status: "error", message: "Day 2 schedule is full." });
       }
 
       // prevent duplicate DAY 2 too
@@ -685,25 +679,24 @@ exports.createReservation = async (req, res) => {
     // 6) INSERT (slot locked immediately)
     const reservation_status = "CONFIRMED";
 
-    // DAY 1 insert
+    // ✅ DAY 1 insert (FIXED placeholder count)
     const [r1] = await conn.execute(
       `
-INSERT INTO schedule_reservations
-  (schedule_id, student_id, course_id,
-   reservation_source, reservation_status,
-   payment_method, notes, fee_option_code,
-   requirements_mode,
-   lto_client_id,               -- ✅ add
-   expires_at,
-   created_by, created_at, updated_at)
-VALUES
-  (?, ?, ?,
-   'ONLINE', ?,
-   ?, ?, ?,
-   ?,
-   ?,                         -- ✅ add param
-   TIMESTAMP(?, '23:59:59'),
-   ?, NOW(), NOW())
+      INSERT INTO schedule_reservations
+        (schedule_id, student_id, course_id,
+         reservation_source, reservation_status,
+         payment_method, fee_option_code,
+         requirements_mode,
+         lto_client_id,
+         expires_at,
+         created_by, created_at, updated_at)
+      VALUES
+        (?, ?, ?,
+         'ONLINE', ?,
+         ?, ?, ?,
+         ?,
+         TIMESTAMP(?, '23:59:59'),
+         ?, NOW(), NOW())
       `,
       [
         sid,
@@ -711,10 +704,9 @@ VALUES
         course_id,
         reservation_status,
         payMethod,
-        notes ? String(notes).trim() : null,
         fee_option_code ? String(fee_option_code).trim() : null,
         reqMode,
-        lto_client_id ? String(lto_client_id).trim() : null, // ✅
+        lto_client_id ? String(lto_client_id).trim() : null,
         scheduleDateYMD,
         student_id,
       ],
@@ -722,7 +714,7 @@ VALUES
 
     const reservation_id = r1.insertId;
 
-    // DAY 2 insert (only if package)
+    // ✅ DAY 2 insert (FIXED placeholder count)
     let reservation_id_2 = null;
     if (isTwoDay && day2Schedule) {
       const day2Sid = Number(day2Schedule.schedule_id);
@@ -730,22 +722,21 @@ VALUES
 
       const [r2] = await conn.execute(
         `
-INSERT INTO schedule_reservations
-  (schedule_id, student_id, course_id,
-   reservation_source, reservation_status,
-   payment_method, notes, fee_option_code,
-   requirements_mode,
-   lto_client_id,               -- ✅ add
-   expires_at,
-   created_by, created_at, updated_at)
-VALUES
-  (?, ?, ?,
-   'ONLINE', ?,
-   ?, ?, ?,
-   ?,
-   ?,                         -- ✅ add param
-   TIMESTAMP(?, '23:59:59'),
-   ?, NOW(), NOW())
+        INSERT INTO schedule_reservations
+          (schedule_id, student_id, course_id,
+           reservation_source, reservation_status,
+           payment_method, fee_option_code,
+           requirements_mode,
+           lto_client_id,
+           expires_at,
+           created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?,
+           'ONLINE', ?,
+           ?, ?, ?,
+           ?,
+           TIMESTAMP(?, '23:59:59'),
+           ?, NOW(), NOW())
         `,
         [
           day2Sid,
@@ -753,7 +744,6 @@ VALUES
           course_id,
           reservation_status,
           payMethod,
-          notes ? String(notes).trim() : null,
           fee_option_code ? String(fee_option_code).trim() : null,
           reqMode,
           lto_client_id ? String(lto_client_id).trim() : null,
@@ -765,7 +755,7 @@ VALUES
       reservation_id_2 = r2.insertId;
     }
 
-    // 7) If GCASH, set payment submission status to FOR_VERIFICATION (admin checks)
+    // 7) If GCASH, set payment submission status to FOR_VERIFICATION
     if (payMethod === "GCASH") {
       const ref = String(payment_ref || "").trim();
       await conn.execute(
@@ -783,7 +773,7 @@ VALUES
     // 🔥 8) GET STUDENT INFO FROM DATABASE
     const [studentRows] = await conn.execute(
       `SELECT fullname, email FROM users WHERE id = ? LIMIT 1`,
-      [student_id]
+      [student_id],
     );
 
     // 🔥 9) GET INSTRUCTOR NAME
@@ -791,7 +781,7 @@ VALUES
     if (sched.instructor_id) {
       const [instructorRows] = await conn.execute(
         `SELECT CONCAT(firstname, ' ', lastname) AS fullname FROM instructors WHERE instructor_id = ? LIMIT 1`,
-        [sched.instructor_id]
+        [sched.instructor_id],
       );
       if (instructorRows.length) {
         instructorName = instructorRows[0].fullname;
@@ -818,74 +808,23 @@ VALUES
         paymentMethod: payMethod,
         paymentRef: payment_ref || null,
         requirementsMode: reqMode,
-        notes: notes || null,
         reservationId: reservation_id,
         isPackage: isTwoDay,
-        // 🆕 Package Day 2 data
         day2Date: day2Schedule ? toYMD(day2Schedule.schedule_date) : null,
         day2StartTime: day2Schedule ? day2Schedule.start_time : null,
         day2EndTime: day2Schedule ? day2Schedule.end_time : null,
       };
 
-      console.log("📧 ============================================");
-      console.log("📧 PREPARING TO SEND EMAILS");
-      console.log("📧 Student Email:", emailData.studentEmail);
-      console.log("📧 Student Name:", emailData.studentName);
-      console.log("📧 Course:", emailData.courseName);
-      console.log("📧 Reservation ID:", emailData.reservationId);
-      console.log("📧 Is Package:", emailData.isPackage);
-      if (emailData.isPackage) {
-        console.log("📧 Day 2 Date:", emailData.day2Date);
-      }
-      console.log("📧 ============================================");
-
-      // Send emails asynchronously (non-blocking)
       setImmediate(() => {
-        console.log("📧 Starting email send process...");
-        
         Promise.all([
-          sendReservationConfirmation(emailData)
-            .then((result) => {
-              console.log("✅ Student confirmation email sent successfully!");
-              console.log("   Message ID:", result.messageId);
-              return result;
-            })
-            .catch((err) => {
-              console.error("❌ Student email FAILED:");
-              console.error("   Error:", err.message);
-              console.error("   Stack:", err.stack);
-              throw err;
-            }),
-          
-          sendAdminNotification(emailData)
-            .then((result) => {
-              console.log("✅ Admin notification email sent successfully!");
-              console.log("   Message ID:", result.messageId);
-              return result;
-            })
-            .catch((err) => {
-              console.error("❌ Admin email FAILED:");
-              console.error("   Error:", err.message);
-              console.error("   Stack:", err.stack);
-              throw err;
-            }),
-        ])
-          .then(() => {
-            console.log("📧 ============================================");
-            console.log("📧 ALL EMAILS SENT SUCCESSFULLY!");
-            console.log("📧 ============================================");
-          })
-          .catch((err) => {
-            console.error("📧 ============================================");
-            console.error("📧 EMAIL SENDING FAILED");
-            console.error("📧 Error:", err.message);
-            console.error("📧 ============================================");
-          });
+          sendReservationConfirmation(emailData).catch((err) =>
+            console.error("Student email FAILED:", err),
+          ),
+          sendAdminNotification(emailData).catch((err) =>
+            console.error("Admin email FAILED:", err),
+          ),
+        ]).catch((err) => console.error("Email sending failed:", err));
       });
-    } else {
-      console.log("⚠️ WARNING: Cannot send emails - missing student or course data");
-      console.log("   Student rows:", studentRows.length);
-      console.log("   Course data:", course ? "✅" : "❌");
     }
 
     return res.status(201).json({
@@ -939,7 +878,6 @@ exports.getMyActiveReservation = async (req, res) => {
         r.schedule_id,
         r.reservation_status,
         r.payment_method,
-        r.notes,
         DATE_FORMAT(r.expires_at, '%Y-%m-%d %H:%i:%s') AS expires_at,
         r.created_at,
 
@@ -1012,7 +950,6 @@ exports.getMyActiveReservation = async (req, res) => {
         schedule_id: x.schedule_id,
         reservation_status: x.reservation_status,
         payment_method: x.payment_method,
-        notes: x.notes,
         expires_at: x.expires_at,
         created_at: x.created_at,
 
@@ -1063,7 +1000,6 @@ exports.listMyReservations = async (req, res) => {
         r.reservation_id,
         r.schedule_id,
         r.payment_method,
-        r.notes,
         r.reservation_status,
         r.requirements_mode,
         DATE_FORMAT(r.expires_at, '%Y-%m-%d %H:%i:%s') AS expires_at,
@@ -1128,7 +1064,6 @@ exports.cancelMyReservation = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // get reservation + schedule details
     const [rRows] = await conn.execute(
       `
       SELECT
@@ -1160,7 +1095,6 @@ exports.cancelMyReservation = async (req, res) => {
     const r0 = rRows[0];
     const isTwoDay = isTwoDayCourseByCode(r0.course_code);
 
-    // cancel the selected reservation (only if active)
     const [result] = await conn.execute(
       `
       UPDATE schedule_reservations
@@ -1180,7 +1114,6 @@ exports.cancelMyReservation = async (req, res) => {
       });
     }
 
-    // ✅ also cancel sibling if package
     if (isTwoDay) {
       const day2 = addDaysYMD(toYMD(r0.date), 1);
 
@@ -1253,7 +1186,9 @@ exports.autoMarkDone = async () => {
     await conn.commit();
     return Number(result.affectedRows || 0);
   } catch (err) {
-    await conn.rollback();
+    try {
+      await conn.rollback();
+    } catch (_) {}
     console.error("autoMarkDone error:", err);
     return 0;
   } finally {

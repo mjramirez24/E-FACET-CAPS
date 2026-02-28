@@ -2,9 +2,64 @@
 const pool = require("../config/database");
 
 function timeToMinutes(t) {
-  const [h, m] = String(t).split(":").map(Number);
-  return h * 60 + (m || 0);
+  if (!t) return null;
+  const s = String(t).trim();
+  const parts = s.split(":");
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
 }
+
+function toYMD(dateLike) {
+  if (!dateLike) return null;
+  const s = String(dateLike);
+  return s.includes("T") ? s.split("T")[0] : s;
+}
+
+const OPEN_TIME = "08:00";
+const CLOSE_TIME = "17:00";
+
+// statuses that occupy a slot (same as student side)
+const OCCUPYING = ["CONFIRMED", "APPROVED", "ACTIVE"];
+
+function ph(arr) {
+  return arr.map(() => "?").join(",");
+}
+
+/* =========================================================
+   ✅ TESDA CLASS RULES (ADMIN SIDE)
+   - Monday to Saturday only (NO SUNDAY)
+   - 08:00 to 17:00 only
+   ========================================================= */
+
+function isMonToSat(dateYMD) {
+  if (!dateYMD) return false;
+  const d = new Date(`${dateYMD}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return false;
+  const day = d.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+  return day >= 1 && day <= 6;
+}
+
+function isTimeWithin8to5(startHHmm, endHHmm) {
+  const s = timeToMinutes(startHHmm);
+  const e = timeToMinutes(endHHmm);
+  const open = timeToMinutes(OPEN_TIME);
+  const close = timeToMinutes(CLOSE_TIME);
+  if (s == null || e == null || open == null || close == null) return false;
+  if (e <= s) return false;
+  return s >= open && e <= close;
+}
+
+/**
+ * ✅ NEW TESDA LOGIC SUPPORT:
+ * - "TBA batch" schedules are allowed (no schedule_date/start/end yet)
+ * - Required for TBA create: course_id, total_slots
+ * - trainer_id is optional in TBA
+ * - status for TBA is "tba"
+ *
+ * - When schedule_date exists: behaves like old logic (requires trainer/date/time)
+ */
 
 /**
  * GET /api/admin/tesda/schedules
@@ -24,12 +79,14 @@ exports.getTesdaSchedules = async (req, res) => {
       where.push("s.course_id = ?");
       params.push(Number(course_id));
     }
+
+    // ✅ only filter by date range when schedule_date is not null
     if (date_from) {
-      where.push("s.schedule_date >= ?");
+      where.push("(s.schedule_date IS NOT NULL AND s.schedule_date >= ?)");
       params.push(date_from);
     }
     if (date_to) {
-      where.push("s.schedule_date <= ?");
+      where.push("(s.schedule_date IS NOT NULL AND s.schedule_date <= ?)");
       params.push(date_to);
     }
 
@@ -41,12 +98,13 @@ exports.getTesdaSchedules = async (req, res) => {
         s.schedule_id AS id,
         s.course_id,
         c.course_name AS course,
+        c.duration AS duration,
 
-        -- IMPORTANT: para hindi na magbago template mo:
-        -- gagamitin natin same keys ng driving:
+        -- keep same keys used by driving template
         s.trainer_id AS instructor_id,
         CONCAT(t.firstname, ' ', t.lastname) AS instructor,
 
+        -- ✅ allow NULL schedule_date/time for TBA
         DATE_FORMAT(s.schedule_date, '%Y-%m-%d') AS date,
         DATE_FORMAT(s.schedule_date, '%a') AS day,
 
@@ -56,12 +114,14 @@ exports.getTesdaSchedules = async (req, res) => {
         s.total_slots AS totalSlots,
         s.status AS scheduleStatus,
 
-        0 AS reservedCount,
-        GREATEST(s.total_slots - 0, 0) AS availableSlots,
+        COALESCE(rc.reservedCount, 0) AS reservedCount,
+        GREATEST(s.total_slots - COALESCE(rc.reservedCount, 0), 0) AS availableSlots,
 
         CASE
-          WHEN s.status = 'closed' THEN 'Closed'
-          WHEN s.total_slots = 0 THEN 'Full'
+          WHEN LOWER(COALESCE(s.status,'')) = 'tba' THEN 'TBA'
+          WHEN LOWER(COALESCE(s.status,'')) = 'closed' THEN 'Closed'
+          WHEN s.total_slots <= 0 THEN 'Full'
+          WHEN GREATEST(s.total_slots - COALESCE(rc.reservedCount, 0), 0) = 0 THEN 'Full'
           ELSE 'Open'
         END AS computedStatus,
 
@@ -69,11 +129,27 @@ exports.getTesdaSchedules = async (req, res) => {
         s.updated_at
       FROM tesda_schedules s
       JOIN tesda_courses c ON c.id = s.course_id
-      JOIN trainers t ON t.trainer_id = s.trainer_id
+
+      -- ✅ trainer can be NULL in TBA so LEFT JOIN
+      LEFT JOIN trainers t ON t.trainer_id = s.trainer_id
+
+      LEFT JOIN (
+        SELECT schedule_id, COUNT(*) AS reservedCount
+        FROM tesda_schedule_reservations
+        WHERE UPPER(reservation_status) IN (${ph(OCCUPYING)})
+        GROUP BY schedule_id
+      ) rc ON rc.schedule_id = s.schedule_id
+
       ${whereSql}
-      ORDER BY s.schedule_date DESC, s.start_time DESC, s.schedule_id DESC
+
+      -- ✅ show TBA first, then latest dates
+      ORDER BY
+        (s.schedule_date IS NULL) DESC,
+        s.schedule_date DESC,
+        s.start_time DESC,
+        s.schedule_id DESC
       `,
-      params,
+      [...OCCUPYING, ...params],
     );
 
     return res.json({ status: "success", data: rows });
@@ -85,6 +161,7 @@ exports.getTesdaSchedules = async (req, res) => {
 
 /**
  * POST /api/admin/tesda/schedules
+ * ✅ Supports TBA batch creation
  */
 exports.createTesdaSchedule = async (req, res) => {
   try {
@@ -95,65 +172,121 @@ exports.createTesdaSchedule = async (req, res) => {
       start_time,
       end_time,
       total_slots,
-      status = "open",
+      status,
     } = req.body;
 
-    if (
-      !course_id ||
-      !trainer_id ||
-      !schedule_date ||
-      !start_time ||
-      !end_time ||
-      total_slots === undefined
-    ) {
-      return res.status(400).json({
-        status: "error",
-        message:
-          "course_id, trainer_id, schedule_date, start_time, end_time, total_slots are required",
-      });
-    }
+    const cid = Number(course_id);
+    const slots = Number(total_slots);
 
-    if (
-      String(start_time) >= String(end_time) ||
-      timeToMinutes(end_time) <= timeToMinutes(start_time)
-    ) {
+    if (!cid || !Number.isFinite(cid) || cid < 1) {
       return res
         .status(400)
-        .json({
-          status: "error",
-          message: "End time must be after start time",
-        });
+        .json({ status: "error", message: "course_id is required" });
     }
 
-    const slots = Number(total_slots);
     if (!Number.isFinite(slots) || slots < 1) {
       return res
         .status(400)
-        .json({ status: "error", message: "Total slots must be >= 1" });
+        .json({ status: "error", message: "total_slots must be >= 1" });
     }
 
     // validate course exists
     const [cRows] = await pool.execute(
       `SELECT id FROM tesda_courses WHERE id=? LIMIT 1`,
-      [Number(course_id)],
+      [cid],
     );
-    if (!cRows.length)
+    if (!cRows.length) {
       return res
         .status(404)
         .json({ status: "error", message: "TESDA course not found" });
+    }
+
+    const ymd = toYMD(schedule_date);
+
+    // ✅ TBA MODE (no schedule_date) — only course + slots required, trainer optional
+    if (!ymd) {
+      const tId = trainer_id ? Number(trainer_id) : null;
+
+      // if trainer_id provided, validate
+      if (tId) {
+        const [tRows] = await pool.execute(
+          `SELECT trainer_id FROM trainers WHERE trainer_id=? LIMIT 1`,
+          [tId],
+        );
+        if (!tRows.length) {
+          return res
+            .status(404)
+            .json({ status: "error", message: "Trainer not found" });
+        }
+      }
+
+      const [result] = await pool.execute(
+        `
+        INSERT INTO tesda_schedules
+          (course_id, trainer_id, schedule_date, start_time, end_time, total_slots, status)
+        VALUES (?, ?, NULL, NULL, NULL, ?, 'tba')
+        `,
+        [cid, tId, slots],
+      );
+
+      return res.status(201).json({
+        status: "success",
+        message: "TESDA batch created (TBA)",
+        data: { schedule_id: result.insertId },
+      });
+    }
+
+    // ✅ NORMAL MODE (with schedule_date) — require trainer + times
+    const tId = Number(trainer_id);
+    if (!tId || !Number.isFinite(tId) || tId < 1) {
+      return res.status(400).json({
+        status: "error",
+        message: "trainer_id is required when schedule_date is set",
+      });
+    }
+
+    // ✅ TESDA RULE: Mon–Sat only (NO SUNDAY)
+    if (!isMonToSat(ymd)) {
+      return res.status(400).json({
+        status: "error",
+        message: "TESDA classes are Monday to Saturday only. (No Sunday)",
+      });
+    }
+
+    const st = String(start_time || OPEN_TIME).slice(0, 5);
+    const et = String(end_time || CLOSE_TIME).slice(0, 5);
+
+    if (String(st) >= String(et) || timeToMinutes(et) <= timeToMinutes(st)) {
+      return res.status(400).json({
+        status: "error",
+        message: "End time must be after start time",
+      });
+    }
+
+    // ✅ TESDA RULE: 08:00–17:00 only
+    if (!isTimeWithin8to5(st, et)) {
+      return res.status(400).json({
+        status: "error",
+        message: "TESDA class time must be within 08:00 to 17:00 only.",
+      });
+    }
 
     // validate trainer exists
     const [tRows] = await pool.execute(
       `SELECT trainer_id FROM trainers WHERE trainer_id=? LIMIT 1`,
-      [Number(trainer_id)],
+      [tId],
     );
-    if (!tRows.length)
+    if (!tRows.length) {
       return res
         .status(404)
         .json({ status: "error", message: "Trainer not found" });
+    }
 
-    const normalizedStatus =
-      String(status).toLowerCase() === "closed" ? "closed" : "open";
+    const normalizedStatus = ["open", "closed", "full", "tba"].includes(
+      String(status || "open").toLowerCase(),
+    )
+      ? String(status || "open").toLowerCase()
+      : "open";
 
     const [result] = await pool.execute(
       `
@@ -161,15 +294,7 @@ exports.createTesdaSchedule = async (req, res) => {
         (course_id, trainer_id, schedule_date, start_time, end_time, total_slots, status)
       VALUES (?,?,?,?,?,?,?)
       `,
-      [
-        Number(course_id),
-        Number(trainer_id),
-        schedule_date,
-        start_time,
-        end_time,
-        slots,
-        normalizedStatus,
-      ],
+      [cid, tId, ymd, st, et, slots, normalizedStatus],
     );
 
     return res.status(201).json({
@@ -185,6 +310,7 @@ exports.createTesdaSchedule = async (req, res) => {
 
 /**
  * PUT /api/admin/tesda/schedules/:id
+ * ✅ allows updating TBA -> scheduled
  */
 exports.updateTesdaSchedule = async (req, res) => {
   try {
@@ -202,60 +328,135 @@ exports.updateTesdaSchedule = async (req, res) => {
       start_time,
       end_time,
       total_slots,
-      status = "open",
+      status,
     } = req.body;
 
-    if (
-      !course_id ||
-      !trainer_id ||
-      !schedule_date ||
-      !start_time ||
-      !end_time ||
-      total_slots === undefined
-    ) {
-      return res.status(400).json({
-        status: "error",
-        message:
-          "course_id, trainer_id, schedule_date, start_time, end_time, total_slots are required",
-      });
-    }
+    const cid = course_id ? Number(course_id) : null;
+    const tId = trainer_id ? Number(trainer_id) : null;
+    const slots = total_slots === undefined ? null : Number(total_slots);
+    const ymd = schedule_date === undefined ? undefined : toYMD(schedule_date);
 
-    if (
-      String(start_time) >= String(end_time) ||
-      timeToMinutes(end_time) <= timeToMinutes(start_time)
-    ) {
+    if (cid !== null && (!Number.isFinite(cid) || cid < 1)) {
       return res
         .status(400)
-        .json({
-          status: "error",
-          message: "End time must be after start time",
-        });
+        .json({ status: "error", message: "Invalid course_id" });
     }
-
-    const slots = Number(total_slots);
-    if (!Number.isFinite(slots) || slots < 1) {
+    if (tId !== null && (!Number.isFinite(tId) || tId < 1)) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Invalid trainer_id" });
+    }
+    if (slots !== null && (!Number.isFinite(slots) || slots < 1)) {
       return res
         .status(400)
         .json({ status: "error", message: "Total slots must be >= 1" });
     }
 
-    const normalizedStatus =
-      String(status).toLowerCase() === "closed" ? "closed" : "open";
+    // ✅ If schedule_date is being set (or changed), enforce Mon–Sat
+    if (ymd !== undefined && ymd !== null) {
+      if (!isMonToSat(ymd)) {
+        return res.status(400).json({
+          status: "error",
+          message: "TESDA classes are Monday to Saturday only. (No Sunday)",
+        });
+      }
+    }
 
+    // validate course if provided
+    if (cid !== null) {
+      const [cRows] = await pool.execute(
+        `SELECT id FROM tesda_courses WHERE id=? LIMIT 1`,
+        [cid],
+      );
+      if (!cRows.length)
+        return res
+          .status(404)
+          .json({ status: "error", message: "TESDA course not found" });
+    }
+
+    // validate trainer if provided
+    if (tId !== null) {
+      const [tRows] = await pool.execute(
+        `SELECT trainer_id FROM trainers WHERE trainer_id=? LIMIT 1`,
+        [tId],
+      );
+      if (!tRows.length)
+        return res
+          .status(404)
+          .json({ status: "error", message: "Trainer not found" });
+    }
+
+    // validate times only if both present (or if one present, require both)
+    const hasStart =
+      start_time !== undefined &&
+      start_time !== null &&
+      String(start_time).trim() !== "";
+    const hasEnd =
+      end_time !== undefined &&
+      end_time !== null &&
+      String(end_time).trim() !== "";
+
+    let st = null;
+    let et = null;
+
+    if (hasStart || hasEnd) {
+      if (!hasStart || !hasEnd) {
+        return res.status(400).json({
+          status: "error",
+          message:
+            "Both start_time and end_time are required when updating time",
+        });
+      }
+      st = String(start_time).slice(0, 5);
+      et = String(end_time).slice(0, 5);
+
+      if (String(st) >= String(et) || timeToMinutes(et) <= timeToMinutes(st)) {
+        return res.status(400).json({
+          status: "error",
+          message: "End time must be after start time",
+        });
+      }
+
+      // ✅ TESDA RULE: 08:00–17:00 only
+      if (!isTimeWithin8to5(st, et)) {
+        return res.status(400).json({
+          status: "error",
+          message: "TESDA class time must be within 08:00 to 17:00 only.",
+        });
+      }
+    }
+
+    const normalizedStatus =
+      status === undefined
+        ? undefined
+        : ["open", "closed", "full", "tba"].includes(
+              String(status).toLowerCase(),
+            )
+          ? String(status).toLowerCase()
+          : "open";
+
+    // ✅ update with COALESCE where appropriate; allow NULLs for TBA fields
     const [result] = await pool.execute(
       `
       UPDATE tesda_schedules
-      SET course_id=?, trainer_id=?, schedule_date=?, start_time=?, end_time=?, total_slots=?, status=?
+      SET
+        course_id     = COALESCE(?, course_id),
+        trainer_id    = ?,
+        schedule_date = ${ymd === undefined ? "schedule_date" : "?"},
+        start_time    = ${hasStart || hasEnd ? "?" : "start_time"},
+        end_time      = ${hasStart || hasEnd ? "?" : "end_time"},
+        total_slots   = COALESCE(?, total_slots),
+        status        = ${normalizedStatus === undefined ? "status" : "?"},
+        updated_at    = NOW()
       WHERE schedule_id=?
       `,
       [
-        Number(course_id),
-        Number(trainer_id),
-        schedule_date,
-        start_time,
-        end_time,
+        cid,
+        tId, // can be null (TBA)
+        ...(ymd === undefined ? [] : [ymd]), // can be null to set TBA
+        ...(hasStart || hasEnd ? [st, et] : []),
         slots,
-        normalizedStatus,
+        ...(normalizedStatus === undefined ? [] : [normalizedStatus]),
         id,
       ],
     );

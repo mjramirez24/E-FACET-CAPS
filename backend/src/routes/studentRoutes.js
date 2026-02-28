@@ -184,7 +184,10 @@ router.post(
     if (!requireUserRole(req, res)) return;
     next();
   },
-  uploadRequirements.array("files", 20),
+  uploadRequirements.fields([
+    { name: "picture_2x2", maxCount: 1 }, // ✅ match frontend (fd.append("picture_2x2", ...))
+    { name: "files", maxCount: 20 }, // ✅ other requirement files
+  ]),
   (req, res) => studentRequirementsController.uploadRequirements(req, res),
 );
 

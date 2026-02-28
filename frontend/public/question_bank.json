@@ -1,0 +1,1852 @@
+{
+  "version": "1.0.1",
+  "source": {
+    "name": "LTO-style dataset",
+    "language_note": "English main text; Tagalog translation in parentheses",
+    "answer_key_provided_by": "user"
+  },
+  "questions": [
+    {
+      "id": "Q001",
+      "topic": ["child_safety", "child_restraint"],
+      "stem": {
+        "en": "When can a child be exempted to be sitted in a child restraint system?",
+        "tl": "Kailan maaaring hindi gumamit ng child restraint system ang isang bata?"
+      },
+      "choices": [
+        {
+          "key": "a",
+          "en": "If the child will be late for a medical appointment",
+          "tl": "Kung ang bata ay mahuhuli sa kanyang iskedyul sa ospital"
+        },
+        {
+          "key": "b",
+          "en": "If the child is going to school",
+          "tl": "Kung ang bata ay papunta sa eskwelahaan"
+        },
+        {
+          "key": "c",
+          "en": "If the child requires immediate medical treatment",
+          "tl": "Kung ang bata ay nangangailangan ng agarang lunas o medical"
+        }
+      ],
+      "correct_key": "c",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q002",
+      "topic": ["drunk_driving", "sobriety_test"],
+      "stem": {
+        "en": "What are the three field sobriety tests?",
+        "tl": "Ano ang mga pagsusuri na ginagawa upang malaman kung positibo sa alak ang isang drayber?"
+      },
+      "choices": [
+        {
+          "key": "a",
+          "en": "Eye test, walk and turn, one leg stand",
+          "tl": "Pag tsek sa mata, pag lakad at pagtayo sa isang paa"
+        },
+        {
+          "key": "b",
+          "en": "Eye test, running straight, jumping rope",
+          "tl": "Pagtsek sa mata, diretsong pagtakbo, luksong lundag"
+        },
+        {
+          "key": "c",
+          "en": "Reading and Comprehension Test, Singing the National Anthem and Drinking one liter of fresh water",
+          "tl": "Pagbabasa, pag-awit sa lupang hinirang at pag-inom ng isang litrong tubig"
+        }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q003",
+      "topic": ["defensive_driving", "bike_lane", "right_of_way"],
+      "stem": {
+        "en": "How do you respond to a situation where you are approaching your garage to your right and you need to pass on a bike lane which is open, but a speeding SUV unexpectedly uses the bike lane to overtake you?",
+        "tl": "Paano ka tutugon sa isang sitwasyon kung saan papalapit ka sa garahe sa kanan at kailangan mong tumawid sa bike lane, nang isang mabilis na SUV ay hindi inaasahan na ginagamit ang bike lane upang mag overtake sayo?"
+      },
+      "choices": [
+        { "key": "a", "en": "Give way to the speeding SUV", "tl": "Magbigay daan sa mabilis na SUV" },
+        { "key": "b", "en": "Give way to motorists on the left", "tl": "Magbigay daan sa motorista sa kaliwa" },
+        { "key": "c", "en": "Give way to cyclists", "tl": "Magbigay daan sa mga siklista" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q004",
+      "topic": ["licensing", "penalties", "fake_license"],
+      "stem": {
+        "en": "What is the penalty if a driver is found to have a fake or counterfeit license?",
+        "tl": "Ano ang kaakibat na kaparusahan kung ang isang drayber ay mapatunayang huwad ang kanyang lisensiya?"
+      },
+      "choices": [
+        {
+          "key": "a",
+          "en": "His/her driver’s license shall be confiscated and he/she shall be disqualified from being granted a driver’s license and driving a motor vehicle for a period of one (1) year from the payment of monetary fine",
+          "tl": "Ang kaniyang lisensiya ay kukumpiskahin at hindi siya makakukuha ng lisensiya at makakapagmaneho ng sasakyang de-motor sa loob ng isang (1) taon matapos bayaran ang multa"
+        },
+        { "key": "b", "en": "Imprisonment for six (6) months plus fine", "tl": "Siya ay ikukulong sa loob ng anim (6) na buwan at pagmumultahin" },
+        { "key": "c", "en": "Banned from getting a driver's license for life", "tl": "Habambuhay nang hindi makakukuha ng lisensiya" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q005",
+      "topic": ["licensing", "penalties", "crime_while_driving"],
+      "stem": {
+        "en": "What is the penalty if a driver is convicted of a crime while using a motor vehicle?",
+        "tl": "Ano ang magiging kaparusahan kung ang isang drayber ay nahatulan ng korte na gumawa ng krimen habang nagmamaneho?"
+      },
+      "choices": [
+        {
+          "key": "a",
+          "en": "The DL will be revoked and the driver will be perpetually disqualified from applying for a license plus monetary fine",
+          "tl": "Multa at habambuhay na diskwalipikasyon sa pagkuha ng lisensya"
+        },
+        { "key": "b", "en": "The DL will be suspended and the driver will pay a fine", "tl": "Sususpindihin ang lisensya at siya ay pagmumultahin" },
+        { "key": "c", "en": "The DL will be confiscated", "tl": "Ang lisensya ay kukumpiskahin" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q006",
+      "topic": ["public_utility_vehicle", "rules", "violations"],
+      "stem": {
+        "en": "LTO rules and regulations prohibit drivers of public utility vehicles from:",
+        "tl": "Ang mga tuntunin at regulasyon ng LTO ay nagbabawal sa mga drayber ng mga public utility vehicle na:"
+      },
+      "choices": [
+        { "key": "a", "en": "Overcharging fares and fast taximeters", "tl": "Sumingil ng labis na pamasahe at magkaroon ng mabilis na metro ng taxi" },
+        { "key": "b", "en": "Cutting trip or going beyond authorized line", "tl": "Cutting trip o wala sa ipinahihintulot na linya/ruta" },
+        { "key": "c", "en": "All of the answers are correct", "tl": "Lahat ng sagot ay tama" }
+      ],
+      "correct_key": "c",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q007",
+      "topic": ["licensing", "driver_classification", "professional_driver"],
+      "stem": { "en": "Who is a Professional Driver?", "tl": "Sino ang propesyonal na drayber?" },
+      "choices": [
+        { "key": "a", "en": "An expert and experienced driver", "tl": "Isang eksperto at ekspiryensado sa pagmamaneho" },
+        { "key": "b", "en": "Any driver who can operate a specific motor vehicle category", "tl": "Sinumang drayber na nakapagmamaneho ng isang uri ng sasakyang de-motor" },
+        { "key": "c", "en": "Any driver who has a qualification to drive a Private or For Hire Vehicle", "tl": "Sinumang drayber na may kwalipikasyong magmaneho ng pribado o paupahang sasakyang de-motor" }
+      ],
+      "correct_key": "c",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q008",
+      "topic": ["violations", "settlement_period", "lto_process"],
+      "stem": {
+        "en": "How many days do you need to settle a traffic violation with LTO?",
+        "tl": "Ilang araw dapat asikasuhin sa LTO ang paglabag sa batas trapiko?"
+      },
+      "choices": [
+        { "key": "a", "en": "Within 15 days", "tl": "Sa loob ng 15 araw" },
+        { "key": "b", "en": "Within 10 days", "tl": "Sa loob ng 10 araw" },
+        { "key": "c", "en": "Within 30 days", "tl": "Sa loob ng 30 araw" }
+      ],
+      "correct_key": "b",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q009",
+      "topic": ["licensing", "renewal", "validity"],
+      "stem": {
+        "en": "What is the maximum validity of license that a driver may have if he/she has no traffic violation at the time of renewal?",
+        "tl": "Ilang taon ang maaaring ibigay na lisenysa sa isang drayber na walang traffic violation?"
+      },
+      "choices": [
+        { "key": "a", "en": "5 years validity", "tl": "5 taon" },
+        { "key": "b", "en": "10 years validity", "tl": "10 taon" },
+        { "key": "c", "en": "15 years validity", "tl": "15 taon" }
+      ],
+      "correct_key": "b",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q010",
+      "topic": ["licensing", "renewal", "validity"],
+      "stem": {
+        "en": "Can a driver be given a 10-year validity license if he/she has traffic violation/s?",
+        "tl": "Maaari bang bigyan ng 10 taon na lisensya ang isang drayber kung ito ay mayroong huli o traffic violation?"
+      },
+      "choices": [
+        { "key": "a", "en": "No", "tl": "Hindi" },
+        { "key": "b", "en": "Yes", "tl": "Oo" },
+        { "key": "c", "en": "Yes - if all penalties are paid 15 days prior to renewal", "tl": "Oo kung ang penalty ay nabayaran labinlimang araw bago mag-renew" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q011",
+      "topic": ["licensing", "requirements", "age"],
+      "stem": {
+        "en": "What is the allowed age to apply for a Non Professional driver's license?",
+        "tl": "Ano ang tamang edad upang magkaroon ng lisensya?"
+      },
+      "choices": [
+        { "key": "a", "en": "16 years old", "tl": "16 taong gulang" },
+        { "key": "b", "en": "17 years old", "tl": "17 taong gulang" },
+        { "key": "c", "en": "20 years old", "tl": "20 taong gulang" }
+      ],
+      "correct_key": "b",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q012",
+      "topic": ["registration", "suspension"],
+      "stem": { "en": "Registration of motor vehicle may be suspended if:", "tl": "Maaaring isuspinde ang rehistro ng sasakayan kung ito ay:" },
+      "choices": [
+        { "key": "a", "en": "Motor vehicle is found to be in conformity with regulations", "tl": "Kung ang sasakyan ay maayos na nakapasa sa inspeksyon" },
+        { "key": "b", "en": "Motor vehicle is found to be unsightly", "tl": "Ang sasakyan ay hindi kaaya-aya" },
+        { "key": "c", "en": "Motor vehicle is not registered to the driver at the time of apprehension", "tl": "Ang sasakyan ay hindi rehistrado sa nagmamaneho sa oras ng pagkahuli nito" }
+      ],
+      "correct_key": "c",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q013",
+      "topic": ["registration", "plate_number"],
+      "stem": { "en": "Where do you need to display your plate number?", "tl": "Saan dapat ilagay ang plaka ng isang sasakyan?" },
+      "choices": [
+        { "key": "a", "en": "One in front and one in the rear of the vehicle", "tl": "Isa sa harap at isa sa likod ng sasakyan" },
+        { "key": "b", "en": "Two in front", "tl": "Dalawa sa harap" },
+        { "key": "c", "en": "One in the front windshield and one at the back windshield", "tl": "Isa sa harap na windshield at isa sa likurang salamin" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q014",
+      "topic": ["traffic_signs", "right_of_way"],
+      "stem": { "en": "This traffic sign means \"Yield the right of way\"", "tl": "Ang senyas trapiko na ito ay nangangahulugang “magbigay daan”:" },
+      "choices": [
+        { "key": "a", "en": "Inverted triangle", "tl": "Baligtad na tatsulok" },
+        { "key": "b", "en": "Vertical triangle", "tl": "Patayong tatsulok" },
+        { "key": "c", "en": "Horizontal triangle", "tl": "Pahalang na tatsulok" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q015",
+      "topic": ["traffic_laws", "purpose"],
+      "stem": { "en": "What is the main purpose of traffic laws, rules and regulations?", "tl": "Ano ang pangunahing layunin ng mga batas, alituntunin at regulasyong pantrapiko?" },
+      "choices": [
+        { "key": "a", "en": "To generate revenues for the government", "tl": "Upang kumita ng pera ang pamahalaan" },
+        { "key": "b", "en": "To discipline the motorists", "tl": "Disiplinahin ang mga motorista" },
+        { "key": "c", "en": "To put order on the road", "tl": "Magkaroon ng maayos na galaw ang mga sasakyan at ang mga tumatawid sa kalsada" }
+      ],
+      "correct_key": "c",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q016",
+      "topic": ["traffic_lights", "intersection"],
+      "stem": { "en": "Green light at an intersection means:", "tl": "Ang kulay berdeng ilaw sa isang interseksiyon ay nangangahulugan na:" },
+      "choices": [
+        { "key": "a", "en": "Pedestrians are allowed to cross all pedestrian lanes", "tl": "Pinahihintulutang tumawid sa lahat ng tawiran ang mga tao" },
+        { "key": "b", "en": "Pedestrians are not allowed to cross all pedestrian lanes", "tl": "Hindi pinahihintulutang tumawid sa lahat ng tawiran ang mga tao" },
+        { "key": "c", "en": "The vehicles on the other street are stopped", "tl": "Ang mga sasakyan sa kabilang kalsada ay nakahinto" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q017",
+      "topic": ["traffic_lights", "caution"],
+      "stem": { "en": "Flashing yellow light means:", "tl": "Ang kumikisap-kisap na dilaw na ilaw pantrapiko ay nangangahulugan na:" },
+      "choices": [
+        { "key": "a", "en": "Slowdown and proceed with caution", "tl": "Bagalan ang takbo at dumiretso nang may pag-iingat" },
+        { "key": "b", "en": "You have the right of way over a flashing yellow light", "tl": "Ikaw ang may higit na karapatan kaysa sa kumikisap-kisap na dilaw na ilaw" },
+        { "key": "c", "en": "Vehicles will be crossing from the other side", "tl": "May mga sasakyang tatawid mula sa kabila" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q018",
+      "topic": ["parking", "rules"],
+      "stem": { "en": "Parking is allowed if the vehicle is:", "tl": "Pinahihintulutan ang pagparada kung ang sasakyan ay:" },
+      "choices": [
+        { "key": "a", "en": "Beyond 4 meters of a fire hydrant", "tl": "Lampas 4 na metro sa boka-insendiyo" },
+        { "key": "b", "en": "Within 3 meters of the intersection of curve lines", "tl": "Nasa loob ng 3 metro ng interseksiyon ng mga linyang kurbada" },
+        { "key": "c", "en": "On the intersection", "tl": "Nasa interseksyon" }
+      ],
+      "correct_key": "a",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q019",
+      "topic": ["overtaking", "two_lane_road"],
+      "stem": { "en": "Normally, on a two-lane road, overtaking is allowed at the:", "tl": "Sa kalsadang pandalawahang sasakyan, ang pag-overtake ay pinahihintulutan sa:" },
+      "choices": [
+        { "key": "a", "en": "Shoulder or pavement of the road", "tl": "Kanang bahagi ng kalsada o bangketa" },
+        { "key": "b", "en": "Blind curve with a yellow solid line", "tl": "Kurbada/blind curve na may buong linyang dilaw" },
+        { "key": "c", "en": "Left lane", "tl": "Kaliwang lane" }
+      ],
+      "correct_key": "c",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+      "id": "Q020",
+      "topic": ["traffic_lights", "stopping_rules"],
+      "stem": { "en": "When do you have to make a complete full stop?", "tl": "Kailan ka dapat ganap na huminto?" },
+      "choices": [
+        { "key": "a", "en": "At a flashing yellow light", "tl": "Kapag may dilaw na ilaw na kumikisap-kisap" },
+        { "key": "b", "en": "At a red traffic light", "tl": "Kapag pula ang ilaw trapiko" },
+        { "key": "c", "en": "At an intersection", "tl": "Kapag nasa interseksyon" }
+      ],
+      "correct_key": "b",
+      "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q021",
+        "topic": ["hand_signals", "turning"],
+        "stem": {
+        "en": "The proper hand signal for a right turn is:",
+        "tl": "Ang tamang senyas ng kamay kapag kumakanan ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "Left arm pointing left", "tl": "Ang kaliwang braso nakaturo sa kaliwa" },
+        { "key": "b", "en": "Left arm held pointing upward", "tl": "Ang kaliwang braso ay nakaturo sa itaas" },
+        { "key": "c", "en": "Left arm held down, hand pointing at ground", "tl": "Ang kaliwang braso ay nakapababa, na ang kamay ay nakaturo sa ibaba" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q022",
+        "topic": ["road_markings", "lane_lines", "two_way_road"],
+        "stem": {
+        "en": "Single white broken line on a 2-way road means:",
+        "tl": "Ang putting putol-putol na linya sa kalsadang salubungan ay nangangahulugan na:"
+        },
+        "choices": [
+        { "key": "a", "en": "Passing or overtaking can be made anytime", "tl": "Ang paglampas o ang pag-overtake ay maaaring gawin anumang oras" },
+        { "key": "b", "en": "It separates traffic moving in opposite directions", "tl": "Hinihiwalay nito ang pagdaloy ng mga sasakyan sa magkabilang direksiyon" },
+        { "key": "c", "en": "Absolutely no crossing", "tl": "Talagang hindi ipinahihintulot ang pag-cross" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q023",
+        "topic": ["road_markings", "yellow_lines", "no_overtaking"],
+        "stem": {
+        "en": "What is the meaning of double solid yellow line?",
+        "tl": "Ano ang kahulugan ng dobleng linyang dilaw?"
+        },
+        "choices": [
+        { "key": "a", "en": "Cross with due care", "tl": "Tumawid nang maingat" },
+        { "key": "b", "en": "Cross anytime", "tl": "Tumawid anumang oras" },
+        { "key": "c", "en": "Crossing/traversing or overtaking is not allowed", "tl": "Ang pagtawid o paglusot ay hindi pinahihintulutan" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q024",
+        "topic": ["right_of_way", "yield_sign", "intersection"],
+        "stem": {
+        "en": "Upon approaching an intersection marked with a yield sign, you are required to",
+        "tl": "Kapag papalapit sa interseksiyong may karatulang nagsasabing magbigay daan (yield), kailangang"
+        },
+        "choices": [
+        { "key": "a", "en": "Stop before entering the intersection", "tl": "Huminto bago pumasok sa interseksiyon" },
+        { "key": "b", "en": "Slowdown, then enter the intersection when the way is clear", "tl": "Bagalan ang takbo at pagkatapos ay pumasok sa interseksiyon kung ligtas" },
+        { "key": "c", "en": "Enter the intersection immediately", "tl": "Pumasok agad sa interseksiyon" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q025",
+        "topic": ["licensing", "authorized_vehicles"],
+        "stem": {
+        "en": "The holder of a driver's license shall entitle him/her to operate:",
+        "tl": "Ang lisensiya ay nagpapahintulot sa drayber na magmaneho ng:"
+        },
+        "choices": [
+        { "key": "a", "en": "Any kind of motor vehicle", "tl": "Anumang uri ng sasakyang de-motor" },
+        { "key": "b", "en": "Motor vehicle/s specified in the license only", "tl": "Mga sasakyan lamang na nakatakda sa lisensiya" },
+        { "key": "c", "en": "Motor vehicles for hire only", "tl": "Mga pampublikong sasakyan lamang" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q026",
+        "topic": ["licensing", "rules", "lending_license"],
+        "stem": {
+        "en": "When may you lend your driver's license?",
+        "tl": "Kailan mo maaaring ipahiram ang iyong lisensiya?"
+        },
+        "choices": [
+        { "key": "a", "en": "Under no circumstances", "tl": "Hindi maaari kahit kailan" },
+        { "key": "b", "en": "To another person who is learning to drive", "tl": "Sa indibiduwal na nag-aaral magmaneho" },
+        { "key": "c", "en": "In emergencies", "tl": "Sa oras ng kagipitan o emergency" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q027",
+        "topic": ["right_of_way", "uncontrolled_intersection"],
+        "stem": {
+        "en": "At an intersection without stop or yield signs, two cars approach at right angles to each other at almost the same time. Which driver must yield?",
+        "tl": "Sa interseksiyon na walang mga karatulang nagsasabing huminto o magbigay ng daan, dalawang sasakyan ang sabay na dumating sa anggulong 90 digri sa isa’t isa. Sinong drayber ang dapat magbigay daan?"
+        },
+        "choices": [
+        { "key": "a", "en": "The motorist on the right", "tl": "Ang drayber ng sasakyan sa kanan" },
+        { "key": "b", "en": "The motorist on the left", "tl": "Ang drayber ng sasakyan sa kaliwa" },
+        { "key": "c", "en": "Either of the driver has the first right-of-way", "tl": "Alinman sa dalawa ay may unang karapatan" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q028",
+        "topic": ["registration", "certificate_of_registration", "motorcycle"],
+        "stem": {
+        "en": "Is it allowed to drive a motorcycle in a public road pending release of the Certificate of Registration?",
+        "tl": "Maaari bang gamitin sa pampublikong daan ang motorsiklo kung ito ay wala pang rehistro?"
+        },
+        "choices": [
+        { "key": "a", "en": "No", "tl": "Hindi" },
+        { "key": "b", "en": "Yes", "tl": "Oo" },
+        { "key": "c", "en": "Yes, if travel authority is given by the dealer", "tl": "Oo, kung ang pagbiyahe ay may pahintulot ang dealer nito" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q029",
+        "topic": ["licensing", "transmission_restrictions", "dl_codes"],
+        "stem": {
+        "en": "Which of the following statement is true?",
+        "tl": "Alin sa mga sumusunod na pahayag ang totoo?"
+        },
+        "choices": [
+        { "key": "a", "en": "MT not allowed to drive AT", "tl": "MT ay hindi pwedeng magmaneho ng AT" },
+        { "key": "b", "en": "AT allowed to drive MT", "tl": "AT ay pwedeng magmaneho ng MT" },
+        { "key": "c", "en": "MT allowed to drive AT", "tl": "MT ay pwedeng magmaneho ng AT" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q030",
+        "topic": ["licensing", "dl_codes", "motorcycle"],
+        "stem": {
+        "en": "Can you drive a motorcycle if your license bears DL Code B ?",
+        "tl": "Maaari ka bang magmaneho ng motorsiklo kung ang iyong lisensya ay may DL Code B ?"
+        },
+        "choices": [
+        { "key": "a", "en": "Yes", "tl": "Oo" },
+        { "key": "b", "en": "No, unless authorized by a traffic enforcer", "tl": "Hindi, maliban kung pinahintulutan ng traffic enforcer" },
+        { "key": "c", "en": "No", "tl": "Hindi" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q031",
+        "topic": ["traffic_signs", "prohibitory"],
+        "stem": {
+        "en": "Identify this traffic sign:",
+        "tl": "Tukuyin kung anong senyas ito:"
+        },
+        "symbol": "🚫↩️",
+        "choices": [
+        { "key": "a", "en": "No U-turn", "tl": "Bawal mag U-turn" },
+        { "key": "b", "en": "Dangerous left bend", "tl": "Mapanganib na kaliwang likuan" },
+        { "key": "c", "en": "Dangerous right bend", "tl": "Mapanganib na kanang likuan" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q032",
+        "topic": ["traffic_signs", "warning"],
+        "stem": {
+        "en": "Identify this traffic sign:",
+        "tl": "Tukuyin kung anong senyas ito:"
+        },
+        "symbol": "🛣️➡️⬅️",
+        "choices": [
+        { "key": "a", "en": "Road widens ahead", "tl": "Lalapad ang kalsada sa unahan" },
+        { "key": "b", "en": "Slippery road ahead", "tl": "Madulas ang kalsada sa unahan" },
+        { "key": "c", "en": "Road narrows ahead", "tl": "Papaliit na kalsada sa unahan" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q033",
+        "topic": ["traffic_signs", "prohibitory"],
+        "stem": {
+        "en": "Identify this traffic sign:",
+        "tl": "Tukuyin kung anong senyas ito:"
+        },
+        "symbol": "🚫📯",
+        "choices": [
+        { "key": "a", "en": "No blowing of horn", "tl": "Bawal bumusina" },
+        { "key": "b", "en": "Animals crossing", "tl": "May mga hayop na tumatawid" },
+        { "key": "c", "en": "Dangerous bend", "tl": "Mapanganib na likuan" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q034",
+        "topic": ["traffic_signs", "warning"],
+        "stem": {
+        "en": "Identify this traffic sign:",
+        "tl": "Tukuyin kung anong senyas ito:"
+        },
+        "symbol": "🔄➡️",
+        "choices": [
+        { "key": "a", "en": "Road narrows", "tl": "Papaliit ang daan" },
+        { "key": "b", "en": "Roundabout", "tl": "Rotunda" },
+        { "key": "c", "en": "No entry for all types of vehicle", "tl": "Bawal pumasok ang lahat ng uri ng sasakyan" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+   {
+        "id": "Q035",
+        "topic": ["traffic_signs", "warning"],
+        "stem": {
+        "en": "Identify this traffic sign:",
+        "tl": "Tukuyin kung anong senyas ito:"
+        },
+        "symbol": "⚠️🚗💨",
+        "choices": [
+        { "key": "a", "en": "Slippery road", "tl": "Madulas na kalsada" },
+        { "key": "b", "en": "Winding road", "tl": "Paikot na daan" },
+        { "key": "c", "en": "Curve ahead", "tl": "May kurbada sa unahan" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    }, 
+    {
+        "id": "Q036",
+        "topic": ["traffic_signs", "pedestrian"],
+        "stem": {
+        "en": "What is the meaning of this traffic sign?",
+        "tl": "Ano ang ibig sabihin ng senyas na ito?"
+        },
+        "symbol": "🚸🚶‍♂️",
+        "choices": [
+        { "key": "a", "en": "Pedestrian crossing", "tl": "Tawiran" },
+        { "key": "b", "en": "Pedestrian crossing ahead", "tl": "Papalapit na tawiran" },
+        { "key": "c", "en": "Caution - School Zone", "tl": "Paalala - Paaralan" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q037",
+        "topic": ["drunk_driving", "road_safety"],
+        "stem": {
+        "en": "Drinking alcohol before driving is one of the major causes of vehicular road crash because when a driver is drunk, he/she is:",
+        "tl": "Ang pag-inom ng mga inuming nakalalasing bago magmaneho ay isa sa mga pangunahing sanhi ng aksidente sapagkat kapag lasing ang isang drayber, siya ay:"
+        },
+        "choices": [
+        {
+            "key": "a",
+            "en": "Arrogant, talkative and lacks judgment and reflexes to perform safely",
+            "tl": "Mayabang, madaldal, wala sa tamang desisyon at hindi makakilos nang ligtas"
+        },
+        {
+            "key": "b",
+            "en": "Calm, relaxed and able to perform accordingly",
+            "tl": "Kalmado at nakagagawa ng nararapat"
+        },
+        {
+            "key": "c",
+            "en": "Able to talk intelligently and give appearance of sobriety",
+            "tl": "Mukhang kalmado at matino"
+        }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q038",
+        "topic": ["violations", "temporary_operator_permit"],
+        "stem": {
+        "en": "The Temporary Operator's Permit (TOP) authorizes the apprehended driver to operate a motor vehicle for a period not exceeding:",
+        "tl": "Pinahihintulutan ng Temporary Operator's Permit (TOP) ang nahuling drayber na magmaneho ng sasakyan sa loob ng:"
+        },
+        "choices": [
+        { "key": "a", "en": "72 hours", "tl": "72 oras" },
+        { "key": "b", "en": "1 week", "tl": "1 linggo" },
+        { "key": "c", "en": "15 days", "tl": "15 araw" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q039",
+        "topic": ["penalties", "drunk_driving"],
+        "stem": {
+        "en": "What is the maximum penalty for driving under the influence of liquor or prohibited drugs?",
+        "tl": "Ano ang pinakamabigat na kaparusahan sa pagmamaneho nang nakainom o naka-droga?"
+        },
+        "choices": [
+        { "key": "a", "en": "6 months suspension", "tl": "6 na buwan na suspensiyon" },
+        { "key": "b", "en": "1-year suspension", "tl": "1 taong suspensiyon" },
+        { "key": "c", "en": "Perpetual revocation of license", "tl": "Panghabambuhay na pagkakabawi ng lisensiya" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q040",
+        "topic": ["traffic_lights", "signals"],
+        "stem": {
+        "en": "What is the meaning of a blue traffic light?",
+        "tl": "Ano ang kahulugan ng asul na ilaw trapiko?"
+        },
+        "choices": [
+        { "key": "a", "en": "None, no blue traffic light", "tl": "Walang kulay asul na ilaw trapiko" },
+        { "key": "b", "en": "Informative sign", "tl": "Nagbibigay impormasyon" },
+        { "key": "c", "en": "Proceed", "tl": "Tumuloy" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q041",
+        "topic": ["motorcycle_safety", "protective_gear"],
+        "stem": {
+        "en": "Motorcycle riders must consider safety and exercise due care. To do so, they are required to wear",
+        "tl": "Ang mga nagmamaneho ng motorsiklo ay dapat na laging isinasaalangalang ang lubos na pag-iingat at kaligtasan. Kaya kailangan nilang magsuot ng"
+        },
+        "choices": [
+        { "key": "a", "en": "A policeman cap or gloves", "tl": "Sombrero o guwantes ng pulis" },
+        { "key": "b", "en": "Helmets intended for construction works", "tl": "Helmet na pang-construction" },
+        { "key": "c", "en": "Standard protective helmet", "tl": "Naaangkop at aprubadong pang-motorsiklong helmet" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q042",
+        "topic": ["defensive_driving", "tailgating"],
+        "stem": {
+        "en": "What should you do when another vehicle is following you too close?",
+        "tl": "Ano ang gagawin mo kung ang sumusunod na sasakyan sa iyo ay masyadong nakatutok?"
+        },
+        "choices": [
+        { "key": "a", "en": "Speed up to start a road race", "tl": "Bilisan pa ang takbo at makipagkarerahan" },
+        { "key": "b", "en": "Slow down gradually and give him the signal to overtake you", "tl": "Unti-unti mong bagalan ang takbo at senyasan siyang mag-overtake" },
+        { "key": "c", "en": "Slam on your brakes", "tl": "Biglang magpreno" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q043",
+        "topic": ["defensive_driving", "lane_change", "blind_spots"],
+        "stem": {
+        "en": "Before changing lanes in traffic, aside from giving signal and checking your side and rearview mirrors, what else do you need to do?",
+        "tl": "Bago lumipat ng lane, bukod sa dapat munang sumenyas, tumingin sa mga gilid at rear view mirror, ano pa ang dapat mong gawin?"
+        },
+        "choices": [
+        { "key": "a", "en": "Turn your head to check other vehicles beside your car", "tl": "Tingnan ang mga katabing sasakyan" },
+        { "key": "b", "en": "Sound your horn", "tl": "Bumusina" },
+        { "key": "c", "en": "Blink your headlights", "tl": "Pailawin ang mga headlights" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q044",
+        "topic": ["defensive_driving", "curves", "speed_management"],
+        "stem": {
+        "en": "When approaching a sharp curve of the highway, you should:",
+        "tl": "Kapag papalapit sa isang biglaang pagliko/kurbada, dapat:"
+        },
+        "choices": [
+        { "key": "a", "en": "Reduce speed before entering the curve", "tl": "Bagalan ang takbo bago lumiko" },
+        { "key": "b", "en": "Increase speed while negotiating the curve", "tl": "Bilisan ang takbo habang lumiliko" },
+        { "key": "c", "en": "Apply your brakes abruptly while taking the curve", "tl": "Biglang magpreno habang lumiliko" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q045",
+        "topic": ["night_driving", "headlights"],
+        "stem": {
+        "en": "Night driving is difficult. We should do the following when a vehicle comes towards us at night:",
+        "tl": "Mahirap magmaneho kung gabi kaya dapat gawin ang sumusunod kapag may kasalubong na sasakyan:"
+        },
+        "choices": [
+        { "key": "a", "en": "Dim your lights by switching to low beam", "tl": "Hinaan ang ilaw sa pamamagitan ng pagsindi sa low beam" },
+        { "key": "b", "en": "Brighten your light by switching to high beam", "tl": "Lakasan ang ilaw sa pamamagitan ng pagsindi sa high beam" },
+        { "key": "c", "en": "Switch on your headlights intermittently", "tl": "Sindihan ang mga headlight, on and off" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q046",
+        "topic": ["night_driving", "visibility", "signals"],
+        "stem": {
+        "en": "At night, when approaching a curve or intersection with poor visibility, be sure to:",
+        "tl": "Sa gabi, kapag papalapit sa isang kurbada o interseksiyon na mahirap makita ang kasalubong, siguraduhing:"
+        },
+        "choices": [
+        { "key": "a", "en": "Switch off your headlights to enable oncoming motorists to see you", "tl": "Patayin ang headlight upang makita ng mga motorista ang iyong sasakyan" },
+        { "key": "b", "en": "Flash your headlights to let pedestrians and oncoming motorists know that you are heading into the curve or intersection", "tl": "Sumenyas sa pamamagitan ng pagpatay-sindi ng headlight upang malaman ng mga tao at kasalubong na motorista na papalapit ka sa kurbada o interseksiyon" },
+        { "key": "c", "en": "Switch on your interior lights to enable oncoming vehicles to see your vehicle", "tl": "I-switch ang mga ilaw sa loob ng sasakyan upang makita ng mga makakasalubong ang iyong sasakyan" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q047",
+        "topic": ["defensive_driving", "right_of_way", "safe_driving_rules"],
+        "stem": {
+        "en": "What is the best safety rule when driving a motor vehicle?",
+        "tl": "Ano ang pinakaligtas na alituntunin habang ikaw ay nagmamaneho?"
+        },
+        "choices": [
+        { "key": "a", "en": "Never insist on your right-of-way", "tl": "Huwag ipilit ang karapatan sa daan" },
+        { "key": "b", "en": "Blow your horn to assert your right-of-way", "tl": "Bumusina upang maigiit ang iyong karapatan sa daan" },
+        { "key": "c", "en": "Always demand for the right-of-way", "tl": "Laging igiit ang karapatan sa daan" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q048",
+        "topic": ["defensive_driving", "blind_spots", "backing_up"],
+        "stem": {
+        "en": "A blind spot is either at your right or left that you do not see on your side mirror. What should you do before backing-up?",
+        "tl": "Ang blind spot ay nasa awing kanan o kaliwa na hindi mo nakikita sa iyong side mirror. Ano ang dapat mong gawin bago umatras?"
+        },
+        "choices": [
+        { "key": "a", "en": "Turn your head to see that the way is clear", "tl": "Lumingon upang matiyak na walang nakaharang sa daan" },
+        { "key": "b", "en": "Turn your wheel all the way to the right and pull up", "tl": "Ipaling nang sagad ang gulong sa kanan bago huminto" },
+        { "key": "c", "en": "Turn your wheel all the way to the left and pull up", "tl": "Ipaling nang sagad ang gulong sa kaliwa bago huminto" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q049",
+        "topic": ["road_safety", "traffic_laws"],
+        "stem": {
+        "en": "Road crash can be avoided if the drivers:",
+        "tl": "Maiiwasan ang mga road crash kung:"
+        },
+        "choices": [
+        { "key": "a", "en": "Follow traffic signs and pertinent traffic rules and regulations", "tl": "Susundin ang mga senyas pantrapiko at mga alituntunin at regulasyon ng batas trapiko" },
+        { "key": "b", "en": "Totally disobey traffic laws", "tl": "Ganap na hindi susundin ang mga batas trapiko" },
+        { "key": "c", "en": "Are ignorant of traffic laws", "tl": "Ang mga drayber ay walang alam sa batas trapiko" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q050",
+        "topic": ["defensive_driving", "road_hazards", "speed_management"],
+        "stem": {
+        "en": "What should you do whenever you are driving on a highway with a lot of potholes?",
+        "tl": "Ano ang dapat mong gawin kapag nagmamaneho sa highway na maraming lubak?"
+        },
+        "choices": [
+        { "key": "a", "en": "Increase speed", "tl": "Bilisan ang takbo" },
+        { "key": "b", "en": "Reduce speed", "tl": "Bagalan ang takbo" },
+        { "key": "c", "en": "Always change lane", "tl": "Palaging lumipat ng lane" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q051",
+        "topic": ["defensive_driving", "pedestrians", "busy_street"],
+        "stem": {
+        "en": "Sometimes, a driver passes through a busy street with so many pedestrians. Which of the following should a driver do?",
+        "tl": "Kung minsan, dumaraan ang drayber sa isang kalye na maraming sasakyan at maraming tao. Alin sa mga sumusunod ang dapat niyang gawin?"
+        },
+        "choices": [
+        { "key": "a", "en": "Slow down and check for safety when passing through", "tl": "Bagalan ang takbo at tingnan kung ligtas ang pagdaan" },
+        { "key": "b", "en": "Proceed with usual speed", "tl": "Magpatuloy sa normal na takbo" },
+        { "key": "c", "en": "Stop at all cost", "tl": "Huminto anuman ang mangyari" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q052",
+        "topic": ["weather_driving", "heavy_rain", "visibility"],
+        "stem": {
+        "en": "Driving in heavy rains can be extremely dangerous due to limited visibility. What should you do?",
+        "tl": "Ang pagmamaneho kapag malakas ang ulan ay lubhang mapanganib dahil hindi makakakita ng maigi. Ano ang dapat mong gawin?"
+        },
+        "choices": [
+        {
+            "key": "a",
+            "en": "When you cannot see more than 20 meters in front of you, turn on your hazard lights/headlights and look for a safe place to park",
+            "tl": "Kapag hindi makakita nang mahigit sa 20 metro sa harapan mo, i-switch ang hazard lights/headlight at maghanap ng ligtas na mapaparadahan"
+        },
+        {
+            "key": "b",
+            "en": "Turn on your headlights and slow down or park at a safe place if situation is risky",
+            "tl": "I-switch ang headlights at bagalan ang takbo o huminto sa isang ligtas na lugar kung ang sitwasyon ay mapanganib"
+        },
+        {
+            "key": "c",
+            "en": "Turn on your hazard lights, blow your horn and continue driving",
+            "tl": "I-switch ang hazard lights, bumusina at magpatuloy sa pagmamaneho"
+        }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q053",
+        "topic": ["defensive_driving", "children", "hazard_awareness"],
+        "stem": {
+        "en": "If you see a ball coming from behind a parked vehicle, it is more likely that a kid is following it. What will you do?",
+        "tl": "Kung may nakita kang bola na mula sa likuran ng isang nakaparadang sasakyan, malamang na may batang sumusunod dito. Ano ang gagawin mo?"
+        },
+        "choices": [
+        { "key": "a", "en": "Increase your speed", "tl": "Bilisan ang takbo" },
+        { "key": "b", "en": "Slow down", "tl": "Bagalan ang takbo" },
+        { "key": "c", "en": "Blow your horn and maintain your speed", "tl": "Bumusina at panatilihin ang bilis ng takbo" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q054",
+        "topic": ["traffic_signs", "warning", "accident_prone"],
+        "stem": {
+        "en": "What should you do when you see a traffic sign \"ACCIDENT PRONE AREA\"?",
+        "tl": "Ano ang dapat mong gawin kung nakakita ka ng senyas trapiko na nagsasabing “ACCIDENT PRONE AREA”?"
+        },
+        "choices": [
+        { "key": "a", "en": "Slow down and be more alert than usual", "tl": "Bagalan ang takbo at higit na maging alisto" },
+        { "key": "b", "en": "Increase your speed", "tl": "Bilisan ang takbo" },
+        { "key": "c", "en": "Blow your horn and resume your normal speed", "tl": "Bumusina at panatilihin ang normal mong bilis" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q055",
+        "topic": ["overtaking", "unsafe_overtake", "intersections"],
+        "stem": {
+        "en": "Which of the following is not a safe place to overtake?",
+        "tl": "Alin sa mga sumusunod ang hindi ligtas na lugar sa pag-overtake/paglusot?"
+        },
+        "choices": [
+        { "key": "a", "en": "When approaching a crest or upon a curve", "tl": "Kapag papalapit sa paahon na lugar o kurbada" },
+        { "key": "b", "en": "At an intersection", "tl": "Sa interseksyon" },
+        { "key": "c", "en": "All of the answers", "tl": "Lahat ng sagot" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q056",
+        "topic": ["traffic_lights", "road_safety", "night_driving"],
+        "stem": {
+        "en": "Disregarding traffic lights during late hours of the night could:",
+        "tl": "Ang pagwawalang-bahala sa mga ilaw trapiko kapag gabi na ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "Make you a good driver", "tl": "Makatutulong upang higit kang maging magaling na drayber" },
+        { "key": "b", "en": "Involve you in a fatal road crash", "tl": "Maaaring magresulta sa aksidente at kamatayan" },
+        { "key": "c", "en": "Decrease your fuel consumption", "tl": "Makatitipid sa konsumo ng gasolina o krudo" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q057",
+        "topic": ["driver_attitude", "social_responsibility"],
+        "stem": {
+        "en": "A good driver must meet one's social responsibilities of caring for others by:",
+        "tl": "Ang maayos na drayber ay matutugunan ang responsabilidad sa lipunan sa pamamagitan nang:"
+        },
+        "choices": [
+        { "key": "a", "en": "Driving noisily to attract attention of residents along the road", "tl": "Pagmaneho nang maingay upang mapansin ng mga residente" },
+        { "key": "b", "en": "Exercising care for other pedestrians and vehicles around", "tl": "Pagsasaalang-alang sa mga tumatawid at mga sasakyang nakapaligid" },
+        { "key": "c", "en": "Blowing one's horn every now and then to scare passers-by", "tl": "Maya’t mayang pagbusina upang takutin ang mga naglalakad" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q058",
+        "topic": ["road_safety", "speeding", "loss_of_control"],
+        "stem": {
+        "en": "When the vehicle you are driving runs off the road or hits an electric post or a parked car, the most probable reason is:",
+        "tl": "Kapag ang minamaneho mong sasakyan ay lumihis sa kalsada o tumama sa poste o nakaparadang sasakyan, malamang na ang dahilan nito ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "You are driving too fast and you lost control of your vehicle", "tl": "Mabilis ang takbo at nawalan ka ng kontrol sa sasakyan" },
+        { "key": "b", "en": "You lost brake", "tl": "Nawalan ka ng preno" },
+        { "key": "c", "en": "You are trying to overtake", "tl": "Mag-o-overtake ka sana" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q059",
+        "topic": ["road_emergency", "breakdown", "ewd"],
+        "stem": {
+        "en": "If your vehicle broke down on the road, what should you do?",
+        "tl": "Kapag nasiraan ka ng sasakyan sa daan, ano ang gagawin mo?"
+        },
+        "choices": [
+        { "key": "a", "en": "Leave the vehicle and call for a mechanic", "tl": "Iwan ang sasakyan at tumawag ng mekaniko" },
+        { "key": "b", "en": "Switch on hazard warning lights and display an Early Warning Device (EWD) at least four (4) meters behind the stalled vehicle", "tl": "Pailawin ang hazard lights at maglagay ng EWD na hindi bababa sa 4 na metro sa likod ng sasakyan" },
+        { "key": "c", "en": "Turn off the engine and call for a mechanic", "tl": "Patayin ang makina at tumawag ng mekaniko" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q060",
+        "topic": ["road_emergency", "road_crash", "first_aid"],
+        "stem": {
+        "en": "What is the primary responsibility of a driver in times of a road crash?",
+        "tl": "Ano ang pangunahing responsibilidad ng isang drayber sa isang aksidente?"
+        },
+        "choices": [
+        { "key": "a", "en": "Aid the victim", "tl": "Tulungan ang naaksidente" },
+        { "key": "b", "en": "Run and hide", "tl": "Tumakbo at magtago" },
+        { "key": "c", "en": "Ask for victim's identification card", "tl": "Tanungin ang biktima ng pagkakakilanlan" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q061",
+        "topic": ["defensive_driving", "vehicle_control"],
+        "stem": {
+        "en": "Which of the following is a quality of a defensive driver?",
+        "tl": "Alin sa mga sumusunod ang kwalipikasyon ng isang maayos na drayber?"
+        },
+        "choices": [
+        { "key": "a", "en": "Drivers who know how to properly use clutch and brake pedals while driving", "tl": "Mga drayber na marunong gumamit ng clutch at preno habang nagmamaneho" },
+        { "key": "b", "en": "Drivers using basic knowledge of vehicle maintenance", "tl": "Mga drayber na may kaalaman sa pagmintina ng sasakyan" },
+        { "key": "c", "en": "Driver who continues to drive even with flat tires to avoid an impounding ticket", "tl": "Nagpapatuloy magmaneho kahit flat ang gulong para maiwasang ma-impound" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q062",
+        "topic": ["road_discipline", "traffic_rules"],
+        "stem": {
+        "en": "Which one is correct road discipline?",
+        "tl": "Alin ang tamang disiplina sa kalsada?"
+        },
+        "choices": [
+        { "key": "a", "en": "Hiding from traffic enforcers during oplan sita", "tl": "Magtago sa mga enforcers sa panahon ng oplan sita" },
+        { "key": "b", "en": "Following the advice of the elderly", "tl": "Sundin ang mga payo ng mga matatanda" },
+        { "key": "c", "en": "Knowing and abiding by the traffic rules and regulations", "tl": "Alamin at sundin ang mga batas trapiko" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q063",
+        "topic": ["driver_attitude", "stress_management"],
+        "stem": {
+        "en": "How can you overcome stress?",
+        "tl": "Paano mo malalampasan ang stress o tensyon?"
+        },
+        "choices": [
+        { "key": "a", "en": "Stop, get out, shout at anybody and engage in a fight", "tl": "Huminto, bumaba, sumigaw kahit kanino at maghamon ng away" },
+        { "key": "b", "en": "Take a deep breath, sit comfortably, listen to soothing music, allow enough space in front and provide extra travel time", "tl": "Huminga ng malalim, maupo nang maayos, makinig sa nakakaaliw na tugtog, magbigay ng distansiya at extra time" },
+        { "key": "c", "en": "Drive faster than allowed, listen to loud music and provoke other motorists", "tl": "Bilisan ang takbo, makinig sa maiingay na tugtog at maghamon ng away" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q064",
+        "topic": ["driver_attitude", "stress_management", "road_rage"],
+        "stem": {
+        "en": "What may happen if a driver failed to overcome stress?",
+        "tl": "Ano ang maaaring mangyari kung ang isang drayber ay hindi malampasan ang stress o tensyon?"
+        },
+        "choices": [
+        { "key": "a", "en": "Proper changing lanes", "tl": "Tamang paglipat ng lane" },
+        { "key": "b", "en": "Smooth braking", "tl": "Maayos na pagpreno" },
+        { "key": "c", "en": "Road rage", "tl": "Away sa kalsada" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q065",
+        "topic": ["driver_attitude", "road_rage"],
+        "stem": {
+        "en": "Which of the following actions may result to road rage?",
+        "tl": "Alin sa mga sumusunod ang maaaring mag resulta sa away kalsada?"
+        },
+        "choices": [
+        { "key": "a", "en": "Following a vehicle with enough space to maneuver", "tl": "Pagsunod sa sasakyan na may tamang agwat" },
+        { "key": "b", "en": "Cutting off other vehicles or following too close", "tl": "Pag-cut sa ibang motorista at pagtutok sa mga ito" },
+        { "key": "c", "en": "Allowing other motorists to overtake with ease", "tl": "Pagbigay daan para makapag-overtake nang maayos" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q066",
+        "topic": ["driver_attitude", "road_rage", "road_safety"],
+        "stem": {
+        "en": "What is the ultimate result of a road rage?",
+        "tl": "Ano ang pinakamasamang mangyayari sa isang away kalsada?"
+        },
+        "choices": [
+        { "key": "a", "en": "Death", "tl": "Kamatayan" },
+        { "key": "b", "en": "More friends", "tl": "Mas maraming kaibigan" },
+        { "key": "c", "en": "Refreshment", "tl": "Refreshment" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q067",
+        "topic": ["driver_fatigue", "drowsy_driving", "safety"],
+        "stem": {
+        "en": "If you feel drowsy while driving, it is important that you:",
+        "tl": "Kung nakakaramdam ka ng pagka-antok habang nagmamaneho, mahalaga na ikaw ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "Park at a safe place, and take a short break before proceeding", "tl": "Magparada sa ligtas na lugar at magpahinga bago magpatuloy" },
+        { "key": "b", "en": "Speed up to reach your destination faster", "tl": "Bilisan ang takbo upang makarating nang mabilis" },
+        { "key": "c", "en": "Stop driving, switch on hazard lights and take a nap", "tl": "Huminto, i-switch hazard lights at magpahinga" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q068",
+        "topic": ["road_safety", "cyclists", "prohibited_actions"],
+        "stem": {
+        "en": "Can a driver allow a cyclist to hitch on his vehicle?",
+        "tl": "Maaari bang pahintulutan ng drayber ang siklista na sumabit sa kanyang sasakyan?"
+        },
+        "choices": [
+        { "key": "a", "en": "No, especially without permission from an enforcer", "tl": "Hindi, lalo at walang permiso sa traffic enforcer" },
+        { "key": "b", "en": "No, road crash may happen", "tl": "Hindi, maaaring magka-aksidente" },
+        { "key": "c", "en": "No", "tl": "Hindi" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q069",
+        "topic": ["road_emergency", "tire_blowout", "vehicle_control"],
+        "stem": {
+        "en": "What is the first thing to do if you experience a tire blowout?",
+        "tl": "Ano ang una mong dapat gawin kung ikaw ay nakaranas ng tire blowout?"
+        },
+        "choices": [
+        { "key": "a", "en": "Don't step on the brakes; focus on the steering wheel", "tl": "Huwag tapakan ang preno; magpokus sa manibela" },
+        { "key": "b", "en": "Step on your brakes immediately", "tl": "Agad na tapakan ang preno" },
+        { "key": "c", "en": "Switch off the engine", "tl": "Patayin ang makina" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q070",
+        "topic": ["vehicle_maintenance", "inspection", "roadworthiness"],
+        "stem": {
+        "en": "What is the main purpose of having a vehicle undergo regular vehicle maintenance inspection?",
+        "tl": "Ano ang pangunahing layunin ng regular na pag inspeksyon ng isang sasakyan?"
+        },
+        "choices": [
+        { "key": "a", "en": "To verify the chassis and engine numbers of the vehicle", "tl": "Para siyasatin ang mga numero ng chassis at motor" },
+        { "key": "b", "en": "To check the roadworthiness of the vehicle", "tl": "Para tingnan ang kaayusan ng sasakyan" },
+        { "key": "c", "en": "To check the driver's performance", "tl": "Para tingnan ang pagganap ng drayber" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q071",
+        "topic": ["traffic_laws", "road_discipline"],
+        "stem": {
+        "en": "When do you need to follow the traffic rules and regulations?",
+        "tl": "Kailan mo dapat sundin ang mga batas trapiko?"
+        },
+        "choices": [
+        { "key": "a", "en": "When avoiding an enforcer", "tl": "Kung umiiwas sa isang enforcer" },
+        { "key": "b", "en": "When parked", "tl": "Habang nagpaparada" },
+        { "key": "c", "en": "While at the steering wheel", "tl": "Habang nasa manibela" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q072",
+        "topic": ["child_safety", "child_restraint", "law_ra8750"],
+        "stem": {
+        "en": "Under R.A. 8750, children must be properly restrained if they are:",
+        "tl": "Ayon sa R.A. 8750, ang mga bata ay dapat nakaupo sa aprobadong child restraint kung sila ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "10 years old", "tl": "10 taong gulang" },
+        { "key": "b", "en": "6 years old and below", "tl": "6 na taong gulang at pababa" },
+        { "key": "c", "en": "7 years old", "tl": "7 taong gulang" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q073",
+        "topic": ["driving_basics", "driver_senses"],
+        "stem": {
+        "en": "In driving, the most important sense the driver needs is:",
+        "tl": "Sa pagmamaneho, ang pinakamahalagang pandama na kailangan ng drayber ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "Hearing", "tl": "Pandinig" },
+        { "key": "b", "en": "Smelling", "tl": "Pang-amoy" },
+        { "key": "c", "en": "Seeing", "tl": "Paningin" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q074",
+        "topic": ["traffic_signs", "regulatory", "speed_limit"],
+        "stem": { "en": "Identify this traffic sign:", "tl": "Tukuyin kung anong senyas ito:" },
+        "symbol": "🛑3️⃣0️⃣",
+        "choices": [
+        { "key": "a", "en": "Driving speed to beat the traffic", "tl": "Bilis ng pagtakbo upang maiwasan ang trapik" },
+        { "key": "b", "en": "Distance of the next intersection is 30 km", "tl": "Distansiya ng susunod na interseksyon ay 30 km" },
+        { "key": "c", "en": "Required speed limit is 30 kph", "tl": "Hanggang 30 kph lang ang bilis ng pagtakbo" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q075",
+        "topic": ["traffic_signs", "warning"],
+        "stem": { "en": "Identify this traffic sign:", "tl": "Tukuyin kung anong senyas ito:" },
+        "symbol": "⚠️⬇️",
+        "choices": [
+        { "key": "a", "en": "You must give right-of-way", "tl": "Dapat kang magbigay daan" },
+        { "key": "b", "en": "You have the right-of-way", "tl": "Ikaw ay may karapatan sa daan" },
+        { "key": "c", "en": "Early warning device", "tl": "Early warning device" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q076",
+        "topic": ["parking", "curb_markings"],
+        "stem": {
+        "en": "What is the meaning of yellow painted curb?",
+        "tl": "Ano ang ibig sabihin ng nakapintang dilaw?"
+        },
+        "choices": [
+        { "key": "a", "en": "No loading/unloading", "tl": "Bawal magbaba at magsakay" },
+        { "key": "b", "en": "No parking", "tl": "Bawal pumarada" },
+        { "key": "c", "en": "No waiting", "tl": "Bawal maghintay" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q077",
+        "topic": ["parking", "vehicle_safety"],
+        "stem": {
+        "en": "What do you need to do upon parking and getting out of the vehicle?",
+        "tl": "Ano ang dapat mong gawin pagkatapos mag-park at bago bumaba ng sasakyan?"
+        },
+        "choices": [
+        { "key": "a", "en": "Lock all the doors", "tl": "Isara/ilock lahat ng pintuan" },
+        { "key": "b", "en": "Engage the parking brake", "tl": "I-switch ang parking brake" },
+        { "key": "c", "en": "Blow horn", "tl": "Bumusina" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q078",
+        "topic": ["road_markings", "rumble_strips", "hazard_awareness"],
+        "stem": {
+        "en": "What do rumble strips on the road indicate?",
+        "tl": "Ano ang layunin ng rumble strips sa kalsada?"
+        },
+        "choices": [
+        { "key": "a", "en": "To stop at once and wait for a go signal upon reaching an intersection", "tl": "Huminto agad at maghintay ng go signal pagkarating sa interseksyon" },
+        { "key": "b", "en": "To be aware of the speed approaching obstructions or intersections", "tl": "Para malaman/maalala ang takbo habang papalapit sa obstruction o intersection" },
+        { "key": "c", "en": "To be more aggressive", "tl": "Para mas agresibo" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q079",
+        "topic": ["vehicle_requirements", "lights", "headlights"],
+        "stem": {
+        "en": "What is the required color of headlights?",
+        "tl": "Ano ang dapat na kulay ng headlight?"
+        },
+        "choices": [
+        { "key": "a", "en": "Any color may do", "tl": "Kahit anong kulay ay maaari" },
+        { "key": "b", "en": "Red", "tl": "Pula" },
+        { "key": "c", "en": "White or yellowish white", "tl": "Puti o dilawang puti" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q080",
+        "topic": ["vehicle_requirements", "lights", "brake_lights"],
+        "stem": {
+        "en": "What is the required color of brake lights?",
+        "tl": "Ano ang dapat na kulay ng ilaw ng preno?"
+        },
+        "choices": [
+        { "key": "a", "en": "White", "tl": "Puti" },
+        { "key": "b", "en": "Bright red", "tl": "Kumikinang na pula" },
+        { "key": "c", "en": "Yellow", "tl": "Dilaw" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q081",
+        "topic": ["registration", "requirements"],
+        "stem": {
+        "en": "What are the requirements for motor vehicle registration?",
+        "tl": "Ano ang mga kailangan para sa pagpaparehistro ng sasakyan?"
+        },
+        "choices": [
+        { "key": "a", "en": "Anti-carnapping clearance", "tl": "Anti-carnapping clearance" },
+        { "key": "b", "en": "LTO inspection of the vehicle and emission test compliance", "tl": "Inspeksiyon ng sasakyan at emission test sa LTO" },
+        { "key": "c", "en": "District Traffic Enforcement Clearance", "tl": "District Traffic Enforcement Clearance" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q082",
+        "topic": ["seatbelt", "safety"],
+        "stem": {
+        "en": "When do you need to use your seat belt?",
+        "tl": "Kailan mo kailangan dapat gamitin ang seat belt?"
+        },
+        "choices": [
+        { "key": "a", "en": "When driving on a national road", "tl": "Kung magmamaneho sa malalaking pampublikong daan" },
+        { "key": "b", "en": "When driving above 10 kph", "tl": "Kung nagmamaneho ng 10 kph pataas" },
+        { "key": "c", "en": "While the engine is running and before moving off", "tl": "Habang nakaandar ang makina at bago umabante" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q083",
+        "topic": ["seatbelt", "law", "safety"],
+        "stem": {
+        "en": "What is the primary objective of the Seat Belt Act?",
+        "tl": "Ano ang pangunahing layunin ng batas patungkol sa paggamit ng seat belt?"
+        },
+        "choices": [
+        { "key": "a", "en": "To restrict the driver in times of road rage", "tl": "Upang mapigil ang drayber na masangkot sa away kalsada" },
+        { "key": "b", "en": "To complete the practical driving course", "tl": "Para kumpletuhin ang practical driving course" },
+        { "key": "c", "en": "To secure and safeguard the passengers and drivers of motor vehicles", "tl": "Para sa seguridad ng mga pasahero at mga drayber" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q084",
+        "topic": ["distracted_driving", "mobile_phone_mount", "law"],
+        "stem": {
+        "en": "What is the maximum height that a driver can install his mobile phone from the base of the dashboard?",
+        "tl": "Ilang pulgada maaaring maglagay ng telepono mula sa base ng dashboard ng sasakyan?"
+        },
+        "choices": [
+        { "key": "a", "en": "2 inches", "tl": "Dalawang pulgada" },
+        { "key": "b", "en": "4 inches", "tl": "Apat na pulgada" },
+        { "key": "c", "en": "6 inches", "tl": "Anim na pulgada" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q085",
+        "topic": ["child_safety", "front_seat", "law_ra11229"],
+        "stem": {
+        "en": "Under R.A. No. 11229, what is the allowable age that a child may sit in front passenger seat of a car?",
+        "tl": "Anong edad maaaring sumakay sa harapan ang isang bata na naaayon sa RA 11229?"
+        },
+        "choices": [
+        { "key": "a", "en": "More than 12 years old", "tl": "12 taong gulang pataas" },
+        { "key": "b", "en": "16 years old and above", "tl": "16 na taon pataas" },
+        { "key": "c", "en": "18 years old and above", "tl": "18 na taon pataas" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q086",
+        "topic": ["child_safety", "child_restraint", "height_requirement"],
+        "stem": {
+        "en": "What is the height requirement for a child to be exempted to use a child restraint system?",
+        "tl": "Ano ang taas ng isang bata upang ito ay hindi na kailangang gumamit ng child restraint system?"
+        },
+        "choices": [
+        { "key": "a", "en": "100 cms and above", "tl": "100 sentimetro pataas" },
+        { "key": "b", "en": "150 cms and above", "tl": "150 sentimetro pataas" },
+        { "key": "c", "en": "180 cms and above", "tl": "180 sentimetro pataas" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q087",
+        "topic": ["child_safety", "child_restraint", "equipment_rules"],
+        "stem": {
+        "en": "Can an expired child restraint system be used when it still looks in good shape?",
+        "tl": "Maaari bang gamitin ang isang child restraint system kung ito ay expired na kahit maayos pa ang kondisyon?"
+        },
+        "choices": [
+        { "key": "a", "en": "Yes", "tl": "Oo" },
+        { "key": "b", "en": "No", "tl": "Hindi" },
+        { "key": "c", "en": "Yes, provided that it is allowed by traffic enforcers", "tl": "Oo, basta't pinapayagan ng traffic enforcer" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q088",
+        "topic": ["motorcycle_safety", "helmets", "law"],
+        "stem": {
+        "en": "When does a driver need to wear a helmet when riding a motorcycle?",
+        "tl": "Kailan dapat gamitin ng drayber ang kanyang helmet?"
+        },
+        "choices": [
+        { "key": "a", "en": "For long and short drives", "tl": "Sa mahaba o maiksing biyahe" },
+        { "key": "b", "en": "For long or short drives and in any type of road or highway", "tl": "Para sa mahaba o maiksing biyahe at anumang uri ng kalsada" },
+        { "key": "c", "en": "For national road only", "tl": "Para sa national road lamang" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q089",
+        "topic": ["motorcycle_safety", "helmets", "standards"],
+        "stem": {
+        "en": "What type of helmet should a rider must use?",
+        "tl": "Anong klaseng helmet ang dapat gamitin ng rider ng motorsiklo?"
+        },
+        "choices": [
+        { "key": "a", "en": "Standard motorcycle helmet compliant to specifications of LTO", "tl": "Standard motorcycle helmet na sumunod sa regulasyon ng LTO" },
+        { "key": "b", "en": "Standard motorcycle helmet compliant to specifications of DENR", "tl": "Standard motorcycle helmet na sumunod sa panuntunan ng DENR" },
+        { "key": "c", "en": "Standard motorcycle helmet compliant to specifications of DTI", "tl": "Standard motorcycle helmet na naaayon sa panuntunan ng DTI" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+    "id": "Q090",
+    "topic": ["motorcycle", "crime_liability", "responsibility"],
+    "stem": {
+        "en": "Who are responsible if a motorcycle was used in the commission of a crime?",
+        "tl": "Sino ang may pananagutan kung ang isang motorsiklo ay ginamit sa krimen?"
+    },
+    "choices": [
+        { "key": "a", "en": "Owner, driver and backrider", "tl": "May-ari, drayber, backrider" },
+        { "key": "b", "en": "Driver only", "tl": "Drayber lamang" },
+        { "key": "c", "en": "Backrider and driver", "tl": "Drayber at sakay nito" }
+    ],
+    "correct_key": "c",
+    "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q091",
+        "topic": ["motorcycle_safety", "children", "law_childrens_safety_on_motorcycles"],
+        "stem": {
+        "en": "Under the Children's Safety on Motorcycles Act, a child below 18 years old can't ride in a two-wheeled motorcycle on public roads unless:",
+        "tl": "Ayon sa Children's Safety on Motorcycles Act, ang batang wala pang 18 taong gulang ay hindi maaaring sumakay ng motorsiklo sa pampublikong kalsada maliban kung:"
+        },
+        "choices": [
+        {
+            "key": "a",
+            "en": "The child can comfortably reach his/her feet on the standard foot peg, can grasp the driver's waist, and is wearing a standard protective helmet.",
+            "tl": "Maabot ng bata ang foot peg, kaya niyang masalikop ang baywang ng drayber, at nakasuot siya ng karaniwang proteksiyon na helmet."
+        },
+        {
+            "key": "b",
+            "en": "There is a high density of fast moving vehicles or where a speed limit of more than 60 kph is imposed.",
+            "tl": "Maraming mabibilis na sasakyan o higit 60 kph ang speed limit."
+        },
+        {
+            "key": "c",
+            "en": "The driver can grasp the child's waist sitting in front and the child is wearing a standard protective helmet.",
+            "tl": "Kayang mayakap ng drayber ang baywang ng batang nasa harap at nakasuot ang bata ng karaniwang helmet."
+        }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q092",
+        "topic": ["violations", "overtaking", "intersection"],
+        "stem": {
+        "en": "What is the violation of a driver overtaking at an intersection having a one lane direction?",
+        "tl": "Ano ang maaaring maging traffic violation ng drayber na nag-overtake sa interseksyon na may isang lane lamang papunta sa iisang direksyon?"
+        },
+        "choices": [
+        { "key": "a", "en": "Overtaking at an intersection", "tl": "Pag-overtake sa isang interseksyon" },
+        { "key": "b", "en": "Obstruction", "tl": "Obstruction" },
+        { "key": "c", "en": "Disregarding traffic signals", "tl": "Pagbalewala sa senyas trapiko" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q093",
+        "topic": ["loading_unloading", "pedestrian_lane", "rules"],
+        "stem": {
+        "en": "When are you allowed to pick up passengers at a pedestrian lane?",
+        "tl": "Kailan ka maaaring magsakay ng pasahero sa isang pook tawiran?"
+        },
+        "choices": [
+        { "key": "a", "en": "When traffic enforcers are not looking", "tl": "Kung hindi nakatingin ang traffic enforcers" },
+        { "key": "b", "en": "When a passenger is already waiting", "tl": "Kung naghihintay na ang pasahero" },
+        { "key": "c", "en": "Loading and unloading at a pedestrian lane is not allowed", "tl": "Kailanman ay hindi pinahihintulutan ang pagsakay/pagbaba sa pook tawiran" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q094",
+        "topic": ["vehicle_safety", "overloading", "rules"],
+        "stem": {
+        "en": "Is a driver allowed to load cargo more than the vehicle's registered load capacity?",
+        "tl": "Maaari bang magkarga ng kargamento na lampas sa itinakdang timbang ng sasakyan?"
+        },
+        "choices": [
+        { "key": "a", "en": "Yes", "tl": "Oo" },
+        { "key": "b", "en": "No", "tl": "Hindi" },
+        { "key": "c", "en": "Yes, if the cargo is fragile or perishable", "tl": "Oo, kung madaling mabasag o nabubulok" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q095",
+        "topic": ["violations", "adjudication", "contesting"],
+        "stem": {
+        "en": "Where can you contest an alleged traffic violation?",
+        "tl": "Saan mo maaaring ireklamo o i-contest ang pagkakahuli sa iyo?"
+        },
+        "choices": [
+        { "key": "a", "en": "At the traffic adjudication office concerned", "tl": "Sa tanggapan ng adyudikasyon na may sakop" },
+        { "key": "b", "en": "On the street, before the traffic enforcer leaves", "tl": "Sa kalsada bago umalis ang enforcer" },
+        { "key": "c", "en": "At any adjudication office", "tl": "Sa alinmang tanggapan ng adyudikasyon" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q096",
+        "topic": ["licensing", "enforcement", "confiscation"],
+        "stem": {
+        "en": "Who has the authority to confiscate a driver's license during a normal traffic violation?",
+        "tl": "Sa normal na traffic violation, sino ang maaaring kumumpiska ng lisensya?"
+        },
+        "choices": [
+        { "key": "a", "en": "LTO Law Enforcement Officers or LTO Deputized Agents", "tl": "Mga LTO enforcers o deputized agents ng LTO" },
+        { "key": "b", "en": "Anybody, as long as the violation is within R.A. No. 4136", "tl": "Kahit sino basta sakop ng R.A. 4136" },
+        { "key": "c", "en": "Anybody, if the enforcer is a permanent government employee", "tl": "Kahit sino basta permanenteng empleyado ng gobyerno" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q097",
+        "topic": ["penalties", "license_suspension"],
+        "stem": {
+        "en": "A 30-day suspension of the driver's license shall be imposed if:",
+        "tl": "Ang 30-araw na suspensyon ng lisensya sa pagmamaneho ay ipapataw kung:"
+        },
+        "choices": [
+        { "key": "a", "en": "The traffic violation committed is grave", "tl": "Mabigat ang paglabag sa trapiko" },
+        { "key": "b", "en": "The driver fails to pay the corresponding penalty within 15 days", "tl": "Hindi nabayaran ang multa sa loob ng 15 araw" },
+        { "key": "c", "en": "The driver fails to pay the fine within 72 hours", "tl": "Hindi nabayaran ang multa sa loob ng 72 oras" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q098",
+        "topic": ["hand_signals", "stopping"],
+        "stem": {
+        "en": "What does this hand signal mean when you are coming from the roadside and your signal is malfunctioning?",
+        "tl": "Ano ang ibig sabihin ng senyas kamay na ito kapag sira ang signal light mo?"
+        },
+        "choices": [
+        { "key": "a", "en": "You are turning left", "tl": "Kakaliwa" },
+        { "key": "b", "en": "You are turning right", "tl": "Kakanan" },
+        { "key": "c", "en": "You are going to stop", "tl": "Hihinto" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q099",
+        "topic": ["traffic_signs", "warning", "accident_prone"],
+        "stem": {
+        "en": "What should be the appropriate action when you see this traffic sign? “Slow Down – Accident Prone Area”",
+        "tl": "Ano ang dapat mong gawin kung makikita ang karatulang ito? “Slow Down – Accident Prone Area”"
+        },
+        "symbol": "⚠️🐢💥",
+        "choices": [
+        { "key": "a", "en": "Slow down and be more alert than usual", "tl": "Magmabagal at maging handa" },
+        { "key": "b", "en": "Increase your speed", "tl": "Bilisan" },
+        { "key": "c", "en": "Blow your horn and resume your normal speed", "tl": "Bumusina at ituloy ang normal na bilis" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q100",
+        "topic": ["traffic_signs", "warning", "bridge_marker"],
+        "stem": {
+        "en": "Where do you usually see this traffic sign?",
+        "tl": "Saan madalas makita ang mga ganitong senyas trapiko?"
+        },
+        "symbol": "⚠️🌉⬛⬜",
+        "choices": [
+        { "key": "a", "en": "Before the bridge", "tl": "Bago umabot sa tulay" },
+        { "key": "b", "en": "Before changing lane", "tl": "Bago magpalit ng lane" },
+        { "key": "c", "en": "At the column of a footbridge", "tl": "Sa poste ng tawiran ng tao" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q101",
+        "topic": ["enforcement", "impounding", "procedure"],
+        "stem": {
+        "en": "What should a law enforcer do upon seizing a motorcycle from a traffic offender?",
+        "tl": "Ano ang dapat gawin ng law enforcer kung makumpiska ang isang motorsiklo?"
+        },
+        "choices": [
+        { "key": "a", "en": "Use the motorcycle temporarily", "tl": "Gamitin ang motorsiklo pansamantala" },
+        { "key": "b", "en": "Surrender the motorcycle to authorities", "tl": "I-surrender ang motorsiklo sa awtoridad" },
+        { "key": "c", "en": "Send the motorcycle to the impounding area", "tl": "Dalhin ang motorsiklo sa impounding area" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q102",
+        "topic": ["right_of_way", "stop_sign"],
+        "stem": {
+        "en": "What does the law require you to do upon approaching an intersection with a STOP sign?",
+        "tl": "Ayon sa batas, ano ang dapat mong gawin kapag paparating sa interseksyon na may STOP sign?"
+        },
+        "choices": [
+        { "key": "a", "en": "Slow down and proceed when it is safe", "tl": "Bagalan ang takbo at dumiretso kung ligtas" },
+        { "key": "b", "en": "Yield the right-of-way if necessary", "tl": "Magbigay daan kung kinakailangan" },
+        { "key": "c", "en": "Stop and proceed when it is safe", "tl": "Huminto at dumiretso lamang kung ligtas" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q103",
+        "topic": ["overtaking", "lane_change", "mirrors"],
+        "stem": {
+        "en": "After passing or overtaking another vehicle, you can safely move back into your original lane if:",
+        "tl": "Pagkatapos lumampas/overtake, maaari nang bumalik sa orihinal na lane kung:"
+        },
+        "choices": [
+        { "key": "a", "en": "The driver you passed honks his horn", "tl": "Bumusina ang drayber na nilampasan mo" },
+        { "key": "b", "en": "You can see in the rear-view mirror the overtaken car", "tl": "Natatanaw mo sa rear-view mirror ang nilampasang sasakyan" },
+        { "key": "c", "en": "You can see in the side-view mirror the overtaken car", "tl": "Natatanaw mo sa side-view mirror ang nilampasang sasakyan" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q104",
+        "topic": ["road_discipline", "lane_usage"],
+        "stem": {
+        "en": "Drivers moving slower than other motorists should use the:",
+        "tl": "Ang mga motorista na mas mabagal kaysa iba ay dapat na nasa:"
+        },
+        "choices": [
+        { "key": "a", "en": "Outer lane", "tl": "Lane sa gawing labas o dulong kanan" },
+        { "key": "b", "en": "Center lane", "tl": "Lane sa gitna" },
+        { "key": "c", "en": "Inner lane", "tl": "Lane sa gawing loob o dulong kaliwa" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q105",
+        "topic": ["traffic_signs", "lane_use_signs"],
+        "stem": {
+        "en": "Some signs are called “lane-use” signs. They direct you into the correct lane as you reach the intersection. They are usually seen:",
+        "tl": "Ang lane-use signs ay gumagabay sa tamang lane habang papalapit sa interseksyon. Kadalasan ito ay makikita:"
+        },
+        "choices": [
+        { "key": "a", "en": "Before an intersection", "tl": "Bago dumating sa interseksyon" },
+        { "key": "b", "en": "After an intersection", "tl": "Pagkatapos ng interseksyon" },
+        { "key": "c", "en": "On an intersection", "tl": "Sa interseksyon" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q106",
+        "topic": ["emergency_vehicles", "right_of_way"],
+        "stem": {
+        "en": "If you encounter an emergency vehicle with sirens on, what should you do?",
+        "tl": "Kapag nakasabay mo ang sasakyang pang-emergency na nakabukas ang sirena, ano ang dapat mong gawin?"
+        },
+        "choices": [
+        { "key": "a", "en": "Obstruct their passage", "tl": "Harangan ang daanan" },
+        { "key": "b", "en": "Just ignore", "tl": "Huwag pansinin" },
+        { "key": "c", "en": "Pull over to the left or right side and give way", "tl": "Tumabi sa kaliwa o kanan at magbigay daan" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q107",
+        "topic": ["right_of_way", "pedestrians", "crosswalk"],
+        "stem": {
+        "en": "A driver while on a highway shall yield the right of way to:",
+        "tl": "Kapag nasa highway, magpapadaan ang drayber sa:"
+        },
+        "choices": [
+        { "key": "a", "en": "Pedestrians crossing within a crosswalk", "tl": "Mga tumatawid sa tawiran" },
+        { "key": "b", "en": "Pedestrians crossing at an intersection regulated by a traffic enforcer", "tl": "Mga tumatawid sa interseksyon na may traffic enforcer" },
+        { "key": "c", "en": "Vehicles about to enter the highway", "tl": "Mga sasakyang papasok sa highway" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q108",
+        "topic": ["vehicle_control", "braking", "abs"],
+        "stem": {
+        "en": "With Anti-lock Braking System (ABS) installed, what should you do if you have to stop suddenly?",
+        "tl": "Kapag may ABS ang sasakyan at kailangan mong biglaang huminto, ano ang dapat mong gawin?"
+        },
+        "choices": [
+        { "key": "a", "en": "Slam the brake pedal", "tl": "Biglang magpreno" },
+        { "key": "b", "en": "Apply brakes gently with steady pressure", "tl": "Unti-unting magpreno nang may steady pressure" },
+        { "key": "c", "en": "Pump the brake pedal", "tl": "Bombahin ang preno" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q109",
+        "topic": ["night_driving", "speed_management"],
+        "stem": {
+        "en": "Your speed while driving at night should depend on:",
+        "tl": "Ang bilis ng pagmamaneho sa gabi ay nakasalalay sa:"
+        },
+        "choices": [
+        { "key": "a", "en": "The physical/mental condition and skill of the driver", "tl": "Pisikal/mental na kondisyon at kakayahan ng drayber" },
+        { "key": "b", "en": "Roadworthiness of the vehicle and weather condition", "tl": "Kaayusan ng sasakyan at lagay ng panahon" },
+        { "key": "c", "en": "All of the answers are correct", "tl": "Lahat ng sagot ay tama" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q110",
+        "topic": ["defensive_driving", "tailgating"],
+        "stem": {
+        "en": "The most effective way to deal with a tailgater is to:",
+        "tl": "Ang pinakamabisang gawin sa isang tumututok ay:"
+        },
+        "choices": [
+        { "key": "a", "en": "Ignore him but do not allow him to get away", "tl": "Huwag pansinin pero huwag siyang hayaang makalayo" },
+        { "key": "b", "en": "Slow down and let him pass", "tl": "Bagalan ang takbo at bigyan daan" },
+        { "key": "c", "en": "Increase your speed and be alert on your brakes", "tl": "Bilisan ang takbo at maging alisto sa pagpreno" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q111",
+        "topic": ["defensive_driving", "hazard_awareness", "right_of_way"],
+        "stem": {
+        "en": "What should you do when an incoming vehicle is forced to cross the centerline to avoid hitting another vehicle which suddenly changed lane?",
+        "tl": "Ano ang dapat mong gawin kung ang paparating na sasakyan ay napilitang tumawid sa centerline para umiwas sa sasakyang biglang lumipat ng lane?"
+        },
+        "choices": [
+        { "key": "a", "en": "Ignore it because you have the right-of-way", "tl": "Huwag pansinin dahil ikaw ang may karapatan" },
+        { "key": "b", "en": "Blow your horn and turn on your headlight", "tl": "Bumusina at buksan ang headlight" },
+        { "key": "c", "en": "Be alert, be prepared to slow down, and give way", "tl": "Maging alisto, maghandang bagalan ang takbo, at magbigay daan" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q112",
+        "topic": ["traffic_signs", "regulatory", "road_safety"],
+        "stem": {
+        "en": "What may happen if the driver deliberately disregards a regulatory traffic sign?",
+        "tl": "Ano ang maaaring mangyari kung ipagwalang-bahala ng drayber ang regulatory traffic sign?"
+        },
+        "choices": [
+        { "key": "a", "en": "Road crash", "tl": "Aksidente / road crash" },
+        { "key": "b", "en": "Nothing", "tl": "Wala" },
+        { "key": "c", "en": "Passengers will be happy", "tl": "Sasaya ang mga pasahero" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q113",
+        "topic": ["defensive_driving", "hazard_awareness", "right_of_way"],
+        "stem": {
+        "en": "When you want to shift to a higher gear to speed up, and a car in the opposite direction crosses quickly to your lane, what will you do?",
+        "tl": "Kapag nais mong magpalit sa mas mataas na gear para bumilis, at may sasakyan sa kasalungat na direksyon na mabilis na tumatawid sa lane mo, ano ang gagawin mo?"
+        },
+        "choices": [
+        { "key": "a", "en": "Be alert, stop and give way to the car crossing", "tl": "Maging alerto, huminto at magbigay daan" },
+        { "key": "b", "en": "Insist on your right-of-way", "tl": "Igiit ang karapatan sa daan" },
+        { "key": "c", "en": "Turn left immediately", "tl": "Agad na kumaliwa" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q114",
+        "topic": ["driver_attitude", "stress_management", "road_rage"],
+        "stem": {
+        "en": "Who will win between two parties if they failed to overcome stress?",
+        "tl": "Sino ang mananalo kung ang bawat partido ay hindi malampasan ang stress o tensyon?"
+        },
+        "choices": [
+        { "key": "a", "en": "Neither the aggressor nor the victim", "tl": "Wala—hindi agresibo o biktima" },
+        { "key": "b", "en": "Adjudication officer", "tl": "Opisyal ng adyudikasyon" },
+        { "key": "c", "en": "Insurance company", "tl": "Insurance company" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q115",
+        "topic": ["defensive_driving", "pedestrians", "pwd"],
+        "stem": {
+        "en": "Driving along an open road, a PWD in a wheelchair abruptly crosses the road. How do you prevent yourself hitting the PWD?",
+        "tl": "Habang nagmamaneho, may PWD na naka-wheelchair na biglang tumawid. Paano mo maiiwasang tamaan?"
+        },
+        "choices": [
+        { "key": "a", "en": "Move fast", "tl": "Bilisan ang pagmamaneho" },
+        { "key": "b", "en": "Hold the steering wheel and shift to an open space to avoid the PWD", "tl": "Kumapit sa manibela at lumipat sa ligtas na espasyo upang umiwas" },
+        { "key": "c", "en": "Prepare to stop", "tl": "Maghanda sa paghinto" }
+        ],
+        "correct_key": "c",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q116",
+        "topic": ["road_crash", "liability", "duty_of_care"],
+        "stem": {
+        "en": "Can a driver who had the opportunity to avoid a road crash and neglected to avoid such road crash be jointly held liable?",
+        "tl": "May pananagutan ba ang drayber na may pagkakataong maiwasan ang aksidente pero hindi niya ginawa?"
+        },
+        "choices": [
+        { "key": "a", "en": "Yes", "tl": "Oo" },
+        { "key": "b", "en": "No", "tl": "Hindi" },
+        { "key": "c", "en": "None of the above", "tl": "Wala sa nabanggit" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q117",
+        "topic": ["parking", "fire_hydrant", "rules"],
+        "stem": {
+        "en": "When parking, how many meters is allowed from the location of a fire hydrant?",
+        "tl": "Ilang metro ang layo na maaaring pumarada ang sasakyan mula sa fire hydrant?"
+        },
+        "choices": [
+        { "key": "a", "en": "More than one meter", "tl": "Higit sa isang metro" },
+        { "key": "b", "en": "More than four meters", "tl": "Lagpas apat na metro" },
+        { "key": "c", "en": "There is no regulation", "tl": "Walang regulasyon" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q118",
+        "topic": ["expressway", "lane_usage", "road_discipline"],
+        "stem": {
+        "en": "Driving a car, which lane should you use in a three (3) lane expressway during normal situation?",
+        "tl": "Anong lane ang dapat gamitin sa three-lane expressway kung normal na sitwasyon?"
+        },
+        "choices": [
+        { "key": "a", "en": "1st lane", "tl": "Unang lane" },
+        { "key": "b", "en": "2nd lane", "tl": "Pangalawang lane" },
+        { "key": "c", "en": "3rd lane", "tl": "Pangatlong lane" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q119",
+        "topic": ["road_markings", "transition_lines", "rules"],
+        "stem": {
+        "en": "Is a driver allowed to drive on the transition lines?",
+        "tl": "Maaari bang magmaneho sa mga transition lines sa kalsada?"
+        },
+        "choices": [
+        { "key": "a", "en": "Yes", "tl": "Oo" },
+        { "key": "b", "en": "No", "tl": "Hindi" },
+        { "key": "c", "en": "Yes, if traffic flow is heavy", "tl": "Oo, kung mabigat ang trapiko" }
+        ],
+        "correct_key": "b",
+        "rationale": { "en": "", "tl": "" }
+    },
+    {
+        "id": "Q120",
+        "topic": ["pedestrians", "crosswalk", "right_of_way"],
+        "stem": {
+        "en": "What should you do if a pedestrian is crossing a nonsignalized pedestrian lane?",
+        "tl": "Ano ang dapat mong gawin kung may tumatawid sa tawiran na walang senyas trapiko?"
+        },
+        "choices": [
+        { "key": "a", "en": "Stop and let the pedestrian cross", "tl": "Huminto at hayaang makatawid" },
+        { "key": "b", "en": "Stop and blow horn", "tl": "Huminto at bumusina" },
+        { "key": "c", "en": "Drive faster and do not wait", "tl": "Bilisan at huwag hintayin" }
+        ],
+        "correct_key": "a",
+        "rationale": { "en": "", "tl": "" }
+    }
+  ]
+}

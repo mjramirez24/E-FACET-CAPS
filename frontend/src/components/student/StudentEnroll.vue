@@ -160,6 +160,11 @@
                   v-else-if="(requirementsMap[course.id] || []).length"
                   class="space-y-1.5 text-sm text-gray-700"
                 >
+                  <li class="flex items-start gap-2">
+                    <div class="w-2 h-2 bg-green-600 rounded-full mt-1.5 flex-shrink-0"></div>
+                    2x2 Picture (For Certification) <span class="text-red-600 font-semibold">*</span>
+                  </li>
+
                   <li
                     v-for="r in requirementsMap[course.id]"
                     :key="r.requirement_id"
@@ -170,7 +175,9 @@
                   </li>
                 </ul>
 
-                <p v-else class="text-sm text-gray-500">— No requirements found</p>
+                <p v-else class="text-sm text-gray-500">
+                  • 2x2 Picture (For Certification) <span class="text-red-600 font-semibold">*</span>
+                </p>
               </div>
             </div>
 
@@ -350,7 +357,6 @@
 
               <div class="text-sm text-gray-600">Instructor: {{ s.instructor }}</div>
 
-              <!-- ✅ show dates if package -->
               <div v-if="s.isPackage" class="text-xs text-gray-600 mt-1">
                 Day 1: <span class="font-medium">{{ formatDateYMD(s.day1_date) }}</span>
                 • Day 2: <span class="font-medium">{{ formatDateYMD(s.day2_date) }}</span>
@@ -435,7 +441,9 @@
             </label>
 
             <p class="text-sm text-gray-600 mt-2">
-              Kapag Walk-in, hindi required mag-upload dito.
+              Note: Kahit Walk-in, <span class="font-semibold text-gray-800">required pa rin</span> ang
+              <span class="font-semibold text-green-800">2x2 Picture (For Certification)</span>.
+              Other documents may be submitted on-site kapag Walk-in.
             </p>
           </div>
         </div>
@@ -443,12 +451,38 @@
         <div v-if="uploadLoading" class="text-gray-600">Loading requirements...</div>
 
         <div v-else>
-          <div v-if="selectedRequirements.length === 0" class="text-gray-600">
-            No requirements for this course.
-          </div>
+          <!-- ✅ ALWAYS REQUIRED: 2x2 Picture -->
+          <div class="space-y-4">
+            <div class="p-4 border rounded-lg border-green-200 bg-green-50">
+              <div class="font-semibold text-gray-800 mb-1">
+                2x2 Picture <span class="text-red-500">*</span>
+              </div>
+              <div class="text-xs text-gray-600 mb-3">
+                Description: <span class="font-semibold">For Certification</span>
+              </div>
 
-          <div v-else class="space-y-4">
+              <div class="flex flex-col md:flex-row md:items-center gap-3">
+                <input
+                  type="file"
+                  @change="onTwoByTwoChange"
+                  class="block w-full md:w-2/3 text-sm"
+                  accept="image/*"
+                />
 
+                <div class="text-sm text-gray-600 md:w-1/3">
+                  <span v-if="twoByTwoFile" class="text-green-700 font-medium">
+                    Selected: {{ twoByTwoFile.name }}
+                  </span>
+                  <span v-else class="text-gray-500">No file selected</span>
+                </div>
+              </div>
+
+              <div v-if="!twoByTwoFile" class="text-xs text-red-600 mt-2">
+                Required ito bago makapag-continue.
+              </div>
+            </div>
+
+            <!-- PDC field -->
             <div
               v-if="selectedCourse && selectedCourse.course_code && selectedCourse.course_code.toUpperCase().includes('PDC')"
               class="p-4 border border-green-200 rounded-lg bg-green-50"
@@ -467,7 +501,12 @@
                 class="w-full md:w-1/2 border-2 border-green-700 rounded-lg p-3 focus:ring-2 focus:ring-green-500 focus:border-green-700 transition-colors text-sm"
               />
             </div>
-            
+
+            <!-- Other requirements -->
+            <div v-if="selectedRequirements.length === 0" class="text-gray-600">
+              No additional requirements for this course.
+            </div>
+
             <div
               v-for="req in selectedRequirements"
               :key="req.requirement_id"
@@ -757,12 +796,11 @@
     <!-- ===================== -->
     <!-- ✅ PRO Notification Toast -->
     <!-- ===================== -->
-<div
-  v-if="toast.show"
-  class="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[92vw] max-w-sm"
-  aria-live="polite"
->
-
+    <div
+      v-if="toast.show"
+      class="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[92vw] max-w-sm"
+      aria-live="polite"
+    >
       <div
         class="rounded-2xl shadow-xl border px-4 py-3 flex items-start gap-3"
         :class="toast.type === 'success'
@@ -837,6 +875,9 @@ export default {
       paymentMode: "online",
 
       uploads: {},
+
+      // ✅ ALWAYS REQUIRED: 2x2 file
+      twoByTwoFile: null,
 
       currentDate: new Date(),
       selectedDate: null,
@@ -999,11 +1040,16 @@ export default {
     canProceedUploadStep() {
       if (!this.canGoUpload) return false;
 
+      // ✅ ALWAYS REQUIRED: 2x2 picture (even walk-in)
+      if (!this.twoByTwoFile) return false;
+
       const isPDC = (this.selectedCourse?.course_code || "").toUpperCase().includes("PDC");
       if (isPDC && !this.ltoClientId.trim()) return false;
 
+      // If walk-in, other requirements may be on-site
       if (this.requirementsMode === "walkin") return true;
 
+      // Online mode: require course requirements (if any)
       const reqs = this.selectedRequirements;
       if (!reqs.length) return true;
       return reqs.every((r) => Boolean(this.uploads[r.requirement_id]));
@@ -1108,6 +1154,12 @@ export default {
         month: "short",
         day: "numeric",
       });
+    },
+
+    // ✅ handler for 2x2
+    onTwoByTwoChange(e) {
+      const file = e.target.files?.[0] || null;
+      this.twoByTwoFile = file;
     },
 
     async fetchActiveReservation() {
@@ -1236,6 +1288,9 @@ export default {
       this.payment.paymentMethod = "";
       this.payment.proofFile = null;
 
+      // reset 2x2
+      this.twoByTwoFile = null;
+
       this.paymentRef = "";
       this.qrphProofFile = null;
       this.qrphSubmitted = false;
@@ -1300,8 +1355,13 @@ export default {
 
     onRequirementsModeChange() {
       if (this.requirementsMode === "walkin") {
+        // keep 2x2 (required)
         this.uploads = {};
-        this.showToast("Walk-in selected", "Upload not required. You will submit requirements on-site.", "success");
+        this.showToast(
+          "Walk-in selected",
+          "Other files not required here, but 2x2 Picture is still required.",
+          "success"
+        );
       }
     },
 
@@ -1439,15 +1499,15 @@ export default {
 
         const reservationPayload = {
           schedule_id: Number(this.reservationForm.schedule_id), // ✅ day1 schedule id (even for package)
-          course_id: Number(this.selectedCourse.id), // ✅ ADD THIS
+          course_id: Number(this.selectedCourse.id),
           notes: this.reservationForm.notes || null,
           payment_method,
           requirements_mode: this.requirementsMode, // 'online' or 'walkin'
           fee_option_code: null,
-          lto_client_id: this.ltoClientId?.trim() || null,  // ✅ THIS IS KEY - make sure it's included
+          lto_client_id: this.ltoClientId?.trim() || null,
         };
 
-        // ✅ if GCASH, require paymentRef + proof submitted first (backend rule)
+        // ✅ if GCASH, pass paymentRef
         if (payment_method === "GCASH") {
           reservationPayload.payment_ref = this.paymentRef || null;
         }
@@ -1463,8 +1523,19 @@ export default {
           throw new Error("Reservation created but reservation_id not returned by backend.");
         }
 
+        // ✅ Upload requirements:
+        // - ALWAYS upload 2x2 (even walk-in)
+        // - upload other reqs only if online
+        const fd = new FormData();
+
+        // 2x2 picture (required)
+// ✅ 2x2 picture (required) -> maps to schedule_reservations.picture_2x2
+if (this.twoByTwoFile) {
+  fd.append("picture_2x2", this.twoByTwoFile);
+}
+
+        // other requirements (online only)
         if (this.requirementsMode === "online") {
-          const fd = new FormData();
           for (const [rid, file] of Object.entries(this.uploads)) {
             fd.append("requirement_ids", String(rid));
             fd.append("files", file);
@@ -1474,10 +1545,12 @@ export default {
           if (isPDC && this.ltoClientId.trim()) {
             fd.append("lto_client_id", this.ltoClientId.trim());
           }
-          await api.post(`/student/reservations/${reservationId}/requirements`, fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
         }
+
+        // ✅ call endpoint if we have something to upload (2x2 always should exist)
+        await api.post(`/student/reservations/${reservationId}/requirements`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
 
         this.showToast("Reservation confirmed!", "Your slot is locked.", "success");
 
@@ -1520,6 +1593,9 @@ export default {
       this.showGcashModal = false;
       this.gcashLoading = false;
       this.gcashError = "";
+
+      // reset 2x2
+      this.twoByTwoFile = null;
 
       this.fetchCourses();
     },

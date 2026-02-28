@@ -5,6 +5,11 @@ const {
   sendAdminNotification,
 } = require("../services/emailService");
 
+// ✅ 2x2 upload deps
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
+
 // statuses that occupy slot
 const OCCUPYING_STATUSES = ["PENDING", "CONFIRMED", "APPROVED", "ACTIVE"];
 
@@ -31,10 +36,65 @@ function monthRange(monthStr) {
 }
 
 function timeToMinutes(t) {
-  const [h, m] = String(t || "")
-    .split(":")
-    .map(Number);
-  return (h || 0) * 60 + (m || 0);
+  if (!t) return null;
+  const s = String(t);
+  const hm = s.includes(":") ? s.split(":") : [];
+  const h = Number(hm[0]);
+  const m = Number(hm[1]);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
+}
+
+/* =========================================================
+   ✅ TESDA CLASS RULES
+   - Monday to Saturday only
+   - 08:00 to 17:00 only
+   ========================================================= */
+
+const TESDA_START_MIN = 8 * 60; // 08:00
+const TESDA_END_MIN = 17 * 60; // 17:00
+
+function isMonToSat(dateYMD) {
+  // dateYMD: "YYYY-MM-DD"
+  if (!dateYMD) return false;
+  const d = new Date(`${dateYMD}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return false;
+  const day = d.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+  return day >= 1 && day <= 6;
+}
+
+function isTesdaTimeValid(startTime, endTime) {
+  // allow null times? You said class is 8-5, so we require valid times.
+  const sMin = timeToMinutes(startTime);
+  const eMin = timeToMinutes(endTime);
+  if (sMin == null || eMin == null) return false;
+  if (eMin <= sMin) return false;
+  return sMin >= TESDA_START_MIN && eMin <= TESDA_END_MIN;
+}
+
+function assertTesdaScheduleAllowed(scheduleDateYMD, startTime, endTime) {
+  if (!scheduleDateYMD) {
+    return {
+      ok: false,
+      message:
+        "This TESDA batch is not scheduled yet (TBA). Please wait for start date.",
+    };
+  }
+  if (!isMonToSat(scheduleDateYMD)) {
+    return {
+      ok: false,
+      message:
+        "TESDA schedule must be Monday to Saturday only. (No Sunday classes)",
+    };
+  }
+  if (!isTesdaTimeValid(startTime, endTime)) {
+    return {
+      ok: false,
+      message:
+        "TESDA class time must be within 8:00 AM to 5:00 PM (and end time must be after start time).",
+    };
+  }
+  return { ok: true };
 }
 
 // ✅ Conflict check using schedules.schedule_date + overlap time
@@ -205,6 +265,139 @@ async function getPackageInfo(conn, day1ScheduleId) {
   }
 }
 
+/* =========================================================
+   ✅ 2x2 UPLOAD (REQUIRED FOR CERTIFICATION)
+   - saves to /uploads/2x2/
+   - stores relative path in schedule_reservations.picture_2x2
+   - FormData key: picture_2x2
+   ========================================================= */
+
+const UPLOAD_ROOT = path.join(__dirname, "..", "..", "uploads");
+const UPLOAD_2X2_DIR = path.join(UPLOAD_ROOT, "2x2");
+
+function ensureDirSync(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (_) {}
+}
+
+ensureDirSync(UPLOAD_ROOT);
+ensureDirSync(UPLOAD_2X2_DIR);
+
+const storage2x2 = multer.diskStorage({
+  destination: (req, file, cb) => {
+    ensureDirSync(UPLOAD_2X2_DIR);
+    cb(null, UPLOAD_2X2_DIR);
+  },
+  filename: (req, file, cb) => {
+    const reservationId = String(req.params?.id || "0");
+    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+    const safeExt = [".jpg", ".jpeg", ".png", ".webp"].includes(ext)
+      ? ext
+      : ".jpg";
+    const stamp = Date.now();
+    cb(null, `res_${reservationId}_${stamp}${safeExt}`);
+  },
+});
+
+const upload2x2 = multer({
+  storage: storage2x2,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const ok = ["image/jpeg", "image/png", "image/webp"].includes(
+      file.mimetype,
+    );
+    if (!ok)
+      return cb(new Error("Only JPG/PNG/WEBP images are allowed."), false);
+    cb(null, true);
+  },
+}).single("picture_2x2");
+
+// POST /api/student/reservations/:id/2x2
+exports.upload2x2Picture = async (req, res) => {
+  const studentId = Number(req.session?.user_id);
+  if (!studentId) {
+    return res
+      .status(401)
+      .json({ status: "error", message: "Not authenticated" });
+  }
+
+  const reservationId = Number(req.params?.id);
+  if (!reservationId) {
+    return res
+      .status(400)
+      .json({ status: "error", message: "Invalid reservation id" });
+  }
+
+  upload2x2(req, res, async (err) => {
+    try {
+      if (err) {
+        return res.status(400).json({
+          status: "error",
+          message: err.message || "Upload failed",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          status: "error",
+          message: "picture_2x2 file is required",
+        });
+      }
+
+      // ✅ ownership check
+      const [rows] = await pool.execute(
+        `
+          SELECT reservation_id
+          FROM schedule_reservations
+          WHERE reservation_id = ?
+            AND student_id = ?
+          LIMIT 1
+        `,
+        [reservationId, studentId],
+      );
+
+      if (!rows.length) {
+        // cleanup if not owned
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (_) {}
+        return res.status(404).json({
+          status: "error",
+          message: "Reservation not found",
+        });
+      }
+
+      const relativePath = `/uploads/2x2/${req.file.filename}`;
+
+      await pool.execute(
+        `
+          UPDATE schedule_reservations
+          SET picture_2x2 = ?, updated_at = NOW()
+          WHERE reservation_id = ?
+            AND student_id = ?
+        `,
+        [relativePath, reservationId, studentId],
+      );
+
+      return res.json({
+        status: "success",
+        message: "2x2 picture uploaded",
+        data: { picture_2x2: relativePath },
+      });
+    } catch (e) {
+      try {
+        if (req.file?.path) fs.unlinkSync(req.file.path);
+      } catch (_) {}
+      console.error("upload2x2Picture error:", e);
+      return res.status(500).json({
+        status: "error",
+        message: e.sqlMessage || e.message || "Failed to save 2x2 picture",
+      });
+    }
+  });
+};
+
 // ===================== STUDENT: MONTH AVAILABILITY (CALENDAR) =====================
 // GET /api/student/schedules?course_id=1&month=YYYY-MM
 exports.getAvailability = async (req, res) => {
@@ -278,7 +471,6 @@ exports.createReservation = async (req, res) => {
       schedule_id,
       course_id,
       payment_method,
-      notes,
       fee_option_code,
       requirements_mode,
       payment_ref,
@@ -351,6 +543,9 @@ exports.createReservation = async (req, res) => {
     }
 
     const scheduleDate = toYMD(sched.schedule_date);
+
+
+
     if (!scheduleDate) {
       await conn.rollback();
       return res.status(500).json({
@@ -372,7 +567,10 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    if (timeToMinutes(sched.end_time) <= timeToMinutes(sched.start_time)) {
+    // time sanity
+    const startMin = timeToMinutes(sched.start_time);
+    const endMin = timeToMinutes(sched.end_time);
+    if (startMin == null || endMin == null || endMin <= startMin) {
       await conn.rollback();
       return res
         .status(400)
@@ -494,39 +692,27 @@ exports.createReservation = async (req, res) => {
         options: fee.options,
       });
     }
-    // In your backend createReservation function, right before the INSERT:
-    console.log(
-      "🔍 DEBUG - lto_client_id from req.body:",
-      req.body.lto_client_id,
-    );
-    console.log(
-      "🔍 DEBUG - lto_client_id type:",
-      typeof req.body.lto_client_id,
-    );
-    console.log("🔍 DEBUG - lto_client_id value:", req.body.lto_client_id);
-    console.log("🔍 DEBUG - lto_client_id truthy?", !!req.body.lto_client_id);
 
     const [ins] = await conn.execute(
       `
         INSERT INTO schedule_reservations
           (schedule_id, student_id, lto_client_id, course_id,
-          reservation_source, reservation_status,
-          payment_method, notes, fee_option_code, requirements_mode,
-          expires_at, created_by, created_at, updated_at)
+           reservation_source, reservation_status,
+           payment_method, fee_option_code, requirements_mode,
+           expires_at, created_by, created_at, updated_at)
         VALUES
           (?, ?, ?, ?,
-          'ONLINE', 'CONFIRMED',
-          ?, ?, ?, ?,
-          TIMESTAMP(?, '23:59:59'),
-          ?, NOW(), NOW())
-        `,
+           'ONLINE', 'CONFIRMED',
+           ?, ?, ?,
+           TIMESTAMP(?, '23:59:59'),
+           ?, NOW(), NOW())
+      `,
       [
         sid,
         studentId,
-        lto_client_id || null, // lto_client_id
-        cid, // course_id
+        lto_client_id || null,
+        cid,
         payMethod,
-        notes || null,
         fee.chosenOption || null,
         reqMode,
         scheduleDate,
@@ -536,19 +722,16 @@ exports.createReservation = async (req, res) => {
 
     const reservationId = ins.insertId;
 
-    // 🔥 GET STUDENT INFO
     const [studentRows] = await conn.execute(
       `SELECT fullname, email FROM users WHERE id = ? LIMIT 1`,
       [studentId],
     );
 
-    // 🔥 GET COURSE INFO
     const [courseRows] = await conn.execute(
       `SELECT course_name, course_code, course_fee FROM courses WHERE id = ? LIMIT 1`,
       [cid],
     );
 
-    // 🔥 GET INSTRUCTOR NAME
     let instructorName = "TBA";
     if (sched.instructor_id) {
       const [instructorRows] = await conn.execute(
@@ -560,7 +743,6 @@ exports.createReservation = async (req, res) => {
       }
     }
 
-    // 🆕 CHECK IF PACKAGE (2-day)
     const isPackage = Boolean(
       sched.package_group_id && Number(sched.package_day) === 1,
     );
@@ -571,7 +753,6 @@ exports.createReservation = async (req, res) => {
 
     await conn.commit();
 
-    // 🔥 SEND EMAIL NOTIFICATIONS (non-blocking)
     if (studentRows.length && courseRows.length) {
       const student = studentRows[0];
       const course = courseRows[0];
@@ -590,76 +771,22 @@ exports.createReservation = async (req, res) => {
         paymentMethod: payMethod,
         paymentRef: payment_ref || null,
         requirementsMode: reqMode,
-        notes: notes || null,
+        notes: null,
         reservationId,
         isPackage,
-        // 🆕 Package data
         day2Date: packageInfo?.day2_date || null,
         day2StartTime: packageInfo?.day2_start_time || null,
         day2EndTime: packageInfo?.day2_end_time || null,
       };
 
-      console.log("📧 ============================================");
-      console.log("📧 PREPARING TO SEND EMAILS");
-      console.log("📧 Student Email:", emailData.studentEmail);
-      console.log("📧 Student Name:", emailData.studentName);
-      console.log("📧 Course:", emailData.courseName);
-      console.log("📧 Reservation ID:", emailData.reservationId);
-      console.log("📧 Is Package:", emailData.isPackage);
-      if (emailData.isPackage) {
-        console.log("📧 Day 2 Date:", emailData.day2Date);
-      }
-      console.log("📧 ============================================");
-
-      // Send emails asynchronously (non-blocking)
       setImmediate(() => {
-        console.log("📧 Starting email send process...");
-
         Promise.all([
-          sendReservationConfirmation(emailData)
-            .then((result) => {
-              console.log("✅ Student confirmation email sent successfully!");
-              console.log("   Message ID:", result.messageId);
-              return result;
-            })
-            .catch((err) => {
-              console.error("❌ Student email FAILED:");
-              console.error("   Error:", err.message);
-              console.error("   Stack:", err.stack);
-              throw err;
-            }),
-
-          sendAdminNotification(emailData)
-            .then((result) => {
-              console.log("✅ Admin notification email sent successfully!");
-              console.log("   Message ID:", result.messageId);
-              return result;
-            })
-            .catch((err) => {
-              console.error("❌ Admin email FAILED:");
-              console.error("   Error:", err.message);
-              console.error("   Stack:", err.stack);
-              throw err;
-            }),
-        ])
-          .then(() => {
-            console.log("📧 ============================================");
-            console.log("📧 ALL EMAILS SENT SUCCESSFULLY!");
-            console.log("📧 ============================================");
-          })
-          .catch((err) => {
-            console.error("📧 ============================================");
-            console.error("📧 EMAIL SENDING FAILED");
-            console.error("📧 Error:", err.message);
-            console.error("📧 ============================================");
-          });
+          sendReservationConfirmation(emailData),
+          sendAdminNotification(emailData),
+        ]).catch((err) => {
+          console.error("Email sending failed:", err);
+        });
       });
-    } else {
-      console.log(
-        "⚠️ WARNING: Cannot send emails - missing student or course data",
-      );
-      console.log("   Student rows:", studentRows.length);
-      console.log("   Course rows:", courseRows.length);
     }
 
     return res.status(201).json({
@@ -687,10 +814,11 @@ exports.createReservation = async (req, res) => {
 exports.listMyReservations = async (req, res) => {
   try {
     const studentId = Number(req.session?.user_id);
-    if (!studentId)
+    if (!studentId) {
       return res
         .status(401)
         .json({ status: "error", message: "Not authenticated" });
+    }
 
     const { schedule_id, status } = req.query;
 
@@ -700,8 +828,8 @@ exports.listMyReservations = async (req, res) => {
         r.reservation_status,
         r.payment_method,
         r.requirements_mode,
-        r.notes,
         r.lto_client_id,
+        r.picture_2x2,
         r.created_at,
 
         u.id AS student_id,
@@ -758,9 +886,10 @@ exports.listMyReservations = async (req, res) => {
     return res.json({ status: "success", data: rows });
   } catch (err) {
     console.error("listMyReservations error:", err);
-    return res
-      .status(500)
-      .json({ status: "error", message: err.sqlMessage || err.message });
+    return res.status(500).json({
+      status: "error",
+      message: err.sqlMessage || err.message,
+    });
   }
 };
 
@@ -805,19 +934,81 @@ exports.cancelMyReservation = async (req, res) => {
 };
 
 // ===================== ADMIN: LIST RESERVATIONS =====================
-// GET /api/admin/reservations?schedule_id=#&status=#
+// GET /api/admin/reservations?track=driving|tesda&schedule_id=#&status=#
 exports.listReservationsAdmin = async (req, res) => {
   try {
+    const track = String(req.query.track || "driving").toLowerCase();
     const { schedule_id, status } = req.query;
 
+    // ================= TESDA (NO PAYMENT) =================
+    if (track === "tesda") {
+      let sql = `
+        SELECT
+          r.reservation_id,
+          r.reservation_status,
+
+          NULL AS payment_method,
+          'online' AS requirements_mode,
+          r.notes,
+          NULL AS lto_client_id,
+          r.created_at,
+
+          r.student_id,
+          s.course_id AS course_id,
+          r.schedule_id,
+
+          u.fullname AS student_name,
+          u.email AS email,
+
+          COALESCE(c.course_name, '(unknown course)') AS course_name,
+
+          s.schedule_date AS schedule_date,
+          TIME_FORMAT(s.start_time, '%H:%i') AS startTime,
+          TIME_FORMAT(s.end_time, '%H:%i') AS endTime,
+
+          NULL AS payment_ref,
+          NULL AS payment_status,
+          NULL AS proof_url,
+          NULL AS amount_centavos,
+          NULL AS currency,
+
+          UPPER(r.reservation_status) AS admin_status
+        FROM tesda_schedule_reservations r
+        LEFT JOIN users u ON u.id = r.student_id
+        LEFT JOIN tesda_schedules s ON s.schedule_id = r.schedule_id
+        LEFT JOIN tesda_courses c ON c.id = s.course_id
+      `;
+
+      const params = [];
+      const where = [];
+
+      if (schedule_id) {
+        where.push("r.schedule_id = ?");
+        params.push(Number(schedule_id));
+      }
+
+      if (status) {
+        const st = String(status).toUpperCase();
+        where.push("UPPER(r.reservation_status) = ?");
+        params.push(st);
+      }
+
+      if (where.length) sql += ` WHERE ${where.join(" AND ")}`;
+      sql += ` ORDER BY r.created_at DESC`;
+
+      const [rows] = await pool.execute(sql, params);
+      return res.json({ status: "success", data: rows });
+    }
+
+    // ================= DRIVING =================
     let sql = `
       SELECT
         r.reservation_id,
         r.reservation_status,
         r.payment_method,
         r.requirements_mode,
-        r.notes,
         r.lto_client_id,
+        r.picture_2x2,
         r.created_at,
 
         r.student_id,
@@ -839,19 +1030,17 @@ exports.listReservationsAdmin = async (req, res) => {
         sp.amount_centavos,
         sp.currency,
 
-CASE
-  WHEN UPPER(r.reservation_status) IN ('DONE','CANCELLED')
-    THEN UPPER(r.reservation_status)
+        CASE
+          WHEN UPPER(r.reservation_status) IN ('DONE','CANCELLED')
+            THEN UPPER(r.reservation_status)
 
-  WHEN UPPER(r.payment_method) = 'GCASH'
-   AND UPPER(COALESCE(sp.status,'')) IN ('FOR_VERIFICATION','PROOF_SUBMITTED')
-   AND UPPER(r.reservation_status) = 'CONFIRMED'
-    THEN 'PENDING'
+          WHEN UPPER(r.payment_method) = 'GCASH'
+           AND UPPER(COALESCE(sp.status,'')) IN ('FOR_VERIFICATION','PROOF_SUBMITTED')
+           AND UPPER(r.reservation_status) = 'CONFIRMED'
+            THEN 'PENDING'
 
-  ELSE UPPER(r.reservation_status)
-END AS admin_status
-
-
+          ELSE UPPER(r.reservation_status)
+        END AS admin_status
       FROM schedule_reservations r
       LEFT JOIN users u ON u.id = r.student_id
       LEFT JOIN schedules s ON s.schedule_id = r.schedule_id
@@ -906,11 +1095,12 @@ END AS admin_status
 };
 
 // ===================== ADMIN: UPDATE RESERVATION STATUS =====================
-// PUT /api/admin/reservations/:reservationId
+// PUT /api/admin/reservations/:id/status?track=driving|tesda
 exports.updateReservationStatusAdmin = async (req, res) => {
   try {
     const reservationId = Number(req.params?.id);
     const status = String(req.body?.status || "").toUpperCase();
+    const track = String(req.query.track || "driving").toLowerCase();
 
     const allowed = [
       "PENDING",
@@ -921,17 +1111,24 @@ exports.updateReservationStatusAdmin = async (req, res) => {
       "CANCELLED",
     ];
 
-    if (!reservationId)
+    if (!reservationId) {
       return res
         .status(400)
         .json({ status: "error", message: "Invalid reservationId" });
-    if (!allowed.includes(status))
+    }
+    if (!allowed.includes(status)) {
       return res
         .status(400)
         .json({ status: "error", message: "Invalid status" });
+    }
+
+    const table =
+      track === "tesda"
+        ? "tesda_schedule_reservations"
+        : "schedule_reservations";
 
     const [result] = await pool.execute(
-      `UPDATE schedule_reservations SET reservation_status=?, updated_at=NOW() WHERE reservation_id=?`,
+      `UPDATE ${table} SET reservation_status=?, updated_at=NOW() WHERE reservation_id=?`,
       [status, reservationId],
     );
 
@@ -959,17 +1156,17 @@ exports.createWalkInReservation = async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const encoderId = Number(req.session?.user_id);
-    if (!encoderId)
+    if (!encoderId) {
       return res
         .status(401)
         .json({ status: "error", message: "Not authenticated" });
+    }
 
     const {
       student_id,
       schedule_id,
       course_id,
       payment_method,
-      notes,
       auto_confirm,
       reference_no,
       official_receipt_no,
@@ -1113,36 +1310,30 @@ exports.createWalkInReservation = async (req, res) => {
       });
     }
 
-    console.log("🔍 lto_client_id from req.body:", req.body.lto_client_id);
-    console.log("🔍 lto_client_id variable:", lto_client_id);
-    console.log("🔍 typeof:", typeof lto_client_id);
-    console.log("🔍 value going in:", lto_client_id ?? null);
-
     const [ins] = await conn.execute(
       `
         INSERT INTO schedule_reservations
           (schedule_id, student_id, lto_client_id, course_id,
-          reservation_source, reservation_status,
-          payment_method, notes, fee_option_code,
-          requirements_mode,
-          expires_at,
-          created_by, created_at, updated_at)
+           reservation_source, reservation_status,
+           payment_method, fee_option_code,
+           requirements_mode,
+           expires_at,
+           created_by, created_at, updated_at)
         VALUES
           (?, ?, ?, ?,
-          'WALKIN', ?,
-          ?, ?, ?,
-          'walkin',
-          TIMESTAMP(?, '23:59:59'),
-          ?, NOW(), NOW())
-        `,
+           'WALKIN', ?,
+           ?, ?,
+           'walkin',
+           TIMESTAMP(?, '23:59:59'),
+           ?, NOW(), NOW())
+      `,
       [
         Number(finalScheduleId),
         studentId,
-        lto_client_id || null, // ✅ ADD THIS
+        lto_client_id || null,
         cid,
         resStatus,
         payMethod,
-        notes ?? null,
         fee.chosenOption ?? null,
         scheduleDateYMD,
         encoderId,
@@ -1183,16 +1374,103 @@ exports.createWalkInReservation = async (req, res) => {
 };
 
 // ===================== ADMIN: RESERVATION DETAILS =====================
-// GET /api/admin/reservations/:reservationId/details
+// GET /api/admin/reservations/:id/details?track=driving|tesda
 exports.getReservationDetailsAdmin = async (req, res) => {
   try {
     const reservationId = Number(req.params?.id);
+    const track = String(req.query.track || "driving").toLowerCase();
+
     if (!reservationId) {
       return res
         .status(400)
         .json({ status: "error", message: "Invalid reservationId" });
     }
 
+    // ================= TESDA (NO PAYMENT) =================
+    if (track === "tesda") {
+      const [rows] = await pool.execute(
+        `
+        SELECT
+          r.reservation_id,
+          r.reservation_status,
+          NULL AS payment_method,
+          'online' AS requirements_mode,
+          r.notes,
+          NULL AS lto_client_id,
+          r.created_at,
+          r.updated_at,
+
+          r.student_id,
+          s.course_id AS course_id,
+          r.schedule_id,
+
+          u.fullname AS student_name,
+          u.email,
+
+          COALESCE(c.course_name, '(unknown course)') AS course_name,
+
+          s.schedule_date AS schedule_date,
+          TIME_FORMAT(s.start_time, '%H:%i') AS startTime,
+          TIME_FORMAT(s.end_time, '%H:%i') AS endTime
+        FROM tesda_schedule_reservations r
+        LEFT JOIN users u ON u.id = r.student_id
+        LEFT JOIN tesda_schedules s ON s.schedule_id = r.schedule_id
+        LEFT JOIN tesda_courses c ON c.id = s.course_id
+        WHERE r.reservation_id = ?
+        LIMIT 1
+        `,
+        [reservationId],
+      );
+
+      if (!rows.length) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "Reservation not found" });
+      }
+
+      const reservation = rows[0];
+
+      const [reqRows] = await pool.execute(
+        `
+        SELECT
+          submission_id,
+          reservation_id,
+          student_id,
+          course_id,
+          original_name,
+          file_path,
+          created_at
+        FROM tesda_requirement_submissions
+        WHERE reservation_id = ?
+        ORDER BY created_at DESC
+        `,
+        [reservationId],
+      );
+
+      const normalizeFileUrl = (p) => {
+        if (!p) return null;
+        const s = String(p).replace(/\\/g, "/");
+        if (s.startsWith("http://") || s.startsWith("https://")) return s;
+        if (s.startsWith("/uploads/")) return s;
+        if (s.startsWith("uploads/")) return "/" + s;
+        return s.startsWith("/") ? "/uploads" + s : "/uploads/" + s;
+      };
+
+      const requirements = (reqRows || []).map((x) => ({
+        id: x.submission_id,
+        requirement_id: null,
+        requirement_text: x.original_name,
+        file_url: normalizeFileUrl(x.file_path),
+        created_at: x.created_at,
+      }));
+
+      return res.json({
+        status: "success",
+        data: { reservation, payment: null, requirements },
+      });
+    }
+
+    // ================= DRIVING =================
     const [rows] = await pool.execute(
       `
       SELECT
@@ -1200,8 +1478,8 @@ exports.getReservationDetailsAdmin = async (req, res) => {
         r.reservation_status,
         r.payment_method,
         r.requirements_mode,
-        r.notes,
         r.lto_client_id,
+        r.picture_2x2,
         r.created_at,
         r.updated_at,
 
@@ -1307,4 +1585,358 @@ exports.getReservationDetailsAdmin = async (req, res) => {
     });
   }
 };
- 
+
+/* =========================================================
+   ✅ TESDA STUDENT ENDPOINTS (NEW) — DOES NOT TOUCH DRIVING
+   ========================================================= */
+
+// ===================== TESDA: MONTH AVAILABILITY (CALENDAR) =====================
+// GET /api/student/tesda/schedules?course_id=1&month=YYYY-MM
+exports.getTesdaAvailability = async (req, res) => {
+  try {
+    const { course_id, month } = req.query;
+
+    if (!course_id || !month) {
+      return res.status(400).json({
+        status: "error",
+        message: "course_id and month are required (YYYY-MM)",
+      });
+    }
+
+    const { start, end } = monthRange(month);
+    const placeholders = ph(OCCUPYING_STATUSES);
+
+    const [rows] = await pool.execute(
+      `
+      SELECT
+        s.schedule_date AS date,
+        TIME_FORMAT(s.start_time, '%H:%i') AS startTime,
+        TIME_FORMAT(s.end_time, '%H:%i') AS endTime,
+        SUM(s.total_slots) AS totalSlots,
+        COALESCE(SUM(r.reservedCount), 0) AS reservedCount,
+        GREATEST(SUM(s.total_slots) - COALESCE(SUM(r.reservedCount),0), 0) AS availableSlots
+      FROM tesda_schedules s
+      LEFT JOIN (
+        SELECT schedule_id, COUNT(*) AS reservedCount
+        FROM tesda_schedule_reservations
+        WHERE reservation_status IN (${placeholders})
+        GROUP BY schedule_id
+      ) r ON r.schedule_id = s.schedule_id
+      WHERE s.course_id = ?
+        AND LOWER(s.status) = 'open'
+        AND s.schedule_date IS NOT NULL
+        AND s.schedule_date >= ?
+        AND s.schedule_date < ?
+        AND DAYOFWEEK(s.schedule_date) != 1
+        AND s.start_time >= '08:00:00'
+        AND s.end_time <= '17:00:00'
+        AND s.end_time > s.start_time
+      GROUP BY s.schedule_date, s.start_time, s.end_time
+      ORDER BY s.schedule_date ASC
+      `,
+      [...OCCUPYING_STATUSES, Number(course_id), start, end],
+    );
+
+    // ✅ Filter: Mon–Sat + 08:00–17:00 only
+    const data = (rows || [])
+      .map((x) => ({
+        date: toYMD(x.date),
+        startTime: x.startTime || null,
+        endTime: x.endTime || null,
+        totalSlots: Number(x.totalSlots || 0),
+        reservedCount: Number(x.reservedCount || 0),
+        availableSlots: Number(x.availableSlots || 0),
+      }))
+      .filter((x) => {
+        if (!x.date) return false;
+        if (!isMonToSat(x.date)) return false;
+        if (!isTesdaTimeValid(x.startTime, x.endTime)) return false;
+        return true;
+      });
+
+    return res.json({ status: "success", data });
+  } catch (err) {
+    console.error("getTesdaAvailability error:", err);
+    return res.status(500).json({
+      status: "error",
+      message:
+        err.sqlMessage || err.message || "Failed to load TESDA availability",
+    });
+  }
+};
+
+// ===================== TESDA: CREATE RESERVATION (NO PAYMENT) =====================
+// POST /api/student/tesda/reservations
+exports.createTesdaReservation = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const studentId = Number(req.session?.user_id);
+    if (!studentId) {
+      return res
+        .status(401)
+        .json({ status: "error", message: "Not authenticated" });
+    }
+
+    const { schedule_id, course_id, notes } = req.body;
+
+    if (!schedule_id || !course_id) {
+      return res.status(400).json({
+        status: "error",
+        message: "schedule_id and course_id are required",
+      });
+    }
+
+    const sid = Number(schedule_id);
+    const cid = Number(course_id);
+
+    if (!Number.isFinite(sid) || sid < 1 || !Number.isFinite(cid) || cid < 1) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Invalid schedule_id/course_id" });
+    }
+
+    await conn.beginTransaction();
+
+    const [schedRows] = await conn.execute(
+      `
+      SELECT schedule_id, course_id, schedule_date, start_time, end_time, total_slots, status
+      FROM tesda_schedules
+      WHERE schedule_id = ?
+      FOR UPDATE
+      `,
+      [sid],
+    );
+
+    if (!schedRows.length) {
+      await conn.rollback();
+      return res
+        .status(404)
+        .json({ status: "error", message: "TESDA schedule not found" });
+    }
+
+    const sched = schedRows[0];
+
+    if (Number(sched.course_id) !== cid) {
+      await conn.rollback();
+      return res.status(400).json({
+        status: "error",
+        message: "course_id does not match TESDA schedule course",
+      });
+    }
+
+    if (String(sched.status || "").toLowerCase() !== "open") {
+      await conn.rollback();
+      return res
+        .status(400)
+        .json({ status: "error", message: "Schedule is not open" });
+    }
+
+    const scheduleDate = toYMD(sched.schedule_date);
+
+    // ✅ Enforce TESDA rules: Mon–Sat, 8am–5pm
+    const rule = assertTesdaScheduleAllowed(
+      scheduleDate,
+      sched.start_time,
+      sched.end_time,
+    );
+    if (!rule.ok) {
+      await conn.rollback();
+      return res.status(400).json({
+        status: "error",
+        message: rule.message,
+      });
+    }
+
+    const [pastRows] = await conn.execute(
+      `SELECT 1 FROM tesda_schedules WHERE schedule_id = ? AND schedule_date < CURDATE() LIMIT 1`,
+      [sid],
+    );
+    if (pastRows.length) {
+      await conn.rollback();
+      return res.status(400).json({
+        status: "error",
+        message: "Hindi puwede mag-reserve sa past date.",
+      });
+    }
+
+    // prevent duplicate active reservation (same schedule)
+    const [dup] = await conn.execute(
+      `
+      SELECT 1
+      FROM tesda_schedule_reservations
+      WHERE schedule_id = ?
+        AND student_id = ?
+        AND reservation_status IN (${ph(OCCUPYING_STATUSES)})
+      LIMIT 1
+      `,
+      [sid, studentId, ...OCCUPYING_STATUSES],
+    );
+    if (dup.length) {
+      await conn.rollback();
+      return res.status(400).json({
+        status: "error",
+        message: "You already reserved this TESDA schedule.",
+      });
+    }
+
+    // slot count lock
+    const [countRows] = await conn.execute(
+      `
+      SELECT COUNT(*) AS booked
+      FROM tesda_schedule_reservations
+      WHERE schedule_id = ?
+        AND reservation_status IN (${ph(OCCUPYING_STATUSES)})
+      FOR UPDATE
+      `,
+      [sid, ...OCCUPYING_STATUSES],
+    );
+
+    const booked = Number(countRows[0].booked || 0);
+    const totalSlots = Number(sched.total_slots || 0);
+
+    if (totalSlots <= 0) {
+      await conn.rollback();
+      return res.status(400).json({
+        status: "error",
+        message: "This schedule is not open for reservation",
+      });
+    }
+
+    if (booked >= totalSlots) {
+      await conn.rollback();
+      return res
+        .status(400)
+        .json({ status: "error", message: "No slots available (FULL)" });
+    }
+
+    const [ins] = await conn.execute(
+      `
+      INSERT INTO tesda_schedule_reservations
+        (schedule_id, student_id, course_id,
+         reservation_source, reservation_status,
+         notes, created_by, created_at, updated_at)
+      VALUES
+        (?, ?, ?,
+         'ONLINE', 'PENDING',
+         ?, ?, NOW(), NOW())
+      `,
+      [sid, studentId, cid, notes || null, studentId],
+    );
+
+    await conn.commit();
+
+    return res.status(201).json({
+      status: "success",
+      message: "TESDA reservation created (PENDING).",
+      data: { reservation_id: ins.insertId, schedule_date: scheduleDate },
+    });
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch (_) {}
+    console.error("createTesdaReservation error:", err);
+    return res.status(500).json({
+      status: "error",
+      message: err.sqlMessage || err.message || "TESDA reservation failed",
+    });
+  } finally {
+    conn.release();
+  }
+};
+
+// ===================== TESDA: LIST MY RESERVATIONS =====================
+// GET /api/student/tesda/reservations
+exports.listMyTesdaReservations = async (req, res) => {
+  try {
+    const studentId = Number(req.session?.user_id);
+    if (!studentId) {
+      return res
+        .status(401)
+        .json({ status: "error", message: "Not authenticated" });
+    }
+
+    const { status } = req.query;
+
+    let sql = `
+      SELECT
+        r.reservation_id,
+        r.reservation_status,
+        r.notes,
+        r.created_at,
+
+        r.student_id,
+        r.course_id,
+        r.schedule_id,
+
+        COALESCE(c.course_name, '(unknown course)') AS course_name,
+
+        s.schedule_date AS schedule_date,
+        TIME_FORMAT(s.start_time, '%H:%i') AS startTime,
+        TIME_FORMAT(s.end_time, '%H:%i') AS endTime
+      FROM tesda_schedule_reservations r
+      LEFT JOIN tesda_schedules s ON s.schedule_id = r.schedule_id
+      LEFT JOIN tesda_courses c ON c.id = COALESCE(s.course_id, r.course_id)
+      WHERE r.student_id = ?
+    `;
+
+    const params = [studentId];
+
+    if (status) {
+      sql += ` AND UPPER(r.reservation_status) = ?`;
+      params.push(String(status).toUpperCase());
+    }
+
+    sql += ` ORDER BY r.created_at DESC`;
+
+    const [rows] = await pool.execute(sql, params);
+    return res.json({ status: "success", data: rows });
+  } catch (err) {
+    console.error("listMyTesdaReservations error:", err);
+    return res
+      .status(500)
+      .json({ status: "error", message: err.sqlMessage || err.message });
+  }
+};
+
+// ===================== TESDA: CANCEL MY RESERVATION =====================
+// DELETE /api/student/tesda/reservations/:id
+exports.cancelMyTesdaReservation = async (req, res) => {
+  try {
+    const studentId = Number(req.session?.user_id);
+    const reservationId = Number(req.params?.id);
+
+    if (!studentId)
+      return res
+        .status(401)
+        .json({ status: "error", message: "Not authenticated" });
+    if (!reservationId)
+      return res
+        .status(400)
+        .json({ status: "error", message: "Invalid reservationId" });
+
+    const [result] = await pool.execute(
+      `
+      UPDATE tesda_schedule_reservations
+      SET reservation_status='CANCELLED', updated_at=NOW()
+      WHERE reservation_id=? AND student_id=?
+      `,
+      [reservationId, studentId],
+    );
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ status: "error", message: "Reservation not found" });
+    }
+
+    return res.json({
+      status: "success",
+      message: "TESDA reservation cancelled",
+    });
+  } catch (err) {
+    console.error("cancelMyTesdaReservation error:", err);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Failed to cancel TESDA reservation" });
+  }
+};

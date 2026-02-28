@@ -2,21 +2,21 @@
   <InstructorLayout active-page="messages">
     <!-- Header -->
     <template #header-left>
-      <input 
-        type="text" 
-        placeholder="Search messages..." 
+      <input
+        type="text"
+        placeholder="Search messages..."
         v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-      >
+        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+      />
     </template>
 
     <div>
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-lg font-bold text-green-800">💬 Messages</h2>
-        <button 
+        <button
           @click="startNewMessage"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors"
         >
           + New Message
         </button>
@@ -25,20 +25,48 @@
       <!-- Statistics Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-          <p class="text-sm text-gray-600">Total Messages</p>
-          <h3 class="text-2xl font-bold text-green-800 mt-1">{{ messageStats.totalMessages }}</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">Total Conversations</p>
+              <h3 class="text-2xl font-bold text-green-800 mt-1">{{ messageStats.totalMessages }}</h3>
+            </div>
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <span class="text-green-700 text-xl">💬</span>
+            </div>
+          </div>
         </div>
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-          <p class="text-sm text-gray-600">Unread</p>
-          <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ messageStats.unreadMessages }}</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">Unread</p>
+              <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ messageStats.unreadMessages }}</h3>
+            </div>
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-700 text-xl">📩</span>
+            </div>
+          </div>
         </div>
         <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-          <p class="text-sm text-gray-600">Students</p>
-          <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ messageStats.studentMessages }}</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">Students</p>
+              <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ messageStats.studentMessages }}</h3>
+            </div>
+            <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+              <span class="text-yellow-700 text-xl">🎓</span>
+            </div>
+          </div>
         </div>
         <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-          <p class="text-sm text-gray-600">Admins</p>
-          <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ messageStats.adminMessages }}</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">Admins</p>
+              <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ messageStats.adminMessages }}</h3>
+            </div>
+            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+              <span class="text-purple-700 text-xl">👨‍💼</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -46,40 +74,37 @@
       <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Type</label>
-          <select 
+          <select
             v-model="selectedType"
             class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
           >
             <option value="">All Types</option>
-            <option value="student">Students</option>
-            <option value="admin">Admins</option>
+            <option value="user">Students</option>
             <option value="instructor">Instructors</option>
+            <option value="admin">Admin</option>
           </select>
         </div>
-
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-          <select 
+          <select
             v-model="selectedStatus"
             class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
           >
             <option value="">All Status</option>
             <option value="unread">Unread</option>
             <option value="read">Read</option>
-            <option value="archived">Archived</option>
           </select>
         </div>
-
         <div class="flex items-end gap-2">
-          <button 
+          <button
             @click="clearFilters"
-            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium transition-colors"
           >
             Clear
           </button>
-          <button 
+          <button
             @click="markAllAsRead"
-            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors"
           >
             Mark All Read
           </button>
@@ -94,57 +119,53 @@
             <div class="p-4 bg-green-800 text-white">
               <div class="flex justify-between items-center">
                 <span class="font-semibold">Inbox</span>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs bg-green-600 px-2 py-1 rounded-full">
-                    {{ filteredConversations.length }} conversations
-                  </span>
-                </div>
+                <span class="text-xs bg-green-600 px-2 py-1 rounded-full">
+                  {{ filteredConversations.length }} conversations
+                </span>
               </div>
             </div>
-            
+
             <div class="flex-1 overflow-y-auto">
-              <div 
-                v-for="conversation in filteredConversations" 
+              <div
+                v-for="conversation in filteredConversations"
                 :key="conversation.id"
                 @click="selectConversation(conversation)"
                 :class="[
                   'p-4 cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-100',
-                  selectedConversation?.id === conversation.id ? 'bg-green-50' : ''
+                  selectedConversation?.id === conversation.id
+                    ? 'bg-green-50 border-l-4 border-l-green-500'
+                    : '',
                 ]"
               >
                 <div class="flex items-start gap-3">
                   <div
-                    class="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                    :class="getUserBadgeClass(conversation.type)"
+                    class="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"
+                    :class="getUserBadgeClass(conversation.role)"
                   >
                     {{ getInitials(conversation.name) }}
                   </div>
-
-                  <div class="flex-1">
+                  <div class="flex-1 min-w-0">
                     <div class="flex justify-between items-start">
-                      <div>
-                        <p class="font-medium text-gray-900">{{ conversation.name }}</p>
-                        <p class="text-xs text-gray-500">{{ conversation.role }}</p>
+                      <div class="truncate">
+                        <p class="font-medium text-gray-900 truncate">{{ conversation.name }}</p>
+                        <p class="text-xs text-gray-500 truncate capitalize">{{ roleLabel(conversation.role) }}</p>
                       </div>
-                      <div class="text-xs text-gray-500">
+                      <div class="text-xs text-gray-500 shrink-0 ml-2">
                         {{ formatTime(conversation.lastMessageTime) }}
                       </div>
                     </div>
-
-                    <p class="text-sm text-gray-600 mt-1 truncate max-w-xs">
-                      {{ conversation.lastMessage }}
+                    <p class="text-sm text-gray-600 mt-1 truncate">
+                      {{ conversation.lastMessage || 'No messages yet' }}
                     </p>
-
                     <div class="flex items-center gap-2 mt-2">
                       <span
                         v-if="conversation.unreadCount > 0"
-                        class="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full"
+                        class="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full shrink-0"
                       >
                         {{ conversation.unreadCount }} new
                       </span>
-
                       <span
-                        class="text-xs px-2 py-0.5 rounded-full"
+                        class="text-xs px-2 py-0.5 rounded-full shrink-0"
                         :class="getStatusBadgeClass(conversation.status)"
                       >
                         {{ conversation.status }}
@@ -165,53 +186,52 @@
           <!-- Right: Chat Window -->
           <div class="w-2/3 flex flex-col">
             <!-- Chat Header -->
-            <div v-if="selectedConversation" class="p-4 bg-green-800 text-white flex justify-between items-center">
+            <div
+              v-if="selectedConversation"
+              class="p-4 bg-green-800 text-white flex justify-between items-center"
+            >
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-white text-green-800 rounded-full flex items-center justify-center text-sm font-bold">
+                <div
+                  class="w-8 h-8 bg-white text-green-800 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                >
                   {{ getInitials(selectedConversation.name) }}
                 </div>
                 <div>
                   <p class="font-medium">{{ selectedConversation.name }}</p>
-                  <p class="text-xs opacity-90">{{ selectedConversation.role }}</p>
+                  <p class="text-xs opacity-90 capitalize">{{ roleLabel(selectedConversation.role) }}</p>
                 </div>
-              </div>
-
-              <div class="flex gap-2">
-                <button 
-                  @click="archiveConversation(selectedConversation)"
-                  class="text-xs bg-green-900 hover:bg-green-700 text-white px-3 py-1 rounded"
-                >
-                  Archive
-                </button>
-                <button 
-                  @click="deleteConversation(selectedConversation)"
-                  class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
-                >
-                  Delete
-                </button>
               </div>
             </div>
 
             <!-- Chat Messages -->
-            <div v-if="selectedConversation" class="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div
+              v-if="selectedConversation"
+              ref="messagesContainer"
+              class="flex-1 overflow-y-auto p-4 bg-gray-50"
+            >
+              <div v-if="messages.length === 0" class="text-center text-gray-400 mt-10">
+                <p>No messages yet. Say hello! 👋</p>
+              </div>
               <div class="space-y-4">
                 <div
-                  v-for="message in selectedConversation.messages"
+                  v-for="message in messages"
                   :key="message.id"
-                  :class="['flex', message.sender === 'instructor' ? 'justify-end' : 'justify-start']"
+                  :class="['flex', message.sender_id === myId ? 'justify-end' : 'justify-start']"
                 >
                   <div
                     :class="[
                       'rounded-lg p-3 max-w-md',
-                      message.sender === 'instructor'
+                      message.sender_id === myId
                         ? 'bg-green-600 text-white rounded-br-none'
-                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                        : message.sender === 'admin'
+                        ? 'bg-purple-100 border border-purple-200 text-gray-800 rounded-bl-none'
+                        : message.sender === 'instructor'
+                        ? 'bg-blue-100 border border-blue-200 text-gray-800 rounded-bl-none'
+                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none',
                     ]"
                   >
                     <p class="text-sm">{{ message.text }}</p>
-                    <p class="text-xs mt-1 opacity-75">
-                      {{ formatTime(message.timestamp) }}
-                    </p>
+                    <p class="text-xs mt-1 opacity-75">{{ formatTime(message.timestamp) }}</p>
                   </div>
                 </div>
               </div>
@@ -234,14 +254,14 @@
                   v-model="newMessage"
                   @keyup.enter="sendMessage"
                   placeholder="Type your message..."
-                  class="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                >
+                  class="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+                />
                 <button
                   @click="sendMessage"
-                  :disabled="!newMessage.trim()"
-                  class="px-4 py-3 bg-green-700 text-white rounded-md hover:bg-green-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  :disabled="!newMessage.trim() || sending"
+                  class="px-4 py-3 bg-green-700 text-white rounded-md hover:bg-green-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  Send
+                  {{ sending ? '...' : 'Send' }}
                 </button>
               </div>
             </div>
@@ -249,18 +269,11 @@
         </div>
       </div>
 
-      <!-- Recent Contacts -->
-      <div class="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+      <!-- Contacts -->
+      <div v-if="recentContacts.length > 0" class="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold text-green-800">Recent Contacts</h3>
-          <button
-            @click="viewAllContacts"
-            class="text-green-700 hover:text-green-800 text-sm font-medium"
-          >
-            View All →
-          </button>
+          <h3 class="text-lg font-bold text-green-800">Contacts</h3>
         </div>
-
         <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div
             v-for="contact in recentContacts"
@@ -270,31 +283,29 @@
           >
             <div
               class="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-sm font-medium"
-              :class="getUserBadgeClass(contact.type)"
+              :class="getUserBadgeClass(contact.role)"
             >
               {{ getInitials(contact.name) }}
             </div>
             <p class="text-xs font-medium text-gray-900 truncate">{{ contact.name }}</p>
-            <p class="text-xs text-gray-500">{{ contact.role }}</p>
+            <p class="text-xs text-gray-500 truncate capitalize">{{ roleLabel(contact.role) }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- New Message Modal -->
-    <div v-if="showNewMessageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      v-if="showNewMessageModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="closeNewMessageModal"
+    >
       <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div class="p-6">
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-lg font-bold text-green-800">New Message</h3>
-            <button
-              @click="closeNewMessageModal"
-              class="text-gray-400 hover:text-gray-600 text-xl"
-            >
-              ✕
-            </button>
+            <button @click="closeNewMessageModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
           </div>
-
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
@@ -303,12 +314,35 @@
                 class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
               >
                 <option value="" disabled>Select recipient</option>
-                <option v-for="contact in allContacts" :key="contact.id" :value="contact.id">
-                  {{ contact.name }} ({{ contact.role }})
-                </option>
+                <optgroup label="Admins">
+                  <option
+                    v-for="contact in contactsByRole('admin')"
+                    :key="contact.id"
+                    :value="contact.id"
+                  >
+                    {{ contact.name }}
+                  </option>
+                </optgroup>
+                <optgroup label="Instructors">
+                  <option
+                    v-for="contact in contactsByRole('instructor')"
+                    :key="contact.id"
+                    :value="contact.id"
+                  >
+                    {{ contact.name }}
+                  </option>
+                </optgroup>
+                <optgroup label="Students">
+                  <option
+                    v-for="contact in contactsByRole('user')"
+                    :key="contact.id"
+                    :value="contact.id"
+                  >
+                    {{ contact.name }}
+                  </option>
+                </optgroup>
               </select>
             </div>
-
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Message</label>
               <textarea
@@ -319,7 +353,6 @@
               ></textarea>
             </div>
           </div>
-
           <div class="flex justify-end gap-2 mt-6">
             <button
               type="button"
@@ -330,143 +363,206 @@
             </button>
             <button
               @click="sendNewMessage"
-              :disabled="!newMessageRecipient || !newMessageContent.trim()"
+              :disabled="!newMessageRecipient || !newMessageContent.trim() || sending"
               class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Send Message
+              {{ sending ? 'Sending...' : 'Send Message' }}
             </button>
           </div>
         </div>
       </div>
     </div>
-
   </InstructorLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import axios from 'axios'
 import InstructorLayout from './InstructorLayout.vue'
 
 export default {
   name: 'InstructorMessages',
   components: { InstructorLayout },
+
   setup() {
+    const api = axios.create({
+      baseURL: 'http://localhost:3000',
+      withCredentials: true,
+    })
+
+    // ── State ──────────────────────────────────────────────────────────────────
     const searchQuery = ref('')
     const selectedType = ref('')
     const selectedStatus = ref('')
     const selectedConversation = ref(null)
     const newMessage = ref('')
+    const sending = ref(false)
     const showNewMessageModal = ref(false)
     const newMessageRecipient = ref('')
     const newMessageContent = ref('')
+    const messagesContainer = ref(null)
 
-    const messageStats = reactive({
-      totalMessages: 18,
-      unreadMessages: 3,
-      studentMessages: 12,
-      adminMessages: 6
+    const inbox = ref([])
+    const messages = ref([])
+    const myId = ref(null)
+    const allContacts = ref([])
+
+    const messageStats = ref({
+      totalMessages: 0,
+      unreadMessages: 0,
+      studentMessages: 0,
+      adminMessages: 0,
     })
 
-    const conversations = ref([
-      {
-        id: 1,
-        name: 'John Doe',
-        role: 'Student - Driving NC II',
-        type: 'student',
-        status: 'unread',
-        lastMessage: 'Sir, what time is our driving session tomorrow?',
-        lastMessageTime: '2025-11-15T10:30:00',
-        unreadCount: 1,
-        messages: [
-          { id: 1, text: 'Sir, what time is our driving session tomorrow?', sender: 'student', timestamp: '2025-11-15T10:30:00' }
-        ]
-      },
-      {
-        id: 2,
-        name: 'Admin Support',
-        role: 'Admin',
-        type: 'admin',
-        status: 'read',
-        lastMessage: 'Please submit the weekly attendance summary.',
-        lastMessageTime: '2025-11-14T14:25:00',
-        unreadCount: 0,
-        messages: [
-          { id: 1, text: 'Please submit the weekly attendance summary.', sender: 'admin', timestamp: '2025-11-14T14:25:00' },
-          { id: 2, text: 'Noted. I will submit it today.', sender: 'instructor', timestamp: '2025-11-14T14:35:00' }
-        ]
+    // ── API ────────────────────────────────────────────────────────────────────
+    const fetchMe = async () => {
+      const res = await api.get('/api/auth/me')
+      myId.value = res.data.user.id
+    }
+
+    const fetchInbox = async () => {
+      const res = await api.get('/api/messages/inbox')
+      inbox.value = res.data
+
+      messageStats.value.totalMessages = inbox.value.length
+      messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length
+      messageStats.value.studentMessages = inbox.value.filter(c => c.role === 'user').length
+      messageStats.value.adminMessages = inbox.value.filter(c => c.role === 'admin').length
+    }
+
+    const fetchContacts = async () => {
+      try {
+        const res = await api.get('/api/messages/contacts')
+        allContacts.value = res.data
+      } catch (err) {
+        console.error('fetchContacts error:', err)
       }
-    ])
+    }
 
-    const recentContacts = ref([
-      { id: 1, name: 'John Doe', role: 'Student', type: 'student' },
-      { id: 2, name: 'Maria Santos', role: 'Student', type: 'student' },
-      { id: 3, name: 'Admin Support', role: 'Admin', type: 'admin' },
-      { id: 4, name: 'Technical Support', role: 'Support', type: 'admin' },
-      { id: 5, name: 'Mr. Cruz', role: 'Instructor', type: 'instructor' },
-      { id: 6, name: 'Ms. Reyes', role: 'Instructor', type: 'instructor' }
-    ])
+    const loadThread = async (user) => {
+      selectedConversation.value = user
+      const res = await api.get(`/api/messages/thread/${user.id}`)
+      messages.value = res.data
 
-    const allContacts = ref([...recentContacts.value])
+      const found = inbox.value.find(c => c.id === user.id)
+      if (found) {
+        found.unreadCount = 0
+        found.status = 'read'
+      }
+      messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length
 
+      await nextTick()
+      if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      }
+    }
+
+    const sendMessage = async () => {
+      if (!newMessage.value.trim() || !selectedConversation.value || sending.value) return
+      sending.value = true
+      try {
+        await api.post('/api/messages/send', {
+          receiver_id: selectedConversation.value.id,
+          message: newMessage.value,
+        })
+        newMessage.value = ''
+        await loadThread(selectedConversation.value)
+        await fetchInbox()
+      } finally {
+        sending.value = false
+      }
+    }
+
+    const sendNewMessage = async () => {
+      if (!newMessageRecipient.value || !newMessageContent.value.trim() || sending.value) return
+      sending.value = true
+      try {
+        await api.post('/api/messages/send', {
+          receiver_id: newMessageRecipient.value,
+          message: newMessageContent.value,
+        })
+        closeNewMessageModal()
+        await fetchInbox()
+
+        const contact = allContacts.value.find(c => c.id === newMessageRecipient.value)
+        if (contact) await loadThread(contact)
+      } finally {
+        sending.value = false
+      }
+    }
+
+    // ── Computed ───────────────────────────────────────────────────────────────
     const filteredConversations = computed(() => {
-      let result = [...conversations.value]
+      let result = [...inbox.value]
 
       if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        result = result.filter(conv =>
-          conv.name.toLowerCase().includes(query) ||
-          conv.role.toLowerCase().includes(query) ||
-          conv.lastMessage.toLowerCase().includes(query)
+        const q = searchQuery.value.toLowerCase()
+        result = result.filter(
+          c =>
+            c.name.toLowerCase().includes(q) ||
+            c.role.toLowerCase().includes(q) ||
+            (c.lastMessage || '').toLowerCase().includes(q)
         )
       }
 
       if (selectedType.value) {
-        result = result.filter(conv => conv.type === selectedType.value)
+        result = result.filter(c => c.role === selectedType.value)
       }
 
       if (selectedStatus.value) {
-        result = result.filter(conv => conv.status === selectedStatus.value)
+        result = result.filter(c => c.status === selectedStatus.value)
       }
 
-      result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime))
-      return result
+      return result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime))
     })
 
-    const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+    const recentContacts = computed(() =>
+      allContacts.value
+        .filter(c => !inbox.value.some(conv => conv.id === c.id))
+        .slice(0, 12)
+    )
 
-    const formatTime = (timestamp) => {
-      const date = new Date(timestamp)
-      const now = new Date()
-      const diffMs = now - date
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    const contactsByRole = (role) => allContacts.value.filter(c => c.role === role)
 
-      if (diffDays === 0) {
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      } else if (diffDays === 1) {
-        return 'Yesterday'
-      } else if (diffDays < 7) {
-        return date.toLocaleDateString('en-US', { weekday: 'short' })
-      } else {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      }
+    const roleLabel = (role) => {
+      if (role === 'user') return 'Student'
+      if (role === 'admin') return 'Admin'
+      if (role === 'instructor') return 'Instructor'
+      if (role === 'trainer') return 'Trainer'
+      return role
     }
 
-    const getUserBadgeClass = (type) => {
-      switch (type) {
-        case 'student': return 'bg-blue-600'
-        case 'admin': return 'bg-green-600'
-        case 'instructor': return 'bg-purple-600'
-        default: return 'bg-gray-600'
-      }
+    const getInitials = (name) =>
+      (name || '?')
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+
+    const formatTime = (timestamp) => {
+      if (!timestamp) return ''
+      const date = new Date(timestamp)
+      const now = new Date()
+      const diffDays = Math.floor((now - date) / 86400000)
+      if (diffDays === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      if (diffDays === 1) return 'Yesterday'
+      if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'short' })
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    }
+
+    const getUserBadgeClass = (role) => {
+      if (role === 'admin') return 'bg-purple-600'
+      if (role === 'instructor') return 'bg-blue-600'
+      if (role === 'trainer') return 'bg-yellow-600'
+      if (role === 'user') return 'bg-green-600'
+      return 'bg-gray-500'
     }
 
     const getStatusBadgeClass = (status) => {
-      switch (status) {
-        case 'unread': return 'bg-green-100 text-green-800'
-        case 'read': return 'bg-gray-100 text-gray-800'
-        case 'archived': return 'bg-yellow-100 text-yellow-800'
-        default: return 'bg-gray-100 text-gray-800'
-      }
+      if (status === 'unread') return 'bg-blue-100 text-blue-800'
+      return 'bg-gray-100 text-gray-600'
     }
 
     const clearFilters = () => {
@@ -476,171 +572,47 @@ export default {
     }
 
     const markAllAsRead = () => {
-      conversations.value.forEach(conv => {
-        if (conv.status === 'unread' && conv.unreadCount > 0) {
-          messageStats.unreadMessages = Math.max(0, messageStats.unreadMessages - 1)
-        }
-        conv.status = 'read'
-        conv.unreadCount = 0
+      inbox.value.forEach(c => {
+        c.unreadCount = 0
+        c.status = 'read'
       })
+      messageStats.value.unreadMessages = 0
     }
 
-    const selectConversation = (conversation) => {
-      selectedConversation.value = conversation
-      if (conversation.status === 'unread') {
-        conversation.status = 'read'
-        conversation.unreadCount = 0
-        messageStats.unreadMessages = Math.max(0, messageStats.unreadMessages - 1)
-      }
-    }
-
-    const getAutoReply = (name) => {
-      const replies = [
-        'Noted, thank you!',
-        'Okay sir, thank you!',
-        'Copy that!',
-        'Understood.',
-        'Thanks for the update!'
-      ]
-      return replies[Math.floor(Math.random() * replies.length)]
-    }
-
-    const sendMessage = () => {
-      if (!newMessage.value.trim() || !selectedConversation.value) return
-
-      const newMsg = {
-        id: selectedConversation.value.messages.length + 1,
-        text: newMessage.value,
-        sender: 'instructor',
-        timestamp: new Date().toISOString()
-      }
-
-      selectedConversation.value.messages.push(newMsg)
-      selectedConversation.value.lastMessage = newMessage.value
-      selectedConversation.value.lastMessageTime = newMsg.timestamp
-
-      // demo auto-reply (NOT real backend yet)
-      setTimeout(() => {
-        const replyMsg = {
-          id: selectedConversation.value.messages.length + 1,
-          text: getAutoReply(selectedConversation.value.name),
-          sender: selectedConversation.value.type,
-          timestamp: new Date(Date.now() + 5000).toISOString()
-        }
-        selectedConversation.value.messages.push(replyMsg)
-        selectedConversation.value.lastMessage = replyMsg.text
-        selectedConversation.value.lastMessageTime = replyMsg.timestamp
-        selectedConversation.value.unreadCount++
-        selectedConversation.value.status = 'unread'
-        messageStats.unreadMessages++
-      }, 1500)
-
-      newMessage.value = ''
-    }
-
-    const archiveConversation = (conversation) => {
-      conversation.status = 'archived'
-      if (selectedConversation.value?.id === conversation.id) {
-        selectedConversation.value = null
-      }
-    }
-
-    const deleteConversation = (conversation) => {
-      if (confirm(`Delete conversation with ${conversation.name}?`)) {
-        const idx = conversations.value.findIndex(c => c.id === conversation.id)
-        if (idx !== -1) {
-          conversations.value.splice(idx, 1)
-          if (selectedConversation.value?.id === conversation.id) {
-            selectedConversation.value = null
-          }
-        }
-      }
-    }
-
-    const startNewMessage = () => {
-      showNewMessageModal.value = true
-    }
-
+    const selectConversation = (conv) => loadThread(conv)
+    const startConversation = async (contact) => loadThread(contact)
+    const startNewMessage = () => { showNewMessageModal.value = true }
     const closeNewMessageModal = () => {
       showNewMessageModal.value = false
       newMessageRecipient.value = ''
       newMessageContent.value = ''
     }
 
-    const sendNewMessage = () => {
-      if (!newMessageRecipient.value || !newMessageContent.value.trim()) return
-
-      const contact = allContacts.value.find(c => c.id === newMessageRecipient.value)
-      if (!contact) return
-
-      const newConversation = {
-        id: conversations.value.length + 1,
-        name: contact.name,
-        role: contact.role,
-        type: contact.type,
-        status: 'read',
-        lastMessage: newMessageContent.value,
-        lastMessageTime: new Date().toISOString(),
-        unreadCount: 0,
-        messages: [
-          { id: 1, text: newMessageContent.value, sender: 'instructor', timestamp: new Date().toISOString() }
-        ]
-      }
-
-      conversations.value.unshift(newConversation)
-      messageStats.totalMessages++
-
-      closeNewMessageModal()
-      selectConversation(newConversation)
-    }
-
-    const startConversation = (contact) => {
-      const existing = conversations.value.find(conv => conv.name === contact.name)
-      if (existing) {
-        selectConversation(existing)
-      } else {
-        newMessageRecipient.value = contact.id
-        newMessageContent.value = `Hello ${contact.name.split(' ')[0]}, `
-        showNewMessageModal.value = true
-      }
-    }
-
-    const viewAllContacts = () => alert('Viewing all contacts...')
-
-    onMounted(() => {
-      if (conversations.value.length > 0) selectConversation(conversations.value[0])
+    // ── Lifecycle ──────────────────────────────────────────────────────────────
+    onMounted(async () => {
+      await fetchMe()
+      await Promise.all([fetchInbox(), fetchContacts()])
     })
 
     return {
-      searchQuery,
-      selectedType,
-      selectedStatus,
-      selectedConversation,
-      newMessage,
-      showNewMessageModal,
-      newMessageRecipient,
-      newMessageContent,
-      messageStats,
-      conversations,
-      recentContacts,
-      allContacts,
-      filteredConversations,
-      getInitials,
-      formatTime,
-      getUserBadgeClass,
-      getStatusBadgeClass,
-      clearFilters,
-      markAllAsRead,
-      selectConversation,
-      sendMessage,
-      archiveConversation,
-      deleteConversation,
-      startNewMessage,
-      closeNewMessageModal,
-      sendNewMessage,
+      searchQuery, selectedType, selectedStatus, selectedConversation,
+      newMessage, sending, showNewMessageModal, newMessageRecipient,
+      newMessageContent, messagesContainer, messageStats, inbox,
+      recentContacts, allContacts, filteredConversations, messages, myId,
+      contactsByRole, roleLabel, getInitials, formatTime, getUserBadgeClass,
+      getStatusBadgeClass, clearFilters, markAllAsRead, selectConversation,
+      sendMessage, startNewMessage, closeNewMessageModal, sendNewMessage,
       startConversation,
-      viewAllContacts
     }
-  }
+  },
 }
 </script>
+
+<style scoped>
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+.fixed.inset-0 { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
