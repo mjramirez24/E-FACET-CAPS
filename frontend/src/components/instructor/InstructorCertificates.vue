@@ -1,28 +1,94 @@
+<!-- src/components/InstructorCertificates.vue -->
 <template>
   <InstructorLayout active-page="certificates">
     <!-- Header -->
     <template #header-left>
       <input
         type="text"
-        placeholder="Search certificates..."
+        placeholder="Search students/certificates..."
         v-model="searchQuery"
         class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-      >
+      />
     </template>
 
     <div>
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-bold text-green-800">🎓 Certificate Management</h2>
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-bold text-green-800">🚗 Driving Certificate Management</h2>
+
+          <img
+            v-if="logoUrl"
+            :src="logoUrl"
+            alt="Logo"
+            class="h-10 w-auto object-contain"
+            @error="onLogoError"
+          />
+        </div>
+
         <button
-          @click="generateCertificate"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          @click="fetchRows"
+          class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
-          ➕ Generate Certificate
+          🔄 Refresh
         </button>
       </div>
 
-      <!-- Statistics Cards -->
+      <!-- Filters -->
+      <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
+          <select
+            v-model="selectedCourse"
+            class="w-56 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          >
+            <option value="">All Courses</option>
+            <option v-for="c in courseOptions" :key="c" :value="c">
+              {{ c }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+          <select
+            v-model="selectedStatus"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          >
+            <option value="">All</option>
+            <option value="issued">Issued</option>
+            <option value="ready">Ready</option>
+            <option value="revoked">Revoked</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Done Date</label>
+          <input
+            type="date"
+            v-model="selectedDate"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          />
+        </div>
+
+        <div class="flex items-end gap-2">
+          <button
+            @click="clearFilters"
+            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+          >
+            Clear
+          </button>
+
+          <button
+            @click="exportCsv"
+            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+          >
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-green-50 p-5 rounded-lg border border-green-100">
           <div class="flex items-center justify-between">
@@ -39,8 +105,8 @@
         <div class="bg-yellow-50 p-5 rounded-lg border border-yellow-100">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-2xl font-bold text-yellow-800">{{ pendingCount }}</h3>
-              <p class="text-yellow-700 font-medium mt-1">Pending</p>
+              <h3 class="text-2xl font-bold text-yellow-800">{{ readyCount }}</h3>
+              <p class="text-yellow-700 font-medium mt-1">Ready</p>
             </div>
             <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
               <span class="text-xl">⏳</span>
@@ -51,8 +117,8 @@
         <div class="bg-blue-50 p-5 rounded-lg border border-blue-100">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-2xl font-bold text-blue-800">{{ certificates.length }}</h3>
-              <p class="text-blue-700 font-medium mt-1">Total</p>
+              <h3 class="text-2xl font-bold text-blue-800">{{ rowsFiltered.length }}</h3>
+              <p class="text-blue-700 font-medium mt-1">Shown</p>
             </div>
             <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <span class="text-xl">📄</span>
@@ -73,73 +139,19 @@
         </div>
       </div>
 
-      <!-- Filters -->
-      <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
-          <select
-            v-model="selectedCourse"
-            class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Courses</option>
-            <option value="Driving NC II">Driving NC II</option>
-            <option value="Bread & Pastry NC II">Bread & Pastry NC II</option>
-            <option value="Cookery NC II">Cookery NC II</option>
-            <option value="Automotive NC I">Automotive NC I</option>
-            <option value="Electrical Installation NC II">Electrical Installation NC II</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-          <select
-            v-model="selectedStatus"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Status</option>
-            <option value="issued">Issued</option>
-            <option value="pending">Pending</option>
-            <option value="revoked">Revoked</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-          <input
-            type="date"
-            v-model="selectedDate"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-        </div>
-
-        <div class="flex items-end gap-2">
-          <button
-            @click="clearFilters"
-            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-          >
-            Clear
-          </button>
-          <button
-            @click="exportCertificates"
-            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-          >
-            Export
-          </button>
-        </div>
-      </div>
-
       <!-- Loading -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-green-700"></div>
-        <p class="mt-3 text-gray-600">Loading certificates...</p>
+        <p class="mt-3 text-gray-600">Loading...</p>
       </div>
 
       <!-- Table -->
       <div v-else class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200 flex justify-between items-center">
           <div class="text-sm text-gray-600">
-            Showing {{ filteredCertificates.length }} of {{ certificates.length }} certificates
+            Showing {{ rowsFiltered.length }} of {{ rowsBase.length }} (Driving)
           </div>
+
           <div class="flex items-center gap-2">
             <span class="text-sm text-gray-600">Sort by:</span>
             <select v-model="sortBy" class="text-sm border rounded px-2 py-1">
@@ -157,8 +169,8 @@
             <tr>
               <th class="py-3 px-4 text-left font-medium">Student</th>
               <th class="py-3 px-4 text-left font-medium">Course</th>
-              <th class="py-3 px-4 text-left font-medium">Date Issued</th>
-              <th class="py-3 px-4 text-left font-medium">Certificate ID</th>
+              <th class="py-3 px-4 text-left font-medium">Done Date</th>
+              <th class="py-3 px-4 text-left font-medium">Driving Cert Code</th>
               <th class="py-3 px-4 text-left font-medium">Status</th>
               <th class="py-3 px-4 text-left font-medium">Actions</th>
             </tr>
@@ -166,71 +178,73 @@
 
           <tbody>
             <tr
-              v-for="certificate in filteredCertificates"
-              :key="certificate.id"
+              v-for="row in rowsFiltered"
+              :key="row.reservation_id"
               class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <td class="py-3 px-4">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm">
-                    {{ getInitials(certificate.studentName) }}
+                    {{ getInitials(row.student_name) }}
                   </div>
                   <div>
-                    <p class="font-medium">{{ certificate.studentName }}</p>
-                    <p class="text-xs text-gray-500">{{ certificate.studentEmail }}</p>
+                    <p class="font-medium">{{ row.student_name }}</p>
+                    <p class="text-xs text-gray-500">{{ row.student_email }}</p>
                   </div>
                 </div>
               </td>
 
               <td class="py-3 px-4">
-                <span class="font-medium">{{ certificate.course }}</span>
+                <span class="font-medium">{{ row.course_name }}</span>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  code: <span class="font-mono">{{ row.course_code || "—" }}</span>
+                </p>
               </td>
 
               <td class="py-3 px-4 text-gray-600">
-                {{ certificate.dateIssued ? formatDate(certificate.dateIssued) : '—' }}
+                {{ row.done_at ? formatDate(row.done_at) : "—" }}
               </td>
 
               <td class="py-3 px-4">
                 <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
-                  {{ certificate.certificateId }}
+                  {{ row.certificate_code || "—" }}
                 </code>
               </td>
 
               <td class="py-3 px-4">
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-medium"
-                  :class="getStatusClass(certificate.status)"
-                >
-                  {{ formatStatus(certificate.status) }}
+                <span class="px-2 py-1 rounded-full text-xs font-medium" :class="getStatusClass(row.ui_status)">
+                  {{ formatStatus(row.ui_status) }}
                 </span>
               </td>
 
               <td class="py-3 px-4">
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
                   <button
-                    @click="viewCertificate(certificate)"
+                    v-if="row.ui_status === 'ready'"
+                    @click="generateDriving(row)"
+                    class="text-green-700 hover:text-green-900 text-sm font-medium px-2 py-1 hover:bg-green-50 rounded"
+                  >
+                    ➕ Generate
+                  </button>
+
+                  <button
+                    @click="openDrivingPreview(row)"
+                    class="text-gray-700 hover:text-gray-900 text-sm font-medium px-2 py-1 hover:bg-gray-100 rounded"
+                  >
+                    👁️ Preview / Edit
+                  </button>
+
+                  <button
+                    v-if="row.certificate_id"
+                    @click="viewCertificate(row)"
                     class="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 hover:bg-blue-50 rounded"
                   >
                     View
                   </button>
 
                   <button
-                    @click="printCertificate(certificate)"
-                    class="text-green-600 hover:text-green-800 text-sm font-medium px-2 py-1 hover:bg-green-50 rounded"
-                  >
-                    Print
-                  </button>
-
-                  <button
-                    v-if="certificate.status === 'pending'"
-                    @click="approveCertificate(certificate)"
-                    class="text-yellow-600 hover:text-yellow-800 text-sm font-medium px-2 py-1 hover:bg-yellow-50 rounded"
-                  >
-                    Approve
-                  </button>
-
-                  <button
-                    @click="downloadCertificate(certificate)"
+                    v-if="row.certificate_id"
+                    @click="downloadCertificate(row)"
                     class="text-purple-600 hover:text-purple-800 text-sm font-medium px-2 py-1 hover:bg-purple-50 rounded"
                   >
                     Download
@@ -239,11 +253,11 @@
               </td>
             </tr>
 
-            <tr v-if="filteredCertificates.length === 0">
+            <tr v-if="rowsFiltered.length === 0">
               <td colspan="6" class="py-8 text-center text-gray-500">
                 <div class="text-gray-400">
                   <span class="text-3xl mb-2 block">🎓</span>
-                  <p class="text-gray-500">No certificates found</p>
+                  <p class="text-gray-500">No results</p>
                   <p class="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
                 </div>
               </td>
@@ -252,221 +266,651 @@
         </table>
       </div>
 
-      <!-- Pagination -->
-      <div v-if="filteredCertificates.length > 0" class="mt-6 flex justify-between items-center">
-        <div class="text-sm text-gray-600">
-          Page 1 of 1 • {{ filteredCertificates.length }} items
-        </div>
-        <div class="flex gap-1">
-          <button class="px-3 py-1 border rounded text-sm hover:bg-gray-50">← Previous</button>
-          <button class="px-3 py-1 bg-green-700 text-white rounded text-sm">1</button>
-          <button class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Next →</button>
-        </div>
-      </div>
-    </div>
+      <p v-if="error" class="mt-4 text-sm text-red-600">{{ error }}</p>
 
-    <!-- Generate Certificate Modal -->
-    <div v-if="showGenerateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-green-800">Generate Certificate</h3>
-            <button
-              @click="closeGenerateModal"
-              class="text-gray-400 hover:text-gray-600 text-xl"
-            >
-              ✕
-            </button>
+      <!-- DRIVING Modal (Preview/Edit) -->
+      <div
+        v-if="drivingModalOpen"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        @click.self="closeModals"
+      >
+        <div class="bg-white w-full max-w-6xl rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-gray-900">
+                Driving Certificate Preview — {{ isPDC(modalRow) ? "PDC" : "TDC" }}
+              </h3>
+              <p class="text-sm text-gray-600">
+                {{ modalRow?.student_name }} — {{ modalRow?.course_name }}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                v-if="modalRow && modalRow.ui_status === 'ready'"
+                @click="generateDriving(modalRow, draftToOverrides())"
+                class="px-3 py-2 text-sm rounded-md bg-green-700 text-white hover:bg-green-800"
+              >
+                ✅ Generate from Preview
+              </button>
+              <button
+                @click="printPreview()"
+                class="px-3 py-2 text-sm rounded-md bg-gray-800 text-white hover:bg-gray-900"
+              >
+                🖨️ Print
+              </button>
+              <button
+                @click="closeModals"
+                class="px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50"
+              >
+                ✖ Close
+              </button>
+            </div>
           </div>
 
-          <div class="text-center py-8 text-gray-500">
-            Certificate generation form would appear here
+          <div class="overflow-y-auto">
+            <!-- EDIT PANEL -->
+            <div class="p-4 border-b border-gray-100 bg-gray-50">
+              <div class="flex flex-wrap items-start gap-6">
+                <div v-if="isPDC(modalRow)">
+                  <div class="text-sm font-semibold text-gray-800 mb-1">Mode (MT / AT)</div>
+                  <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 text-sm">
+                      <input type="radio" value="MT" v-model="draft.mode" @change="applyModeToDl()" />
+                      MT
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                      <input type="radio" value="AT" v-model="draft.mode" @change="applyModeToDl()" />
+                      AT
+                    </label>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    * This DOES NOT print as text. It moves the checkmarks to MT/AT columns.
+                  </div>
+                </div>
+
+                <div v-if="isPDC(modalRow)" class="flex-1 min-w-[320px]">
+                  <div class="text-sm font-semibold text-gray-800 mb-1">DL Codes Checklist</div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="border rounded bg-white p-3">
+                      <div class="text-xs font-bold text-gray-700 mb-2">Left</div>
+                      <div
+                        v-for="item in leftDlCodes"
+                        :key="'L-'+item.code"
+                        class="flex items-center justify-between py-1 border-b last:border-b-0"
+                      >
+                        <div class="text-xs">
+                          <b>{{ item.code }}</b> <span class="text-gray-500">{{ item.desc }}</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs">
+                          <label class="flex items-center gap-1">
+                            <input type="checkbox" v-model="draft.dl[item.code].mt" @change="syncModeFromDl()" />
+                            MT
+                          </label>
+                          <label class="flex items-center gap-1">
+                            <input type="checkbox" v-model="draft.dl[item.code].at" @change="syncModeFromDl()" />
+                            AT
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="border rounded bg-white p-3">
+                      <div class="text-xs font-bold text-gray-700 mb-2">Right</div>
+                      <div
+                        v-for="item in rightDlCodes"
+                        :key="'R-'+item.code"
+                        class="flex items-center justify-between py-1 border-b last:border-b-0"
+                      >
+                        <div class="text-xs">
+                          <b>{{ item.code }}</b> <span class="text-gray-500">{{ item.desc }}</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs">
+                          <label class="flex items-center gap-1">
+                            <input type="checkbox" v-model="draft.dl[item.code].mt" @change="syncModeFromDl()" />
+                            MT
+                          </label>
+                          <label class="flex items-center gap-1">
+                            <input type="checkbox" v-model="draft.dl[item.code].at" @change="syncModeFromDl()" />
+                            AT
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-xs text-gray-500 mt-2">
+                    * Kung AT ang mode, ililipat automatically yung checks to AT column (A/B based on course_code).
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PREVIEW -->
+            <div class="p-4">
+              <div
+                id="driving-preview"
+                class="relative w-full border border-gray-200 rounded-xl overflow-hidden bg-white"
+                style="aspect-ratio: 8.5 / 11"
+              >
+                <div class="absolute inset-0 p-8">
+                  <!-- Header -->
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-3">
+                      <div class="w-14 h-14 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center">
+                        <img v-if="logoUrl" :src="logoUrl" class="w-full h-full object-contain" />
+                        <div v-else class="text-[10px] text-gray-500">LOGO</div>
+                      </div>
+
+                      <div class="leading-tight">
+                        <div class="text-xs text-gray-700">Republic of the Philippines</div>
+                        <div class="text-sm font-extrabold text-gray-900">DEPARTMENT OF TRANSPORTATION</div>
+                        <div class="text-sm font-extrabold text-gray-900">LAND TRANSPORTATION OFFICE</div>
+                        <div class="text-xs text-gray-600">East Avenue, Quezon City</div>
+                      </div>
+                    </div>
+
+                    <!-- 2x2 -->
+                    <div class="w-28">
+                      <div class="w-28 h-28 border border-gray-400 bg-gray-50 overflow-hidden rounded-md flex items-center justify-center">
+                        <img
+                          v-if="modalRow?.picture_2x2"
+                          :src="toFileUrl(modalRow.picture_2x2)"
+                          alt="2x2"
+                          class="w-full h-full object-cover"
+                        />
+                        <div v-else class="text-[10px] text-gray-500 text-center px-2">
+                          2x2 Photo<br />missing
+                        </div>
+                      </div>
+                      <div class="mt-1 text-[10px] text-gray-500 text-center">2x2</div>
+                    </div>
+                  </div>
+
+                  <!-- Title -->
+                  <div class="mt-6 text-center">
+                    <div class="text-xl font-extrabold text-gray-900">CERTIFICATE OF COMPLETION</div>
+                    <div class="text-sm font-bold text-gray-800">
+                      {{ isPDC(modalRow) ? "PRACTICAL DRIVING COURSE" : "THEORETICAL DRIVING COURSE" }}
+                    </div>
+                  </div>
+
+                  <!-- PDC DL Codes preview -->
+                  <div v-if="isPDC(modalRow)" class="mt-6">
+                    <div class="grid grid-cols-2 gap-6 text-[11px]">
+                      <div class="border border-gray-300 rounded">
+                        <div class="px-2 py-1 font-bold bg-gray-50 border-b border-gray-300">
+                          DL Code (Vehicle Category)
+                        </div>
+                        <div class="p-2">
+                          <div class="grid grid-cols-12 font-bold text-gray-700 mb-1">
+                            <div class="col-span-8">DL Code</div>
+                            <div class="col-span-2 text-center">MT</div>
+                            <div class="col-span-2 text-center">AT</div>
+                          </div>
+
+                          <div
+                            v-for="item in leftDlCodes"
+                            :key="item.code"
+                            class="grid grid-cols-12 items-center border-t border-gray-200 py-1"
+                          >
+                            <div class="col-span-8">
+                              <span class="font-semibold">{{ item.code }}</span>
+                              <span class="text-gray-600 ml-2">{{ item.desc }}</span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                              <div class="w-4 h-4 border border-gray-400 flex items-center justify-center text-[10px]">
+                                {{ draft.dl[item.code]?.mt ? "✓" : "" }}
+                              </div>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                              <div class="w-4 h-4 border border-gray-400 flex items-center justify-center text-[10px]">
+                                {{ draft.dl[item.code]?.at ? "✓" : "" }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="border border-gray-300 rounded">
+                        <div class="px-2 py-1 font-bold bg-gray-50 border-b border-gray-300">
+                          DL Code (Vehicle Category)
+                        </div>
+                        <div class="p-2">
+                          <div class="grid grid-cols-12 font-bold text-gray-700 mb-1">
+                            <div class="col-span-8">DL Code</div>
+                            <div class="col-span-2 text-center">MT</div>
+                            <div class="col-span-2 text-center">AT</div>
+                          </div>
+
+                          <div
+                            v-for="item in rightDlCodes"
+                            :key="item.code"
+                            class="grid grid-cols-12 items-center border-t border-gray-200 py-1"
+                          >
+                            <div class="col-span-8">
+                              <span class="font-semibold">{{ item.code }}</span>
+                              <span class="text-gray-600 ml-2">{{ item.desc }}</span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                              <div class="w-4 h-4 border border-gray-400 flex items-center justify-center text-[10px]">
+                                {{ draft.dl[item.code]?.mt ? "✓" : "" }}
+                              </div>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                              <div class="w-4 h-4 border border-gray-400 flex items-center justify-center text-[10px]">
+                                {{ draft.dl[item.code]?.at ? "✓" : "" }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-3 text-[10px] text-gray-600">
+                      * Preview DL checklist only.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 text-sm text-gray-600">
+                <b>Note:</b> MT/AT is via checkbox column only (no Transmission text).
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
     </div>
   </InstructorLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
-import InstructorLayout from './InstructorLayout.vue'
+import { ref, computed, onMounted } from "vue";
+import axios from "axios";
+import InstructorLayout from "./InstructorLayout.vue";
 
 export default {
-  name: 'InstructorCertificates',
+  name: "InstructorCertificates",
   components: { InstructorLayout },
   setup() {
-    const certificates = ref([])
-    const loading = ref(true)
+    const API_BASE = "http://localhost:3000";
 
-    const searchQuery = ref('')
-    const selectedCourse = ref('')
-    const selectedStatus = ref('')
-    const selectedDate = ref('')
-    const sortBy = ref('dateDesc')
-    const showGenerateModal = ref(false)
+    const logoUrl = ref(`${API_BASE}/assets/logo.png`);
+    const onLogoError = () => (logoUrl.value = "");
 
-    const filteredCertificates = computed(() => {
-      let result = [...certificates.value]
+    // ✅ Instructor endpoints (DRIVING only) — matches backend routes
+    const ENDPOINTS = {
+      list: `${API_BASE}/api/instructor/certificates/driving/completions`,
+      generate: `${API_BASE}/api/instructor/certificates/driving/generate`,
+      view: (id) => `${API_BASE}/api/instructor/certificates/driving/${id}/view`,
+      download: (id) => `${API_BASE}/api/instructor/certificates/driving/${id}/download`,
+    };
 
-      if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase()
-        result = result.filter(cert =>
-          cert.studentName.toLowerCase().includes(q) ||
-          cert.studentEmail.toLowerCase().includes(q) ||
-          cert.course.toLowerCase().includes(q) ||
-          cert.certificateId.toLowerCase().includes(q)
-        )
+    // ✅ convert relative paths like "uploads/xxx.jpg" or "/uploads/xxx.jpg" to full URL
+    const toFileUrl = (p) => {
+      const v = String(p || "").trim();
+      if (!v) return "";
+      if (/^https?:\/\//i.test(v)) return v;
+      const cleaned = v.replace(/\\/g, "/").replace(/^\/+/, "");
+      return `${API_BASE}/${cleaned}`;
+    };
+
+    const rows = ref([]);
+    const loading = ref(true);
+    const error = ref("");
+
+    const searchQuery = ref("");
+    const selectedCourse = ref("");
+    const selectedStatus = ref("");
+    const selectedDate = ref("");
+    const sortBy = ref("dateDesc");
+
+    const drivingModalOpen = ref(false);
+    const modalRow = ref(null);
+
+    const leftDlCodes = ref([
+      { code: "A", desc: "(L1,L2,L3)" },
+      { code: "A1", desc: "(L4,L5,L6,L7)" },
+      { code: "B", desc: "(M1)" },
+      { code: "B1", desc: "(M2)" },
+      { code: "B2", desc: "(N1)" },
+    ]);
+    const rightDlCodes = ref([
+      { code: "BE", desc: "(O1,O2)" },
+      { code: "C", desc: "(N2,N3)" },
+      { code: "CE", desc: "(O3,O4)" },
+      { code: "D", desc: "(M3)" },
+    ]);
+
+    const allDlCodes = computed(() => [...leftDlCodes.value, ...rightDlCodes.value].map((x) => x.code));
+
+    const draft = ref({
+      mode: "MT",
+      dl: {},
+    });
+
+    const normalizeCourseCode = (v) => String(v || "").trim().toUpperCase();
+
+    // ✅ same logic as backend isPDC()
+    const isPDC = (row) => {
+      const cc = normalizeCourseCode(row?.course_code);
+      if (cc.includes("PDC")) return true;
+      const name = String(row?.course_name || "").toUpperCase();
+      return name.includes("PRACTICAL") || name.includes("PDC");
+    };
+
+    const parsePdcAB = (course_code = "", course_name = "") => {
+      const s = String(course_code || "").toUpperCase();
+      if (/\bAB\b/.test(s) || /PDC\s*[-(]?\s*AB/.test(s)) return "AB";
+      if (/\bA\b/.test(s) || /PDC\s*[-(]?\s*A\b/.test(s)) return "A";
+      if (/\bB\b/.test(s) || /PDC\s*[-(]?\s*B\b/.test(s)) return "B";
+      const n = String(course_name || "").toUpperCase();
+      if (n.includes("(AB)")) return "AB";
+      if (n.includes("(A)")) return "A";
+      if (n.includes("(B)")) return "B";
+      return "";
+    };
+
+    const initDraftForRow = (row) => {
+      draft.value = { mode: "MT", dl: {} };
+      for (const code of allDlCodes.value) {
+        draft.value.dl[code] = { mt: false, at: false };
       }
 
-      if (selectedCourse.value) {
-        result = result.filter(cert => cert.course === selectedCourse.value)
+      // default tick based on course_code for A/B only
+      if (isPDC(row)) {
+        const parsed = parsePdcAB(row?.course_code, row?.course_name);
+        const shouldA = parsed === "A" || parsed === "AB";
+        const shouldB = parsed === "B" || parsed === "AB";
+        if (shouldA) draft.value.dl["A"].mt = true;
+        if (shouldB) draft.value.dl["B"].mt = true;
+      }
+    };
+
+    const applyModeToDl = () => {
+      if (!modalRow.value || !isPDC(modalRow.value)) return;
+      const parsed = parsePdcAB(modalRow.value?.course_code, modalRow.value?.course_name);
+      const shouldA = parsed === "A" || parsed === "AB";
+      const shouldB = parsed === "B" || parsed === "AB";
+
+      if (shouldA) {
+        draft.value.dl["A"].mt = false;
+        draft.value.dl["A"].at = false;
+        draft.value.dl["A"][draft.value.mode === "AT" ? "at" : "mt"] = true;
+      }
+      if (shouldB) {
+        draft.value.dl["B"].mt = false;
+        draft.value.dl["B"].at = false;
+        draft.value.dl["B"][draft.value.mode === "AT" ? "at" : "mt"] = true;
+      }
+    };
+
+    const syncModeFromDl = () => {
+      if (!modalRow.value || !isPDC(modalRow.value)) return;
+      const aAt = !!draft.value.dl["A"]?.at;
+      const bAt = !!draft.value.dl["B"]?.at;
+      const aMt = !!draft.value.dl["A"]?.mt;
+      const bMt = !!draft.value.dl["B"]?.mt;
+
+      if ((aAt || bAt) && !(aMt || bMt)) draft.value.mode = "AT";
+      if ((aMt || bMt) && !(aAt || bAt)) draft.value.mode = "MT";
+    };
+
+    // ✅ matches backend sanitizeOverrides(): { mode, dl }
+    const draftToOverrides = () => {
+      const dl = {};
+      for (const code of Object.keys(draft.value.dl || {})) {
+        const v = draft.value.dl[code];
+        if (v?.mt || v?.at) dl[code] = { mt: !!v.mt, at: !!v.at };
+      }
+      return { mode: draft.value.mode, dl };
+    };
+
+    const rowsBase = computed(() => rows.value);
+
+    const courseOptions = computed(() => {
+      const set = new Set(rowsBase.value.map((r) => r.course_name).filter(Boolean));
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    });
+
+    const rowsFiltered = computed(() => {
+      let result = [...rowsBase.value];
+
+      if (searchQuery.value.trim()) {
+        const q = searchQuery.value.toLowerCase();
+        result = result.filter((r) => {
+          const name = (r.student_name || "").toLowerCase();
+          const email = (r.student_email || "").toLowerCase();
+          const course = (r.course_name || "").toLowerCase();
+          const code = (r.certificate_code || "").toLowerCase();
+          const courseCode = (r.course_code || "").toLowerCase();
+          return name.includes(q) || email.includes(q) || course.includes(q) || code.includes(q) || courseCode.includes(q);
+        });
       }
 
-      if (selectedStatus.value) {
-        result = result.filter(cert => cert.status === selectedStatus.value)
-      }
-
-      if (selectedDate.value) {
-        result = result.filter(cert => cert.dateIssued === selectedDate.value)
-      }
+      if (selectedCourse.value) result = result.filter((r) => r.course_name === selectedCourse.value);
+      if (selectedStatus.value) result = result.filter((r) => (r.ui_status || "") === selectedStatus.value);
+      if (selectedDate.value) result = result.filter((r) => (r.done_at || "").slice(0, 10) === selectedDate.value);
 
       result.sort((a, b) => {
         switch (sortBy.value) {
-          case 'dateDesc': return new Date(b.dateIssued) - new Date(a.dateIssued)
-          case 'dateAsc': return new Date(a.dateIssued) - new Date(b.dateIssued)
-          case 'name': return a.studentName.localeCompare(b.studentName)
-          case 'course': return a.course.localeCompare(b.course)
-          case 'status': return a.status.localeCompare(b.status)
-          default: return 0
+          case "dateDesc":
+            return new Date(b.done_at || 0) - new Date(a.done_at || 0);
+          case "dateAsc":
+            return new Date(a.done_at || 0) - new Date(b.done_at || 0);
+          case "name":
+            return (a.student_name || "").localeCompare(b.student_name || "");
+          case "course":
+            return (a.course_name || "").localeCompare(b.course_name || "");
+          case "status":
+            return (a.ui_status || "").localeCompare(b.ui_status || "");
+          default:
+            return 0;
         }
-      })
+      });
 
-      return result
-    })
+      return result;
+    });
 
-    const issuedCount = computed(() => certificates.value.filter(c => c.status === 'issued').length)
-    const pendingCount = computed(() => certificates.value.filter(c => c.status === 'pending').length)
-    const revokedCount = computed(() => certificates.value.filter(c => c.status === 'revoked').length)
+    const issuedCount = computed(() => rowsBase.value.filter((r) => r.ui_status === "issued").length);
+    const revokedCount = computed(() => rowsBase.value.filter((r) => r.ui_status === "revoked").length);
+    const readyCount = computed(() => rowsBase.value.filter((r) => r.ui_status === "ready").length);
 
-    const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+    const getInitials = (name) => {
+      const safe = String(name || "").trim();
+      if (!safe) return "??";
+      const parts = safe.split(/\s+/).filter(Boolean);
+      const first = parts[0]?.[0] || "";
+      const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
+      return (first + last).toUpperCase() || "??";
+    };
 
     const formatDate = (dateString) => {
-      if (!dateString) return '—'
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    }
+      if (!dateString) return "—";
+      const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
 
     const getStatusClass = (status) => {
       switch (status) {
-        case 'issued': return 'bg-green-100 text-green-800'
-        case 'pending': return 'bg-yellow-100 text-yellow-800'
-        case 'revoked': return 'bg-red-100 text-red-800'
-        default: return 'bg-gray-100 text-gray-800'
+        case "issued":
+          return "bg-green-100 text-green-800";
+        case "ready":
+          return "bg-yellow-100 text-yellow-800";
+        case "revoked":
+          return "bg-red-100 text-red-800";
+        default:
+          return "bg-gray-100 text-gray-800";
       }
-    }
+    };
 
-    const formatStatus = (status) => status.charAt(0).toUpperCase() + status.slice(1)
+    const formatStatus = (status) => {
+      if (status === "ready") return "Ready";
+      return String(status || "").charAt(0).toUpperCase() + String(status || "").slice(1);
+    };
 
     const clearFilters = () => {
-      searchQuery.value = ''
-      selectedCourse.value = ''
-      selectedStatus.value = ''
-      selectedDate.value = ''
-    }
+      searchQuery.value = "";
+      selectedCourse.value = "";
+      selectedStatus.value = "";
+      selectedDate.value = "";
+    };
 
-    const exportCertificates = () => alert('Exporting certificates...')
-    const generateCertificate = () => { showGenerateModal.value = true }
-    const closeGenerateModal = () => { showGenerateModal.value = false }
+    // ✅ aligned fetch to backend response
+    const fetchRows = async () => {
+      loading.value = true;
+      error.value = "";
+      try {
+        const res = await axios.get(ENDPOINTS.list, { withCredentials: true });
+        const data = res?.data?.data || [];
 
-    const viewCertificate = (certificate) => alert(`View certificate: ${certificate.certificateId} for ${certificate.studentName}`)
-    const printCertificate = (certificate) => alert(`Printing certificate: ${certificate.certificateId}`)
-    const downloadCertificate = (certificate) => alert(`Downloading certificate: ${certificate.certificateId}`)
-
-    const approveCertificate = (certificate) => {
-      if (confirm(`Approve certificate for ${certificate.studentName}?`)) {
-        certificate.status = 'issued'
-        certificate.dateIssued = new Date().toISOString().split('T')[0]
+        // normalize/safety defaults
+        rows.value = data.map((r) => ({
+          ...r,
+          ui_status: r.ui_status || (r.certificate_id ? "issued" : "ready"),
+        }));
+      } catch (e) {
+        error.value = e?.response?.data?.message || e.message || "Failed to load.";
+      } finally {
+        loading.value = false;
       }
-    }
+    };
 
-    const fetchCertificates = () => {
-      setTimeout(() => {
-        certificates.value = [
-          {
-            id: 1,
-            studentName: 'Juan Dela Cruz',
-            studentEmail: 'juan@example.com',
-            course: 'Driving NC II',
-            dateIssued: '2025-11-01',
-            certificateId: 'CERT-2025-001',
-            status: 'issued'
-          },
-          {
-            id: 2,
-            studentName: 'Maria Santos',
-            studentEmail: 'maria@example.com',
-            course: 'Bread & Pastry NC II',
-            dateIssued: '2025-10-20',
-            certificateId: 'CERT-2025-002',
-            status: 'issued'
-          },
-          {
-            id: 3,
-            studentName: 'Carlos Reyes',
-            studentEmail: 'carlos@example.com',
-            course: 'Cookery NC II',
-            dateIssued: null,
-            certificateId: 'CERT-2025-003',
-            status: 'pending'
-          },
-          {
-            id: 4,
-            studentName: 'Anna Lim',
-            studentEmail: 'anna@example.com',
-            course: 'Automotive NC I',
-            dateIssued: '2025-10-15',
-            certificateId: 'CERT-2025-004',
-            status: 'issued'
-          },
-          {
-            id: 5,
-            studentName: 'Robert Tan',
-            studentEmail: 'robert@example.com',
-            course: 'Electrical Installation NC II',
-            dateIssued: '2025-10-10',
-            certificateId: 'CERT-2025-005',
-            status: 'revoked'
-          },
-          {
-            id: 6,
-            studentName: 'Sarah Chen',
-            studentEmail: 'sarah@example.com',
-            course: 'Driving NC II',
-            dateIssued: null,
-            certificateId: 'CERT-2025-006',
-            status: 'pending'
-          }
-        ]
-        loading.value = false
-      }, 500)
-    }
+    const generateDriving = async (row, overrides = null) => {
+      error.value = "";
+      try {
+        const ok = confirm(`Generate DRIVING certificate for ${row.student_name} (${row.course_name})?`);
+        if (!ok) return;
 
-    onMounted(() => fetchCertificates())
+        const payload = { reservation_id: row.reservation_id };
+        if (overrides) payload.overrides = overrides;
+
+        await axios.post(ENDPOINTS.generate, payload, { withCredentials: true });
+        await fetchRows();
+        closeModals();
+      } catch (e) {
+        error.value = e?.response?.data?.message || e.message || "Failed to generate DRIVING certificate.";
+      }
+    };
+
+    const viewCertificate = (row) => {
+      if (!row?.certificate_id) return;
+      window.open(ENDPOINTS.view(row.certificate_id), "_blank");
+    };
+
+    const downloadCertificate = (row) => {
+      if (!row?.certificate_id) return;
+      window.open(ENDPOINTS.download(row.certificate_id), "_blank");
+    };
+
+    const openDrivingPreview = (row) => {
+      modalRow.value = row;
+      initDraftForRow(row);
+      drivingModalOpen.value = true;
+    };
+
+    const closeModals = () => {
+      drivingModalOpen.value = false;
+      modalRow.value = null;
+      draft.value = { mode: "MT", dl: {} };
+    };
+
+    const getHeadStylesHtml = () => {
+      const nodes = Array.from(document.head.querySelectorAll('link[rel="stylesheet"], style'));
+      return nodes.map((n) => n.outerHTML).join("\n");
+    };
+
+    const printPreview = () => {
+      const target = document.getElementById("driving-preview");
+      if (!target) return;
+
+      const w = window.open("", "_blank", "width=1200,height=800");
+      if (!w) return;
+
+      const styles = getHeadStylesHtml();
+
+      w.document.open();
+      w.document.write(`
+        <html>
+          <head>
+            <title>Print Certificate</title>
+            ${styles}
+            <style>
+              * { box-sizing: border-box; }
+              body { margin: 0; padding: 24px; font-family: Arial, sans-serif; background: #fff; }
+              .wrap { width: 100%; }
+              @media print { body { padding: 0; } }
+              img { max-width: 100%; }
+            </style>
+          </head>
+          <body>
+            <div class="wrap">${target.outerHTML}</div>
+          </body>
+        </html>
+      `);
+      w.document.close();
+
+      w.onload = () => {
+        w.focus();
+        w.print();
+        w.onafterprint = () => w.close();
+      };
+    };
+
+    const exportCsv = () => {
+      const headers = ["Student", "Email", "Course", "Course Code", "Done At", "Certificate Code", "Status"];
+      const lines = rowsFiltered.value.map((r) => {
+        const arr = [
+          r.student_name,
+          r.student_email,
+          r.course_name,
+          r.course_code || "",
+          (r.done_at || "").slice(0, 10),
+          r.certificate_code || "",
+          r.ui_status || "",
+        ];
+        return arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
+      });
+
+      const csv = [headers.join(","), ...lines].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `instructor-driving-certificates.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    onMounted(fetchRows);
 
     return {
-      certificates,
+      API_BASE,
+      logoUrl,
+      onLogoError,
+      toFileUrl,
+
+      rows,
       loading,
+      error,
+
       searchQuery,
       selectedCourse,
       selectedStatus,
       selectedDate,
       sortBy,
-      showGenerateModal,
 
-      filteredCertificates,
+      rowsBase,
+      rowsFiltered,
+      courseOptions,
+
       issuedCount,
-      pendingCount,
+      readyCount,
       revokedCount,
 
       getInitials,
@@ -474,14 +918,28 @@ export default {
       getStatusClass,
       formatStatus,
       clearFilters,
-      exportCertificates,
-      generateCertificate,
-      closeGenerateModal,
+
+      leftDlCodes,
+      rightDlCodes,
+      draft,
+      isPDC,
+      applyModeToDl,
+      syncModeFromDl,
+      draftToOverrides,
+
+      fetchRows,
+      generateDriving,
       viewCertificate,
-      printCertificate,
       downloadCertificate,
-      approveCertificate
-    }
-  }
-}
+
+      drivingModalOpen,
+      modalRow,
+      openDrivingPreview,
+      closeModals,
+      printPreview,
+
+      exportCsv,
+    };
+  },
+};
 </script>

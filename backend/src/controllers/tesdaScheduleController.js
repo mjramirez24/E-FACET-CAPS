@@ -11,10 +11,11 @@ function ph(arr) {
 exports.listSchedulesByCourse = async (req, res) => {
   try {
     const courseId = Number(req.query.course_id);
-    if (!courseId) {
+
+    if (!Number.isFinite(courseId) || courseId < 1) {
       return res
         .status(400)
-        .json({ status: "error", message: "course_id is required" });
+        .json({ status: "error", message: "Valid course_id is required" });
     }
 
     // We use these placeholders multiple times
@@ -50,10 +51,6 @@ exports.listSchedulesByCourse = async (req, res) => {
         -- ✅ default times if null (optional)
         TIME_FORMAT(COALESCE(s.start_time, '08:00:00'), '%H:%i') AS startTime,
         TIME_FORMAT(COALESCE(s.end_time, '17:00:00'), '%H:%i') AS endTime,
-
-        -- ✅ batch number (pick the right column name)
-        -- If you only have ONE column, replace this with: s.batch_no AS batch_no
-        s.batch_no AS batch_no,
 
         s.total_slots AS totalSlots,
         s.status AS scheduleStatus,
@@ -111,6 +108,7 @@ exports.listSchedulesByCourse = async (req, res) => {
         s.start_time ASC,
         s.schedule_id ASC
       `,
+      // OCC_PH used 3 times in the query, so we repeat OCCUPYING 3 times
       [...OCCUPYING, ...OCCUPYING, ...OCCUPYING, courseId],
     );
 

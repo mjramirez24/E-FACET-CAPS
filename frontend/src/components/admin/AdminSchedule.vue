@@ -184,10 +184,7 @@
             </div>
 
             <!-- ✅ TESDA: show batch start marker (not slots) -->
-            <div
-              v-if="activeTrack === 'tesda' && date.isTesdaStart"
-              class="text-xs mt-1"
-            >
+            <div v-if="activeTrack === 'tesda' && date.isTesdaStart" class="text-xs mt-1">
               <span class="text-green-700 font-semibold">Batch Start</span>
             </div>
 
@@ -709,29 +706,30 @@
                 </div>
               </template>
 
-              <!-- Instructor/Trainer -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  {{ activeTrack === 'tesda' ? 'Trainer' : 'Instructor' }}
-                  <span v-if="activeTrack==='tesda'" class="text-xs text-gray-500">(optional)</span>
-                </label>
-
+              <!-- ✅ Instructor (Driving only) -->
+              <div v-if="activeTrack !== 'tesda'">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
                 <select
-                  v-model.number="personId"
-                  :required="activeTrack !== 'tesda'"
+                  v-model.number="formData.instructor_id"
+                  required
                   class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
-                  <option :value="0">
-                    {{ activeTrack === 'tesda' ? '— (none yet)' : 'Select instructor' }}
-                  </option>
+                  <option :value="0" disabled>Select instructor</option>
                   <option
                     v-for="p in instructors"
-                    :key="activeTrack === 'tesda' ? p.trainer_id : p.instructor_id"
-                    :value="activeTrack === 'tesda' ? p.trainer_id : p.instructor_id"
+                    :key="p.instructor_id"
+                    :value="p.instructor_id"
                   >
                     {{ p.firstname }} {{ p.lastname }}
                   </option>
                 </select>
+              </div>
+
+              <!-- ✅ TESDA note (NO TRAINER PICKING) -->
+              <div v-else class="md:col-span-2">
+                <div class="p-3 rounded-md border bg-gray-50 text-sm text-gray-700">
+                  <b>Trainer:</b> automatically comes from the TESDA Course Trainer Assignment (per course).
+                </div>
               </div>
 
               <!-- Time -->
@@ -885,12 +883,6 @@ const timeToMins = (t) => {
   return (h || 0) * 60 + (m || 0);
 };
 
-const addDaysYMD = (ymd, addDays) => {
-  const d = new Date(`${ymd}T00:00:00`);
-  d.setDate(d.getDate() + addDays);
-  return toLocalYMD(d);
-};
-
 const withinFacetHours = (start, end) => {
   return (
     timeToMins(start) >= timeToMins(OPEN_TIME) &&
@@ -904,7 +896,6 @@ const TESDA_BATCH_CAP = 25;
 
 // ===============================
 // ✅ TESDA: duration -> training days (Mon–Sat), skipping Sundays
-// IMPORTANT: order matters (avoid hoisting issues)
 // ===============================
 const TESDA_HOURS_PER_DAY = 9;
 
@@ -917,13 +908,6 @@ const parseDurationHours = (duration) => {
 const tesdaDaysFromDuration = (duration) => {
   const totalHours = parseDurationHours(duration);
   return totalHours > 0 ? Math.max(1, Math.ceil(totalHours / TESDA_HOURS_PER_DAY)) : 1;
-};
-
-const isSundayYMD = (ymd) => {
-  if (!ymd) return false;
-  const d = new Date(`${ymd}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getDay() === 0;
 };
 
 const isMonToSatYMD = (ymd) => {
@@ -950,12 +934,12 @@ const listTesdaTrainingDays = (startYmd, duration) => {
   if (!startYmd) return [];
   if (!isMonToSatYMD(startYmd)) return []; // start date must be Mon-Sat
 
-  const daysNeeded = tesdaDaysFromDuration(duration); // ex: 3 days
+  const daysNeeded = tesdaDaysFromDuration(duration);
   const out = [startYmd];
 
   let cur = startYmd;
   while (out.length < daysNeeded) {
-    cur = addDaysSkipSundays(cur, 1); // next training day
+    cur = addDaysSkipSundays(cur, 1);
     out.push(cur);
   }
   return out;
@@ -980,7 +964,7 @@ export default {
 
     const schedules = ref([]);
     const coursesRaw = ref([]);
-    const instructors = ref([]);
+    const instructors = ref([]); // only for driving dropdown
 
     const searchQuery = ref("");
     const selectedCourseId = ref(0);
@@ -1009,23 +993,12 @@ export default {
     const formData = reactive({
       id: null,
       course_id: "",
-      instructor_id: "",
-      trainer_id: "",
+      instructor_id: 0, // ✅ driving only
       schedule_date: "",
       start_time: OPEN_TIME,
       end_time: "12:00",
       total_slots: 10,
       status: "open",
-    });
-
-    const personId = computed({
-      get() {
-        return activeTrack.value === "tesda" ? formData.trainer_id : formData.instructor_id;
-      },
-      set(val) {
-        if (activeTrack.value === "tesda") formData.trainer_id = val;
-        else formData.instructor_id = val;
-      },
     });
 
     // BULK MODE (Driving only)
@@ -1045,7 +1018,7 @@ export default {
     // endpoints
     const scheduleUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/schedules" : "/admin/schedules");
     const coursesUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/courses" : "/admin/courses");
-    const peopleUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/trainers" : "/admin/instructors");
+    const peopleUrl = () => "/admin/instructors"; // ✅ driving only (tesda = no dropdown)
 
     const courseById = computed(() => {
       const m = new Map();
@@ -1306,7 +1279,10 @@ export default {
             day: i,
             date: d,
             isCurrentMonth: true,
-            isToday: d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear(),
+            isToday:
+              d.getDate() === today.getDate() &&
+              d.getMonth() === today.getMonth() &&
+              d.getFullYear() === today.getFullYear(),
             slotCount: daySchedules.length > 0 ? slotCount : null,
             isTesdaStart: false,
             isTesdaEnd: false,
@@ -1329,7 +1305,10 @@ export default {
           day: i,
           date: d,
           isCurrentMonth: true,
-          isToday: d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear(),
+          isToday:
+            d.getDate() === today.getDate() &&
+            d.getMonth() === today.getMonth() &&
+            d.getFullYear() === today.getFullYear(),
           slotCount: null,
           isTesdaStart: startBatches.length > 0,
           isTesdaEnd: endBatches.length > 0,
@@ -1442,7 +1421,12 @@ export default {
       coursesRaw.value = Array.isArray(res.data?.data) ? res.data.data : [];
     };
 
+    // ✅ Only fetch instructors for driving (TESDA = no picking)
     const fetchInstructors = async () => {
+      if (activeTrack.value === "tesda") {
+        instructors.value = [];
+        return;
+      }
       const res = await api.get(peopleUrl());
       instructors.value = Array.isArray(res.data?.data) ? res.data.data : [];
     };
@@ -1467,12 +1451,16 @@ export default {
               ...s,
               id: Number.isFinite(fixedId) && fixedId > 0 ? fixedId : null,
               course_id: Number(s.course_id),
+              // NOTE: backend might still return instructor_id field; we keep it for driving edit only
               instructor_id: Number(s.instructor_id || 0),
               date: normalizedDate || "",
+              // TESDA trainer name should be in `instructor` (same display field)
               instructor: instructorName || (activeTrack.value === "tesda" ? "" : instructorName),
               startTime: s.startTime || OPEN_TIME,
               endTime: s.endTime || CLOSE_TIME,
-              totalSlots: Number(s.totalSlots ?? s.total_slots ?? (activeTrack.value === "tesda" ? TESDA_BATCH_CAP : 0)),
+              totalSlots: Number(
+                s.totalSlots ?? s.total_slots ?? (activeTrack.value === "tesda" ? TESDA_BATCH_CAP : 0)
+              ),
               availableSlots: Number(s.availableSlots ?? 0),
               computedStatus: s.computedStatus || s.scheduleStatus || "",
               batch_no: s.batch_no || null,
@@ -1489,8 +1477,7 @@ export default {
     const resetForm = () => {
       formData.id = null;
       formData.course_id = "";
-      formData.instructor_id = "";
-      formData.trainer_id = "";
+      formData.instructor_id = 0; // ✅ only driving uses it
       formData.schedule_date = "";
       formData.start_time = OPEN_TIME;
       formData.end_time = activeTrack.value === "tesda" ? CLOSE_TIME : "12:00";
@@ -1519,13 +1506,8 @@ export default {
       formData.id = id;
       formData.course_id = Number(schedule.course_id);
 
-      if (activeTrack.value === "tesda") {
-        formData.trainer_id = Number(schedule.instructor_id || 0) || 0;
-        formData.instructor_id = "";
-      } else {
-        formData.instructor_id = Number(schedule.instructor_id || 0);
-        formData.trainer_id = "";
-      }
+      // ✅ driving keeps instructor_id, tesda sets 0 (no picking)
+      formData.instructor_id = activeTrack.value === "tesda" ? 0 : (Number(schedule.instructor_id || 0) || 0);
 
       formData.schedule_date = String(schedule.date || "");
       formData.start_time = activeTrack.value === "tesda" ? OPEN_TIME : String(schedule.startTime);
@@ -1550,7 +1532,9 @@ export default {
         );
         return;
       }
-      alert(`View schedule: ${schedule.course} on ${formatDate(schedule.date)} (${schedule.startTime}-${schedule.endTime})`);
+      alert(
+        `View schedule: ${schedule.course} on ${formatDate(schedule.date)} (${schedule.startTime}-${schedule.endTime})`
+      );
     };
 
     const closeModal = () => {
@@ -1573,15 +1557,15 @@ export default {
       showDeleteModal.value = false;
     };
 
-    // SAVE
+    // ✅ SAVE (REMOVED trainer_id completely)
     const saveSchedule = async () => {
       if (saving.value) return;
 
       const courseId = Number(formData.course_id);
-      const selectedPersonId = Number(personId.value || 0);
+      const instructorId = Number(formData.instructor_id || 0);
 
       if (!courseId) return alert("Course is required");
-      if (activeTrack.value !== "tesda" && !selectedPersonId) return alert("Instructor is required");
+      if (activeTrack.value !== "tesda" && !instructorId) return alert("Instructor is required");
 
       // ✅ TESDA: block Sunday BEFORE API call
       if (activeTrack.value === "tesda" && formData.schedule_date) {
@@ -1611,8 +1595,8 @@ export default {
               : (formData.status || "open"),
         };
 
-        if (activeTrack.value === "tesda") base.trainer_id = selectedPersonId || null;
-        else base.instructor_id = selectedPersonId;
+        // ✅ ONLY driving sends instructor_id
+        if (activeTrack.value !== "tesda") base.instructor_id = instructorId;
 
         const payload = {
           ...base,
@@ -1671,11 +1655,15 @@ export default {
       listCourseFilter.value = 0;
       resetForm();
       resetListFilters();
+
       try {
-        await Promise.all([fetchCourses(), fetchInstructors()]);
+        // ✅ always fetch courses; instructors only when driving
+        await fetchCourses();
+        await fetchInstructors();
       } catch (e) {
         console.error("dropdown fetch error:", e);
       }
+
       await fetchSchedules();
     };
 
@@ -1718,7 +1706,6 @@ export default {
       closeDayModal,
 
       formData,
-      personId,
       saving,
       deleting,
 

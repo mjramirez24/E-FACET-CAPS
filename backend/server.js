@@ -81,6 +81,8 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const studentRoutes = require("./src/routes/studentRoutes");
 const instructorRoutes = require("./src/routes/instructorRoutes");
 const trainerRoutes = require("./src/routes/trainerRoutes");
+const trainerTesdaStudentsRoutes = require("./src/routes/trainerTesdaStudentsRoutes");
+const trainerTesdaSchedulesRoutes = require("./src/routes/trainerTesdaSchedulesRoutes");
 
 const adminTesdaRoutes = require("./src/routes/adminTesdaRoutes");
 const tesdaPublicRoutes = require("./src/routes/tesdaPublicRoutes");
@@ -94,6 +96,8 @@ const studentResCtrl = require("./src/controllers/studentReservationController")
 
 // ⏰ Import reminder scheduler
 const { initializeReminderScheduler } = require("./src/jobs/reminderScheduler");
+
+const instructorCertificatesRoutes = require("./src/routes/instructorCertificatesRoutes");
 
 // ==============================
 // Auto mark DONE reservations
@@ -127,6 +131,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/instructor", instructorRoutes);
 app.use("/api/trainer", trainerRoutes);
+app.use("/api/trainer", trainerTesdaSchedulesRoutes);
+app.use("/api/trainer", trainerTesdaStudentsRoutes);
 
 // ==============================
 // ⏰ Initialize Reminder Scheduler
@@ -168,6 +174,9 @@ app.get("/", (req, res) => {
 app.use("/api/messages", require("./src/routes/messageRoutes")); 
 app.use("/api/instructor", require("./src/routes/instructorRoutes"));
 app.use("/api", require("./src/routes/instructorApiRoutes"));
+app.use("/api", instructorCertificatesRoutes);
+
+app.use("/api/debug", require("./src/routes/authDebugRoutes"));
 
 // ==============================
 // 404 handler (MUST be last before error handler)

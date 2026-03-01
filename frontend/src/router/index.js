@@ -155,8 +155,6 @@ const InstructorClasses = () =>
   import("../components/instructor/InstructorClasses.vue");
 const InstructorStudents = () =>
   import("../components/instructor/InstructorStudents.vue");
-const InstructorSchedule = () =>
-  import("../components/instructor/InstructorSchedule.vue");
 const InstructorCertificates = () =>
   import("../components/instructor/InstructorCertificates.vue");
 const InstructorMessages = () =>
@@ -181,12 +179,6 @@ const instructorRoutes = [
     path: "/instructor-students",
     name: "InstructorStudents",
     component: InstructorStudents,
-    meta: { requiresAuth: true, requiresInstructor: true },
-  },
-  {
-    path: "/instructor-schedule",
-    name: "InstructorSchedule",
-    component: InstructorSchedule,
     meta: { requiresAuth: true, requiresInstructor: true },
   },
   {
@@ -219,8 +211,6 @@ const TrainerCourses = () =>
   import("../components/trainer/TrainerCourses.vue");
 const TrainerStudents = () =>
   import("../components/trainer/TrainerStudents.vue");
-const TrainerSchedule = () =>
-  import("../components/trainer/TrainerSchedule.vue");
 const TrainerCertificates = () =>
   import("../components/trainer/TrainerCertificates.vue");
 const TrainerMessages = () =>
@@ -245,12 +235,6 @@ const trainerRoutes = [
     path: "/trainer-students",
     name: "TrainerStudents",
     component: TrainerStudents,
-    meta: { requiresAuth: true, requiresTrainer: true },
-  },
-  {
-    path: "/trainer-schedule",
-    name: "TrainerSchedule",
-    component: TrainerSchedule,
     meta: { requiresAuth: true, requiresTrainer: true },
   },
   {

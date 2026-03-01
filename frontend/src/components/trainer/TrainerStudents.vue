@@ -14,12 +14,23 @@
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-lg font-bold text-blue-800">👨‍🎓 My Students</h2>
+
+        <!-- ✅ optional: keep button but disabled for now -->
         <button
-          @click="openAddModal"
-          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          disabled
+          title="Backend not implemented yet"
+          class="bg-blue-300 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm cursor-not-allowed"
         >
           ➕ Add New Student
         </button>
+      </div>
+
+      <!-- Error Banner -->
+      <div
+        v-if="errorMsg"
+        class="mb-4 p-3 rounded border border-red-200 bg-red-50 text-red-700 text-sm"
+      >
+        {{ errorMsg }}
       </div>
 
       <!-- Filters -->
@@ -28,14 +39,10 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
           <select
             v-model="selectedCourse"
-            class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-56 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">All Courses</option>
-            <option value="Driving NC II">Driving NC II</option>
-            <option value="ATDC NC I">ATDC NC I</option>
-            <option value="Electrical Installation NC II">Electrical Installation NC II</option>
-            <option value="Cookery NC II">Cookery NC II</option>
-            <option value="Bread & Pastry">Bread & Pastry</option>
+            <option v-for="c in courseOptions" :key="c" :value="c">{{ c }}</option>
           </select>
         </div>
 
@@ -58,6 +65,12 @@
             class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
           >
             Clear
+          </button>
+          <button
+            @click="fetchStudents"
+            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+          >
+            Refresh
           </button>
         </div>
       </div>
@@ -98,7 +111,7 @@
           <tbody>
             <tr
               v-for="student in filteredStudents"
-              :key="student.id"
+              :key="`${student.id}-${student.course_id}`"
               class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <td class="py-3 px-4 flex items-center gap-3">
@@ -111,33 +124,31 @@
                 </div>
               </td>
 
-              <td class="py-3 px-4">{{ student.course }}</td>
+              <td class="py-3 px-4">
+                <div class="font-medium">{{ student.course }}</div>
+                <div class="text-xs text-gray-500">Code: {{ student.course_code || "—" }}</div>
+              </td>
 
               <td class="py-3 px-4">
                 <span :class="getStatusClass(student.status)">
                   {{ formatStatus(student.status) }}
                 </span>
+                <div class="text-xs text-gray-500 mt-1">
+                  Enrolled: {{ formatDate(student.enrollmentDate) }}
+                </div>
               </td>
 
               <td class="py-3 px-4">
                 <button
                   @click="viewStudent(student)"
-                  class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-3"
+                  class="text-blue-600 hover:text-blue-800 text-sm font-medium"
                 >
                   View
                 </button>
-                <button
-                  @click="editStudent(student)"
-                  class="text-yellow-600 hover:text-yellow-800 text-sm font-medium mr-3"
-                >
-                  Edit
-                </button>
-                <button
-                  @click="confirmDelete(student)"
-                  class="text-red-600 hover:text-red-800 text-sm font-medium"
-                >
-                  Delete
-                </button>
+
+                <!-- ✅ hide edit/delete until you implement backend -->
+                <span class="text-gray-300 mx-2">|</span>
+                <span class="text-xs text-gray-400">Edit/Delete soon</span>
               </td>
             </tr>
 
@@ -149,138 +160,51 @@
           </tbody>
         </table>
       </div>
-
-      <!-- Pagination -->
-      <div v-if="filteredStudents.length > 0" class="mt-6 flex justify-between items-center">
-        <div class="text-sm text-gray-600">
-          Page 1 of 1 • {{ filteredStudents.length }} items
-        </div>
-        <div class="flex gap-1">
-          <button class="px-3 py-1 border rounded text-sm hover:bg-gray-50">← Previous</button>
-          <button class="px-3 py-1 bg-blue-700 text-white rounded text-sm">1</button>
-          <button class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Next →</button>
-        </div>
-      </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg w-full max-w-md">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-blue-800">
-              {{ isEditing ? 'Edit Student' : 'Add New Student' }}
-            </h3>
-            <button @click="closeModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-          </div>
-
-          <form @submit.prevent="saveStudent">
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  v-model="formData.name"
-                  required
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter student name"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  v-model="formData.email"
-                  required
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter student email"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                <select
-                  v-model="formData.course"
-                  required
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="" disabled>Select a course</option>
-                  <option value="Driving NC II">Driving NC II</option>
-                  <option value="ATDC NC I">ATDC NC I</option>
-                  <option value="Electrical Installation NC II">Electrical Installation NC II</option>
-                  <option value="Cookery NC II">Cookery NC II</option>
-                  <option value="Bread & Pastry">Bread & Pastry</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  v-model="formData.status"
-                  required
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="flex justify-end gap-2 mt-6">
-              <button
-                type="button"
-                @click="closeModal"
-                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium"
-              >
-                {{ isEditing ? 'Update' : 'Save' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <!-- View Modal -->
+    <div v-if="showViewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg w-full max-w-md p-6">
-        <div class="mb-4">
-          <h3 class="text-lg font-bold text-red-600 mb-2">Confirm Deletion</h3>
-          <p class="text-gray-600">
-            Are you sure you want to delete
-            <span class="font-semibold">{{ studentToDelete?.name }}</span>?
-            This action cannot be undone.
-          </p>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-blue-800">Student Details</h3>
+          <button @click="closeViewModal" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
         </div>
-        <div class="flex justify-end gap-2">
+
+        <div class="space-y-2 text-sm">
+          <div><span class="font-semibold">Name:</span> {{ selectedStudent.name }}</div>
+          <div><span class="font-semibold">Email:</span> {{ selectedStudent.email }}</div>
+          <div><span class="font-semibold">Course:</span> {{ selectedStudent.course }}</div>
+          <div><span class="font-semibold">Course Code:</span> {{ selectedStudent.course_code || "—" }}</div>
+          <div>
+            <span class="font-semibold">Status:</span>
+            <span :class="getStatusClass(selectedStudent.status)">{{ formatStatus(selectedStudent.status) }}</span>
+          </div>
+          <div><span class="font-semibold">Enrollment Date:</span> {{ formatDate(selectedStudent.enrollmentDate) }}</div>
+        </div>
+
+        <div class="flex justify-end mt-6">
           <button
-            @click="cancelDelete"
+            @click="closeViewModal"
             class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
           >
-            Cancel
-          </button>
-          <button
-            @click="deleteStudent"
-            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
-          >
-            Delete
+            Close
           </button>
         </div>
       </div>
     </div>
+
   </TrainerLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted, reactive } from "vue";
+import { ref, computed, onMounted } from "vue";
+import axios from "axios";
 import TrainerLayout from "./TrainerLayout.vue";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
 
 export default {
   name: "TrainerStudents",
@@ -288,35 +212,34 @@ export default {
   setup() {
     const students = ref([]);
     const loading = ref(true);
+    const errorMsg = ref("");
 
     const searchQuery = ref("");
     const selectedCourse = ref("");
     const selectedStatus = ref("");
     const sortBy = ref("name");
 
-    const showModal = ref(false);
-    const showDeleteModal = ref(false);
-    const isEditing = ref(false);
-    const studentToDelete = ref(null);
+    // view modal
+    const showViewModal = ref(false);
+    const selectedStudent = ref({});
 
-    const formData = reactive({
-      id: null,
-      name: "",
-      email: "",
-      course: "",
-      status: "active",
+    const courseOptions = computed(() => {
+      return [...new Set(students.value.map((s) => s.course).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b),
+      );
     });
 
     const filteredStudents = computed(() => {
       let result = [...students.value];
 
-      if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase();
+      const q = (searchQuery.value || "").toLowerCase().trim();
+      if (q) {
         result = result.filter(
           (s) =>
-            s.name.toLowerCase().includes(q) ||
-            s.email.toLowerCase().includes(q) ||
-            s.course.toLowerCase().includes(q)
+            (s.name || "").toLowerCase().includes(q) ||
+            (s.email || "").toLowerCase().includes(q) ||
+            (s.course || "").toLowerCase().includes(q) ||
+            (s.course_code || "").toLowerCase().includes(q),
         );
       }
 
@@ -326,13 +249,13 @@ export default {
       result.sort((a, b) => {
         switch (sortBy.value) {
           case "name":
-            return a.name.localeCompare(b.name);
+            return (a.name || "").localeCompare(b.name || "");
           case "nameDesc":
-            return b.name.localeCompare(a.name);
+            return (b.name || "").localeCompare(a.name || "");
           case "date":
-            return new Date(b.enrollmentDate) - new Date(a.enrollmentDate);
+            return new Date(b.enrollmentDate || 0) - new Date(a.enrollmentDate || 0);
           case "status":
-            return a.status.localeCompare(b.status);
+            return (a.status || "").localeCompare(b.status || "");
           default:
             return 0;
         }
@@ -341,10 +264,18 @@ export default {
       return result;
     });
 
-    const getInitials = (name) =>
-      name.split(" ").map((n) => n[0]).join("").toUpperCase().substring(0, 2);
+    const getInitials = (name) => {
+      const n = String(name || "").trim();
+      if (!n) return "S";
+      return n
+        .split(" ")
+        .filter(Boolean)
+        .map((x) => x[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    };
 
-    // keep status colors (they are meaning-based, not theme-based)
     const getStatusClass = (status) => {
       switch (status) {
         case "active":
@@ -358,7 +289,17 @@ export default {
       }
     };
 
-    const formatStatus = (status) => status.charAt(0).toUpperCase() + status.slice(1);
+    const formatStatus = (status) => {
+      const s = String(status || "");
+      return s ? s.charAt(0).toUpperCase() + s.slice(1) : "Unknown";
+    };
+
+    const formatDate = (val) => {
+      if (!val) return "—";
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
 
     const clearFilters = () => {
       searchQuery.value = "";
@@ -366,28 +307,39 @@ export default {
       selectedStatus.value = "";
     };
 
-    // placeholders (same as yours)
-    const openAddModal = () => { isEditing.value = false; showModal.value = true; };
-    const editStudent = (student) => { isEditing.value = true; Object.assign(formData, student); showModal.value = true; };
-    const viewStudent = (student) => alert(`View student: ${student.name}`);
-    const closeModal = () => { showModal.value = false; };
-    const saveStudent = () => { closeModal(); };
-    const confirmDelete = (student) => { studentToDelete.value = student; showDeleteModal.value = true; };
-    const cancelDelete = () => { studentToDelete.value = null; showDeleteModal.value = false; };
-    const deleteStudent = () => { cancelDelete(); };
+    const viewStudent = (student) => {
+      selectedStudent.value = { ...student };
+      showViewModal.value = true;
+    };
 
-    const fetchStudents = () => {
-      setTimeout(() => {
-        students.value = [
-          { id: 1, name: "John Doe", email: "john@example.com", course: "Driving NC II", status: "active", enrollmentDate: "2025-11-01" },
-          { id: 2, name: "Jane Smith", email: "jane@example.com", course: "ATDC NC I", status: "pending", enrollmentDate: "2025-10-29" },
-          { id: 3, name: "Michael Reyes", email: "michael@example.com", course: "Driving NC II", status: "active", enrollmentDate: "2025-10-27" },
-          { id: 4, name: "Sarah Johnson", email: "sarah@example.com", course: "Cookery NC II", status: "pending", enrollmentDate: "2025-10-25" },
-          { id: 5, name: "Robert Chen", email: "robert@example.com", course: "Bread & Pastry", status: "inactive", enrollmentDate: "2025-10-23" },
-          { id: 6, name: "Lisa Wang", email: "lisa@example.com", course: "Driving NC II", status: "active", enrollmentDate: "2025-10-20" },
-        ];
+    const closeViewModal = () => {
+      showViewModal.value = false;
+      selectedStudent.value = {};
+    };
+
+    const fetchStudents = async () => {
+      loading.value = true;
+      errorMsg.value = "";
+      try {
+        const res = await api.get("/trainer/tesda/students");
+        const rows = res.data?.data ?? [];
+        students.value = rows.map((r) => ({
+          id: Number(r.id),
+          name: r.name || "Student",
+          email: r.email || "",
+          course_id: Number(r.course_id),
+          course: r.course || r.course_name || "(unknown)",
+          course_code: r.course_code || "",
+          status: r.status || "pending",
+          enrollmentDate: r.enrollmentDate || r.created_at || null,
+        }));
+      } catch (err) {
+        console.error("fetchStudents error:", err);
+        students.value = [];
+        errorMsg.value = err.response?.data?.message || "Failed to load students";
+      } finally {
         loading.value = false;
-      }, 500);
+      }
     };
 
     onMounted(fetchStudents);
@@ -395,28 +347,28 @@ export default {
     return {
       students,
       loading,
+      errorMsg,
+
       searchQuery,
       selectedCourse,
       selectedStatus,
       sortBy,
-      showModal,
-      showDeleteModal,
-      isEditing,
-      studentToDelete,
-      formData,
+
+      courseOptions,
       filteredStudents,
+
       getInitials,
       getStatusClass,
       formatStatus,
+      formatDate,
       clearFilters,
-      openAddModal,
-      editStudent,
+
       viewStudent,
-      closeModal,
-      saveStudent,
-      confirmDelete,
-      cancelDelete,
-      deleteStudent,
+      showViewModal,
+      selectedStudent,
+      closeViewModal,
+
+      fetchStudents,
     };
   },
 };

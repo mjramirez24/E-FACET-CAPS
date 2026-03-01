@@ -6,6 +6,7 @@ const { requireTrainer } = require("../middlewares/authMiddleware");
 
 // ✅ add this controller
 const trainerTesdaController = require("../controllers/trainerTesdaController");
+const trainerTesdaStudentsController = require("../controllers/trainerTesdaStudentsController");
 
 // protect all trainer endpoints
 router.use(requireTrainer);

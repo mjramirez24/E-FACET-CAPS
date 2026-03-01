@@ -49,18 +49,6 @@
           <span class="ml-2">👨‍🎓 My Students</span>
         </router-link>
 
-        <router-link
-          to="/trainer-schedule"
-          :class="[
-            'flex items-center px-5 py-2 rounded-r-full',
-            $route.name === 'TrainerSchedule'
-              ? 'bg-blue-100 text-blue-700 font-medium'
-              : 'hover:bg-gray-200'
-          ]"
-        >
-          <span class="ml-2">🗓️ Schedule</span>
-        </router-link>
-
         <!-- ✅ Attendance (added) -->
         <router-link
           to="/trainer-attendance"
