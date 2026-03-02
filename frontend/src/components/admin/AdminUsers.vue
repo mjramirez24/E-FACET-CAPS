@@ -1,10 +1,11 @@
+<!-- frontend/src/components/admin/AdminUsers.vue -->
 <template>
   <AdminLayout>
     <!-- Header -->
     <template #header-left>
       <input
         type="text"
-        placeholder="Search users (name/username/email)..."
+        placeholder="Search users (any field)..."
         v-model="searchQuery"
         class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
         @input="handleSearch"
@@ -37,124 +38,192 @@
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-xl font-bold text-green-800">👥 User Management</h2>
 
-        <button
-          @click="openAddModal"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md text-sm font-medium"
-        >
-          ➕ Add User
-        </button>
+        <div class="flex gap-2">
+          <button
+            @click="toggleColumnsPanel"
+            class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
+          >
+            {{ showColumnsPanel ? "Hide Columns" : "Show Columns" }}
+          </button>
+
+          <button
+            @click="openAddModal"
+            class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            ➕ Add User
+          </button>
+        </div>
       </div>
 
       <!-- Loading -->
       <div v-if="loading" class="text-gray-600">Loading users...</div>
 
-      <!-- Table -->
-      <div v-else class="overflow-x-auto">
-        <table class="w-full text-sm border border-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="p-3 text-left border-b">ID</th>
-              <th class="p-3 text-left border-b">Full Name</th>
-              <th class="p-3 text-left border-b">Username</th>
-              <th class="p-3 text-left border-b">Email</th>
-              <th class="p-3 text-left border-b">Role</th>
-              <th class="p-3 text-left border-b">Track</th>
-              <th class="p-3 text-left border-b">Status</th>
-              <th class="p-3 text-left border-b">Gender</th>
-              <th class="p-3 text-left border-b">Birthday</th>
-              <th class="p-3 text-left border-b">Actions</th>
-            </tr>
-          </thead>
+      <div v-else>
+        <!-- Column visibility -->
+        <div
+          v-if="showColumnsPanel"
+          class="bg-white border border-gray-200 rounded-xl p-4 mb-4"
+        >
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-gray-800">Column visibility</p>
+              <p class="text-xs text-gray-500">Toggle columns (table only)</p>
+            </div>
 
-          <tbody>
-            <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
-              <td class="p-3 border-b">{{ u.id }}</td>
-              <td class="p-3 border-b">{{ u.fullname }}</td>
-              <td class="p-3 border-b">{{ u.username }}</td>
-              <td class="p-3 border-b">{{ u.email }}</td>
+            <div class="flex gap-2 flex-wrap">
+              <button
+                class="px-3 py-1 border rounded-md hover:bg-gray-50 text-xs"
+                @click="applyPreset('minimal')"
+              >
+                Preset: Minimal
+              </button>
 
-              <td class="p-3 border-b">
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-medium"
-                  :class="roleBadge(u.role)"
-                >
-                  {{ u.role }}
-                </span>
-              </td>
+              <button
+                class="px-3 py-1 border rounded-md hover:bg-gray-50 text-xs"
+                @click="applyPreset('all')"
+              >
+                Preset: Show all
+              </button>
+            </div>
+          </div>
 
-              <td class="p-3 border-b">{{ u.track_code || "-" }}</td>
-
-              <td class="p-3 border-b">
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-medium"
-                  :class="statusBadge(u)"
-                >
-                  {{ statusLabel(u) }}
-                </span>
-              </td>
-
-              <td class="p-3 border-b">{{ u.gender || "-" }}</td>
-              <td class="p-3 border-b">{{ formatBirthday(u.birthday) }}</td>
-
-              <td class="p-3 border-b">
-                <div class="flex gap-2 flex-wrap">
-                  <button
-                    v-if="canToggleDisable(u)"
-                    @click="toggleDisable(u)"
-                    class="px-3 py-1 rounded-md text-white text-xs"
-                    :class="Number(u?.is_disabled || 0) === 1 ? 'bg-green-700 hover:bg-green-800' : 'bg-gray-700 hover:bg-gray-800'"
-                  >
-                    {{ Number(u?.is_disabled || 0) === 1 ? "✅ Enable" : "🚫 Disable" }}
-                  </button>
-
-                  <button
-                    @click="openEditModal(u)"
-                    class="px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                  >
-                    ✏️ Edit
-                  </button>
-
-                  <button
-                    @click="confirmDelete(u)"
-                    class="px-3 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs"
-                  >
-                    🗑 Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-
-            <tr v-if="users.length === 0">
-              <td colspan="10" class="p-5 text-center text-gray-500">No users found.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div class="flex items-center justify-between mt-4 text-sm text-gray-700">
-        <div>
-          Total: <span class="font-semibold">{{ meta.total }}</span>
+          <div class="mt-3 flex flex-wrap gap-4">
+            <label
+              v-for="c in allColumns"
+              :key="c.key"
+              class="inline-flex items-center gap-2 text-sm"
+            >
+              <input
+                type="checkbox"
+                v-model="visibleCols[c.key]"
+                :disabled="c.key === 'actions'"
+              />
+              <span>{{ c.label }}</span>
+            </label>
+          </div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <button
-            class="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
-            :disabled="meta.page <= 1"
-            @click="goPage(meta.page - 1)"
-          >
-            Prev
-          </button>
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border border-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th
+                  v-for="c in displayedColumns"
+                  :key="c.key"
+                  class="p-3 text-left border-b"
+                >
+                  {{ c.label }}
+                </th>
+              </tr>
+            </thead>
 
-          <span>Page {{ meta.page }} / {{ meta.totalPages }}</span>
+            <tbody>
+              <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
+                <td
+                  v-for="c in displayedColumns"
+                  :key="c.key"
+                  class="p-3 border-b"
+                >
+                  <!-- Actions column -->
+                  <template v-if="c.key === 'actions'">
+                    <div class="flex gap-2 flex-wrap">
+                      <button
+                        v-if="canToggleDisable(u)"
+                        @click="toggleDisable(u)"
+                        class="px-3 py-1 rounded-md text-white text-xs"
+                        :class="Number(u?.is_disabled || 0) === 1 ? 'bg-green-700 hover:bg-green-800' : 'bg-gray-700 hover:bg-gray-800'"
+                      >
+                        {{ Number(u?.is_disabled || 0) === 1 ? "✅ Enable" : "🚫 Disable" }}
+                      </button>
 
-          <button
-            class="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
-            :disabled="meta.page >= meta.totalPages"
-            @click="goPage(meta.page + 1)"
-          >
-            Next
-          </button>
+                      <button
+                        @click="openEditModal(u)"
+                        class="px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                      >
+                        ✏️ Edit
+                      </button>
+
+                      <button
+                        @click="confirmDelete(u)"
+                        class="px-3 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs"
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+                  </template>
+
+                  <!-- Role badge -->
+                  <template v-else-if="c.key === 'role'">
+                    <span
+                      class="px-2 py-1 rounded-full text-xs font-medium"
+                      :class="roleBadge(u.role)"
+                    >
+                      {{ u.role }}
+                    </span>
+                  </template>
+
+                  <!-- Status badge -->
+                  <template v-else-if="c.key === 'status'">
+                    <span
+                      class="px-2 py-1 rounded-full text-xs font-medium"
+                      :class="statusBadge(u)"
+                    >
+                      {{ statusLabel(u) }}
+                    </span>
+                  </template>
+
+                  <!-- Birthday formatted -->
+                  <template v-else-if="c.key === 'birthday'">
+                    {{ formatBirthday(u.birthday) }}
+                  </template>
+
+                  <!-- Track field from API -->
+                  <template v-else-if="c.key === 'track'">
+                    {{ u.track_code || "-" }}
+                  </template>
+
+                  <!-- Normal fields -->
+                  <template v-else>
+                    {{ u?.[c.key] ?? "-" }}
+                  </template>
+                </td>
+              </tr>
+
+              <tr v-if="users.length === 0">
+                <td :colspan="displayedColumns.length" class="p-5 text-center text-gray-500">
+                  No users found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-4 text-sm text-gray-700">
+          <div>
+            Total: <span class="font-semibold">{{ meta.total }}</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              class="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
+              :disabled="meta.page <= 1"
+              @click="goPage(meta.page - 1)"
+            >
+              Prev
+            </button>
+
+            <span>Page {{ meta.page }} / {{ meta.totalPages }}</span>
+
+            <button
+              class="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
+              :disabled="meta.page >= meta.totalPages"
+              @click="goPage(meta.page + 1)"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -190,11 +259,92 @@
             <input v-model="form.contact" class="w-full p-2 border rounded-md" />
           </div>
 
+          <!-- Address parts (PH implied) -->
+          <div class="md:col-span-2">
+            <label class="text-xs text-gray-600">Address (PH implied)</label>
+
+            <div class="mt-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                v-model="addressParts.street"
+                class="w-full p-2 border rounded-md"
+                placeholder="Street / Sitio / House No."
+              />
+              <input
+                v-model="addressParts.barangay"
+                class="w-full p-2 border rounded-md"
+                placeholder="Barangay"
+              />
+              <input
+                v-model="addressParts.city"
+                class="w-full p-2 border rounded-md"
+                placeholder="City / Municipality"
+              />
+              <input
+                v-model="addressParts.province"
+                class="w-full p-2 border rounded-md"
+                placeholder="Province"
+              />
+            </div>
+
+            <p class="mt-2 text-xs text-gray-500">
+              Preview: <span class="text-gray-800 font-medium">{{ composedAddressPreview }}</span>
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-600">Civil Status</label>
+            <select v-model="form.civil_status" class="w-full p-2 border rounded-md bg-white text-gray-900">
+              <option value="">(none)</option>
+              <option value="single">single</option>
+              <option value="married">married</option>
+              <option value="widowed">widowed</option>
+              <option value="separated">separated</option>
+            </select>
+          </div>
+
+          <!-- Nationality searchable dropdown -->
+          <div class="relative" ref="natWrapRef">
+            <label class="text-xs text-gray-600">Nationality</label>
+
+            <input
+              v-model="nationalityQuery"
+              type="text"
+              class="w-full p-2 border rounded-md"
+              placeholder="Search nationality (e.g., Filipino)"
+              @focus="openNationality()"
+              @input="onNationalityInput"
+              @keydown.down.prevent="moveNationality(1)"
+              @keydown.up.prevent="moveNationality(-1)"
+              @keydown.enter.prevent="selectHighlightedNationality()"
+              @keydown.esc.prevent="isNationalityOpen = false"
+            />
+
+            <div
+              v-if="isNationalityOpen && filteredNationalities.length > 0"
+              class="absolute z-[9999] mt-2 w-full max-h-48 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg"
+            >
+              <button
+                v-for="(n, idx) in filteredNationalities"
+                :key="n"
+                type="button"
+                class="w-full text-left px-3 py-2 text-sm"
+                :class="idx === nationalityHighlight ? 'bg-gray-100 text-gray-900' : 'text-gray-800 hover:bg-gray-50'"
+                @mousedown.prevent="pickNationality(n)"
+              >
+                {{ n }}
+              </button>
+            </div>
+
+            <p class="mt-1 text-[11px] text-gray-500">
+              Tip: type to filter, Enter to select.
+            </p>
+          </div>
+
           <div>
             <label class="text-xs text-gray-600">Role *</label>
             <select
               v-model="form.role"
-              class="w-full p-2 border rounded-md"
+              class="w-full p-2 border rounded-md bg-white text-gray-900"
               @change="handleRoleChange"
             >
               <option value="admin">admin</option>
@@ -208,7 +358,7 @@
             <label class="text-xs text-gray-600">Track</label>
             <select
               v-model="form.track"
-              class="w-full p-2 border rounded-md"
+              class="w-full p-2 border rounded-md bg-white text-gray-900"
               :disabled="!needsTrack"
             >
               <option value="">(none)</option>
@@ -222,7 +372,7 @@
 
           <div>
             <label class="text-xs text-gray-600">Gender</label>
-            <select v-model="form.gender" class="w-full p-2 border rounded-md">
+            <select v-model="form.gender" class="w-full p-2 border rounded-md bg-white text-gray-900">
               <option value="">(leave as is)</option>
               <option value="male">male</option>
               <option value="female">female</option>
@@ -292,11 +442,10 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import axios from "axios";
 import AdminLayout from "./AdminLayout.vue";
 
-// use Vite proxy + cookies
 const api = axios.create({
   baseURL: "/api",
   withCredentials: true,
@@ -315,6 +464,56 @@ export default {
 
     const meta = ref({ total: 0, page: 1, limit: 20, totalPages: 1 });
 
+    // ✅ default: columns panel hidden
+    const showColumnsPanel = ref(false);
+    const toggleColumnsPanel = () => (showColumnsPanel.value = !showColumnsPanel.value);
+
+    const allColumns = ref([
+      { key: "id", label: "ID" },
+      { key: "fullname", label: "Full Name" },
+      { key: "username", label: "Username" },
+      { key: "email", label: "Email" },
+      { key: "contact", label: "Contact" },
+      { key: "gender", label: "Gender" },
+      { key: "birthday", label: "Birthday" },
+      { key: "address", label: "Address" },
+      { key: "civil_status", label: "Civil Status" },
+      { key: "nationality", label: "Nationality" },
+      { key: "track", label: "Track" },
+      { key: "role", label: "Role" },
+      { key: "status", label: "Status" },
+      { key: "actions", label: "Actions" },
+    ]);
+
+    const visibleCols = ref(
+      allColumns.value.reduce((acc, c) => {
+        acc[c.key] = true;
+        return acc;
+      }, {})
+    );
+
+    const applyPreset = (name) => {
+      for (const c of allColumns.value) visibleCols.value[c.key] = false;
+
+      if (name === "minimal") {
+        ["id", "fullname", "email", "role", "status", "actions"].forEach((k) => {
+          visibleCols.value[k] = true;
+        });
+      } else {
+        for (const c of allColumns.value) visibleCols.value[c.key] = true;
+      }
+
+      visibleCols.value.actions = true;
+    };
+
+    // ✅ default preset: minimal
+    applyPreset("minimal");
+
+    const displayedColumns = computed(() => {
+      return allColumns.value.filter((c) => !!visibleCols.value[c.key]);
+    });
+
+    // Modals
     const showModal = ref(false);
     const isEditing = ref(false);
     const saving = ref(false);
@@ -325,12 +524,112 @@ export default {
     const deleting = ref(false);
     const deleteErrorMsg = ref("");
 
+    // Address parts (modal)
+    const addressParts = ref({ street: "", barangay: "", city: "", province: "" });
+
+    const composedAddressPreview = computed(() => {
+      const parts = [
+        addressParts.value.street?.trim(),
+        addressParts.value.barangay?.trim(),
+        addressParts.value.city?.trim(),
+        addressParts.value.province?.trim(),
+      ].filter(Boolean);
+      return parts.length ? parts.join(", ") : "—";
+    });
+
+    const buildAddressString = () => {
+      const parts = [
+        addressParts.value.street?.trim(),
+        addressParts.value.barangay?.trim(),
+        addressParts.value.city?.trim(),
+        addressParts.value.province?.trim(),
+      ].filter(Boolean);
+      return parts.join(", ");
+    };
+
+    const fillAddressPartsFromString = (addr) => {
+      const s = (addr || "").trim();
+      if (!s) {
+        addressParts.value = { street: "", barangay: "", city: "", province: "" };
+        return;
+      }
+      const chunks = s.split(",").map((x) => x.trim()).filter(Boolean);
+      addressParts.value = {
+        street: chunks[0] || "",
+        barangay: chunks[1] || "",
+        city: chunks[2] || "",
+        province: chunks[3] || "",
+      };
+    };
+
+    // Nationality dropdown
+    const nationalities = ref([
+      "Filipino","American","British","Canadian","Australian","Chinese","Japanese","Korean",
+      "Indian","Malaysian","Singaporean","Indonesian","Thai","Vietnamese","Cambodian","Laotian",
+      "Myanmar","Pakistani","Bangladeshi","Sri Lankan","Nepalese","Bhutanese","Afghan","Iranian",
+      "Iraqi","Saudi","Emirati","Qatari","Kuwaiti","Omani","Yemeni","Jordanian","Lebanese","Syrian",
+      "Turkish","Russian","Ukrainian","Polish","German","French","Spanish",
+      "Italian","Portuguese","Dutch","Belgian","Swiss","Austrian","Swedish","Norwegian","Danish",
+      "Finnish","Irish","Greek","Romanian","Bulgarian","Hungarian","Czech",
+      "Slovak","Croatian","Serbian","Slovenian","Bosnian","Albanian","Macedonian",
+      "Brazilian","Argentinian","Chilean","Peruvian","Colombian","Venezuelan","Mexican","Cuban",
+      "Dominican","Jamaican","Haitian","South African","Nigerian","Kenyan","Egyptian","Moroccan",
+    ]);
+    const nationalityQuery = ref("");
+    const isNationalityOpen = ref(false);
+    const nationalityHighlight = ref(0);
+    const natWrapRef = ref(null);
+
+    const filteredNationalities = computed(() => {
+      const q = (nationalityQuery.value || "").trim().toLowerCase();
+      const list = nationalities.value || [];
+      if (!q) return list.slice(0, 12);
+      return list.filter((n) => n.toLowerCase().includes(q)).slice(0, 12);
+    });
+
+    const openNationality = () => {
+      isNationalityOpen.value = true;
+      nationalityHighlight.value = 0;
+    };
+    const onNationalityInput = () => {
+      openNationality();
+      form.value.nationality = nationalityQuery.value;
+    };
+    const pickNationality = (n) => {
+      nationalityQuery.value = n;
+      form.value.nationality = n;
+      isNationalityOpen.value = false;
+    };
+    const moveNationality = (dir) => {
+      if (!isNationalityOpen.value) isNationalityOpen.value = true;
+      const max = filteredNationalities.value.length - 1;
+      if (max < 0) return;
+      nationalityHighlight.value = Math.max(
+        0,
+        Math.min(max, nationalityHighlight.value + dir)
+      );
+    };
+    const selectHighlightedNationality = () => {
+      if (!filteredNationalities.value.length) return;
+      pickNationality(filteredNationalities.value[nationalityHighlight.value]);
+    };
+
+    const onDocMouseDown = (e) => {
+      if (!isNationalityOpen.value) return;
+      const el = natWrapRef.value;
+      if (!el) return;
+      if (!el.contains(e.target)) isNationalityOpen.value = false;
+    };
+
     const form = ref({
       id: null,
       fullname: "",
       username: "",
       email: "",
       contact: "",
+      address: "",
+      civil_status: "",
+      nationality: "",
       role: "user",
       track: "driving",
       gender: "",
@@ -349,39 +648,28 @@ export default {
       return "bg-green-100 text-green-700";
     };
 
-    const statusLabel = (u) => {
-      return Number(u?.is_disabled || 0) === 1 ? "disabled" : "active";
-    };
+    const statusLabel = (u) => (Number(u?.is_disabled || 0) === 1 ? "disabled" : "active");
 
-    const statusBadge = (u) => {
-      return Number(u?.is_disabled || 0) === 1
+    const statusBadge = (u) =>
+      Number(u?.is_disabled || 0) === 1
         ? "bg-red-100 text-red-700"
         : "bg-emerald-100 text-emerald-700";
-    };
 
-    const canToggleDisable = (u) => {
-      // only disable normal accounts
-      return u?.role === "user" || u?.role === "student";
-    };
+    const canToggleDisable = (u) => u?.role === "user" || u?.role === "student";
 
     const formatBirthday = (val) => {
       if (!val) return "-";
       const d = new Date(val);
       if (Number.isNaN(d.getTime())) return String(val);
-      return d.toLocaleDateString(undefined, {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-      });
+      return d.toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
     };
 
     const fetchUsers = async () => {
       try {
         loading.value = true;
-
         const { data } = await api.get("/admin/users", {
           params: {
-            search: searchQuery.value,
+            search: searchQuery.value, // ✅ backend will search across all fields
             role: roleFilter.value,
             track: trackFilter.value,
             page: meta.value.page,
@@ -432,19 +720,27 @@ export default {
         username: "",
         email: "",
         contact: "",
+        address: "",
+        civil_status: "",
+        nationality: "",
         role: "user",
         track: "driving",
         gender: "",
         birthday: "",
         password: "",
       };
+      addressParts.value = { street: "", barangay: "", city: "", province: "" };
+      nationalityQuery.value = "";
+      isNationalityOpen.value = false;
+      nationalityHighlight.value = 0;
       errorMsg.value = "";
     };
 
-    const openAddModal = () => {
+    const openAddModal = async () => {
       isEditing.value = false;
       resetForm();
       showModal.value = true;
+      await nextTick();
     };
 
     const openEditModal = async (u) => {
@@ -462,6 +758,9 @@ export default {
           username: x.username || "",
           email: x.email || "",
           contact: x.contact || "",
+          address: x.address || "",
+          civil_status: x.civil_status || "",
+          nationality: x.nationality || "",
           role: x.role || "user",
           track: x.track_code || "",
           gender: x.gender || "",
@@ -469,8 +768,13 @@ export default {
           password: "",
         };
 
+        fillAddressPartsFromString(form.value.address);
+        nationalityQuery.value = form.value.nationality || "";
+
         if (!needsTrack.value) form.value.track = "";
+
         showModal.value = true;
+        await nextTick();
       } catch (err) {
         alert(err?.response?.data?.message || err.message || "Failed to load user");
       }
@@ -478,6 +782,7 @@ export default {
 
     const closeModal = () => {
       showModal.value = false;
+      isNationalityOpen.value = false;
     };
 
     const handleRoleChange = () => {
@@ -504,11 +809,16 @@ export default {
 
         saving.value = true;
 
+        const composedAddress = buildAddressString();
+
         const payload = {
           fullname: form.value.fullname,
           username: form.value.username,
           email: form.value.email,
           contact: form.value.contact,
+          address: composedAddress,
+          civil_status: form.value.civil_status,
+          nationality: form.value.nationality,
           role: form.value.role,
           track: needsTrack.value ? form.value.track : "",
           gender: form.value.gender,
@@ -569,11 +879,8 @@ export default {
         );
         if (!ok) return;
 
-        if (currentlyDisabled) {
-          await api.put(`/admin/users/${u.id}/enable`);
-        } else {
-          await api.put(`/admin/users/${u.id}/disable`);
-        }
+        if (currentlyDisabled) await api.put(`/admin/users/${u.id}/enable`);
+        else await api.put(`/admin/users/${u.id}/disable`);
 
         await fetchUsers();
       } catch (err) {
@@ -581,7 +888,14 @@ export default {
       }
     };
 
-    onMounted(fetchUsers);
+    onMounted(() => {
+      fetchUsers();
+      document.addEventListener("mousedown", onDocMouseDown, true);
+    });
+
+    onBeforeUnmount(() => {
+      document.removeEventListener("mousedown", onDocMouseDown, true);
+    });
 
     return {
       users,
@@ -594,6 +908,15 @@ export default {
       handleSearch,
       onFilterChange,
 
+      // columns
+      showColumnsPanel,
+      toggleColumnsPanel,
+      allColumns,
+      visibleCols,
+      displayedColumns,
+      applyPreset,
+
+      // modal
       showModal,
       isEditing,
       saving,
@@ -612,6 +935,7 @@ export default {
       handleRoleChange,
       saveUser,
 
+      // delete modal
       showDeleteModal,
       toDelete,
       deleting,
@@ -619,7 +943,20 @@ export default {
       confirmDelete,
       cancelDelete,
       deleteUser,
-      fetchUsers,
+
+      // address + nationality
+      addressParts,
+      composedAddressPreview,
+      natWrapRef,
+      nationalityQuery,
+      isNationalityOpen,
+      nationalityHighlight,
+      filteredNationalities,
+      openNationality,
+      onNationalityInput,
+      pickNationality,
+      moveNationality,
+      selectHighlightedNationality,
     };
   },
 };

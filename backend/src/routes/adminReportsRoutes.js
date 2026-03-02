@@ -13,6 +13,7 @@ router.get("/trend", c.getTrend);
 router.get("/top-courses", c.getTopCourses);
 router.get("/gender-breakdown", c.getGenderBreakdown);
 router.get("/course-monthly-preview", c.getCourseMonthlyPreview);
+router.get("/attendance-report", c.getAttendanceReport);
 router.get("/revenue-preview", c.getRevenuePreview);
 
 // ✅ EXPORT endpoints (ito yung missing)

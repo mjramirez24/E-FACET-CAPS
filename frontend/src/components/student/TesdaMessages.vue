@@ -1,22 +1,22 @@
 <template>
-  <StudentLayout active-page="messages">
+  <StudentLayoutTesda active-page="messages">
     <!-- Header -->
     <template #header-left>
       <input
         type="text"
         placeholder="Search messages..."
         v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </template>
 
     <div>
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-bold text-green-800">💬 Messages</h2>
+        <h2 class="text-lg font-bold text-blue-800">💬 Messages</h2>
         <button
           @click="startNewMessage"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors"
+          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors"
         >
           + New Message
         </button>
@@ -24,26 +24,26 @@
 
       <!-- Statistics Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-600">Total Messages</p>
-              <h3 class="text-2xl font-bold text-green-800 mt-1">{{ messageStats.totalMessages }}</h3>
+              <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ messageStats.totalMessages }}</h3>
             </div>
-            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <span class="text-green-700 text-xl">💬</span>
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-700 text-xl">💬</span>
             </div>
           </div>
         </div>
 
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+        <div class="bg-sky-50 p-4 rounded-lg border border-sky-100">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-600">Unread</p>
-              <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ messageStats.unreadMessages }}</h3>
+              <h3 class="text-2xl font-bold text-sky-800 mt-1">{{ messageStats.unreadMessages }}</h3>
             </div>
-            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <span class="text-blue-700 text-xl">📩</span>
+            <div class="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center">
+              <span class="text-sky-700 text-xl">📩</span>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Type</label>
           <select
             v-model="selectedType"
-            class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+            class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
           >
             <option value="">All Types</option>
             <option value="instructor">Instructors</option>
@@ -92,7 +92,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
           <select
             v-model="selectedStatus"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
           >
             <option value="">All Status</option>
             <option value="unread">Unread</option>
@@ -121,10 +121,10 @@
         <div class="flex h-[600px]">
           <!-- Left: Conversations List -->
           <div class="w-1/3 border-r border-gray-200 bg-gray-50 flex flex-col">
-            <div class="p-4 bg-green-800 text-white">
+            <div class="p-4 bg-blue-800 text-white">
               <div class="flex justify-between items-center">
                 <span class="font-semibold">Inbox</span>
-                <span class="text-xs bg-green-600 px-2 py-1 rounded-full">
+                <span class="text-xs bg-blue-600 px-2 py-1 rounded-full">
                   {{ filteredConversations.length }} conversations
                 </span>
               </div>
@@ -138,7 +138,7 @@
                 :class="[
                   'p-4 cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-100',
                   selectedConversation?.id === conversation.id
-                    ? 'bg-green-50 border-l-4 border-l-green-500'
+                    ? 'bg-blue-50 border-l-4 border-l-blue-500'
                     : '',
                 ]"
               >
@@ -165,7 +165,7 @@
                     <div class="flex items-center gap-2 mt-2">
                       <span
                         v-if="conversation.unreadCount > 0"
-                        class="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full shrink-0"
+                        class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full shrink-0"
                       >
                         {{ conversation.unreadCount }} new
                       </span>
@@ -193,11 +193,11 @@
             <!-- Chat Header -->
             <div
               v-if="selectedConversation"
-              class="p-4 bg-green-800 text-white flex justify-between items-center"
+              class="p-4 bg-blue-800 text-white flex justify-between items-center"
             >
               <div class="flex items-center gap-3">
                 <div
-                  class="w-8 h-8 bg-white text-green-800 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                  class="w-8 h-8 bg-white text-blue-800 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
                 >
                   {{ getInitials(selectedConversation.name) }}
                 </div>
@@ -206,6 +206,12 @@
                   <p class="text-xs opacity-90 capitalize">{{ selectedConversation.role }}</p>
                 </div>
               </div>
+              <button
+                @click="deleteConversation(selectedConversation)"
+                class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors"
+              >
+                Delete
+              </button>
             </div>
 
             <!-- Chat Messages -->
@@ -227,9 +233,9 @@
                     :class="[
                       'rounded-lg p-3 max-w-md',
                       message.sender_id === myId
-                        ? 'bg-green-600 text-white rounded-br-none'
+                        ? 'bg-blue-600 text-white rounded-br-none'
                         : message.sender === 'instructor'
-                        ? 'bg-blue-100 border border-blue-200 text-gray-800 rounded-bl-none'
+                        ? 'bg-yellow-100 border border-yellow-200 text-gray-800 rounded-bl-none'
                         : message.sender === 'admin'
                         ? 'bg-purple-100 border border-purple-200 text-gray-800 rounded-bl-none'
                         : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none',
@@ -259,12 +265,12 @@
                   v-model="newMessage"
                   @keyup.enter="sendMessage"
                   placeholder="Type your message..."
-                  class="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+                  class="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                 />
                 <button
                   @click="sendMessage"
                   :disabled="!newMessage.trim() || sending"
-                  class="px-4 py-3 bg-green-700 text-white rounded-md hover:bg-green-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  class="px-4 py-3 bg-blue-700 text-white rounded-md hover:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   {{ sending ? "..." : "Send" }}
                 </button>
@@ -274,10 +280,10 @@
         </div>
       </div>
 
-      <!-- Recent Contacts -->
+      <!-- Contacts -->
       <div v-if="recentContacts.length > 0" class="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold text-green-800">Contacts</h3>
+          <h3 class="text-lg font-bold text-blue-800">Contacts</h3>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div
@@ -308,7 +314,7 @@
       <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div class="p-6">
           <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-green-800">New Message</h3>
+            <h3 class="text-lg font-bold text-blue-800">New Message</h3>
             <button
               @click="closeNewMessageModal"
               class="text-gray-400 hover:text-gray-600 text-xl transition-colors"
@@ -322,15 +328,18 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
               <select
                 v-model="newMessageRecipient"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
               >
-                  <option value="" disabled>Select recipient</option>
-                  <optgroup label="Admins">
-                    <option v-for="contact in allContacts.filter(c => c.role === 'admin')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                  </optgroup>
-                  <optgroup label="Instructors">
-                    <option v-for="contact in allContacts.filter(c => c.role === 'instructor')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                  </optgroup>
+                <option value="" disabled>Select recipient</option>
+                <optgroup label="Admins">
+                  <option v-for="contact in allContacts.filter(c => c.role === 'admin')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
+                </optgroup>
+                <optgroup label="Trainer">
+                  <option v-for="contact in allContacts.filter(c => c.role === 'trainer')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
+                </optgroup>
+                <optgroup label="Students" v-if="allContacts.some(c => c.role === 'user')">
+                  <option v-for="contact in allContacts.filter(c => c.role === 'user')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
+                </optgroup>
               </select>
             </div>
 
@@ -339,7 +348,7 @@
               <textarea
                 v-model="newMessageContent"
                 rows="4"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="Type your message here..."
               ></textarea>
             </div>
@@ -356,7 +365,7 @@
             <button
               @click="sendNewMessage"
               :disabled="!newMessageRecipient || !newMessageContent.trim() || sending"
-              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {{ sending ? "Sending..." : "Send Message" }}
             </button>
@@ -364,17 +373,17 @@
         </div>
       </div>
     </div>
-  </StudentLayout>
+  </StudentLayoutTesda>
 </template>
 
 <script>
 import { ref, computed, onMounted, nextTick } from "vue";
 import axios from "axios";
-import StudentLayout from "./StudentLayout.vue";
+import StudentLayoutTesda from "./StudentLayoutTesda.vue";
 
 export default {
   name: "StudentMessages",
-  components: { StudentLayout },
+  components: { StudentLayoutTesda },
 
   setup() {
     const api = axios.create({
@@ -416,12 +425,9 @@ export default {
       const res = await api.get("/api/messages/inbox");
       inbox.value = res.data;
 
-      // Update stats
       messageStats.value.totalMessages = inbox.value.length;
       messageStats.value.unreadMessages = inbox.value.filter((c) => c.unreadCount > 0).length;
-      messageStats.value.instructorMessages = inbox.value.filter(
-        (c) => c.role === "instructor"
-      ).length;
+      messageStats.value.instructorMessages = inbox.value.filter((c) => c.role === "instructor").length;
       messageStats.value.adminMessages = inbox.value.filter((c) => c.role === "admin").length;
     };
 
@@ -439,11 +445,9 @@ export default {
       const res = await api.get(`/api/messages/thread/${user.id}`);
       messages.value = res.data;
 
-      // Reset unread count locally
       const found = inbox.value.find((c) => c.id === user.id);
       if (found) found.unreadCount = 0;
 
-      // Scroll to bottom
       await nextTick();
       if (messagesContainer.value) {
         messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
@@ -477,7 +481,6 @@ export default {
         closeNewMessageModal();
         await fetchInbox();
 
-        // Open the thread we just created
         const contact = allContacts.value.find((c) => c.id === newMessageRecipient.value);
         if (contact) await loadThread(contact);
       } finally {
@@ -507,52 +510,40 @@ export default {
         result = result.filter((c) => c.status === selectedStatus.value);
       }
 
-      return result.sort(
-        (a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
-      );
+      return result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
     });
 
-    // Show contacts that are NOT already in the inbox (for quick access)
     const recentContacts = computed(() =>
-      allContacts.value.filter(
-        (c) => !inbox.value.some((conv) => conv.id === c.id)
-      ).slice(0, 12)
+      allContacts.value.filter((c) => !inbox.value.some((conv) => conv.id === c.id)).slice(0, 12)
     );
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-
-      const roleLabel = (role) => {
-        if (role === 'user') return 'Student'
-        if (role === 'admin') return 'Admin'
-        if (role === 'instructor') return 'Instructor'
-        if (role === 'trainer') return 'Trainer'
-        return role
-      };
+    const roleLabel = (role) => {
+      if (role === 'user') return 'Student'
+      if (role === 'admin') return 'Admin'
+      if (role === 'instructor') return 'Instructor'
+      if (role === 'trainer') return 'Trainer'
+      return role
+    };
 
     const getInitials = (name) =>
-      (name || "?")
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+      (name || "?").split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
     const formatTime = (timestamp) => {
       if (!timestamp) return "";
       const date = new Date(timestamp);
       const now = new Date();
       const diffDays = Math.floor((now - date) / 86400000);
-      if (diffDays === 0)
-        return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      if (diffDays === 0) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       if (diffDays === 1) return "Yesterday";
       if (diffDays < 7) return date.toLocaleDateString([], { weekday: "short" });
       return date.toLocaleDateString([], { month: "short", day: "numeric" });
     };
 
     const getUserBadgeClass = (type) => {
-      if (type === "instructor") return "bg-blue-600";
+      if (type === "instructor") return "bg-yellow-600";
       if (type === "admin") return "bg-purple-600";
-      if (type === "trainer") return "bg-yellow-600";
+      if (type === "trainer") return "bg-indigo-600";
       return "bg-gray-500";
     };
 
@@ -568,12 +559,23 @@ export default {
     };
 
     const markAllAsRead = async () => {
-      // Mark each conversation as read
       for (const conv of inbox.value) {
         conv.unreadCount = 0;
         conv.status = "read";
       }
       messageStats.value.unreadMessages = 0;
+    };
+
+    const deleteConversation = (conv) => {
+      if (confirm(`Delete conversation with ${conv.name}?`)) {
+        inbox.value = inbox.value.filter(c => c.id !== conv.id);
+        if (selectedConversation.value?.id === conv.id) {
+          selectedConversation.value = null;
+          messages.value = [];
+        }
+        messageStats.value.totalMessages = inbox.value.length;
+        messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length;
+      }
     };
 
     const startNewMessage = () => {
@@ -622,6 +624,7 @@ export default {
       getStatusBadgeClass,
       clearFilters,
       markAllAsRead,
+      deleteConversation,
       selectConversation: loadThread,
       sendMessage,
       startNewMessage,
@@ -638,7 +641,6 @@ export default {
 ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #555; }
-
 .fixed.inset-0 { animation: fadeIn 0.2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>

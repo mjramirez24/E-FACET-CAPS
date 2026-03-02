@@ -1,23 +1,45 @@
-<!-- frontend/src/components/AdminReports.vue (FULL UPDATED: LTO Client ID + ECharts + Export Picker + Column Cleanup) -->
+<!-- frontend/src/components/AdminReports.vue (FULL UPDATED: + Single Switch Button Driving/TESDA) -->
 <template>
   <AdminLayout>
-    <!-- Header-left: search only (local filter) -->
+    <!-- Header-left: search + SWITCH -->
     <template #header-left>
-      <input
-        type="text"
-        placeholder="Search in tables..."
-        v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-      />
+      <div class="flex items-center gap-3 w-full">
+        <input
+          type="text"
+          placeholder="Search in tables..."
+          v-model="searchQuery"
+          class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
+        />
+
+        <!-- ✅ SINGLE SWITCH BUTTON -->
+        <button
+          @click="toggleReportMode"
+          class="px-4 py-2 rounded-md text-sm font-semibold shadow-sm border"
+          :class="reportMode === 'driving'
+            ? 'bg-green-700 text-white border-green-700 hover:bg-green-800'
+            : 'bg-blue-700 text-white border-blue-700 hover:bg-blue-800'"
+          :title="reportMode === 'driving' ? 'Switch to TESDA' : 'Switch to Driving'"
+        >
+          <span v-if="reportMode === 'driving'">🚗 Driving</span>
+          <span v-else>🎓 TESDA</span>
+          <span class="ml-2 opacity-90">⇄</span>
+        </button>
+      </div>
     </template>
 
     <div class="space-y-6">
       <!-- PAGE HEADER -->
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h2 class="text-lg font-bold text-green-800">📈 Analytics & Reports</h2>
+          <h2 class="text-lg font-bold text-green-800">
+            📈 Analytics & Reports —
+            <span class="font-extrabold" :class="reportMode==='driving' ? 'text-green-800' : 'text-blue-800'">
+              {{ reportModeLabel }}
+            </span>
+          </h2>
           <p class="text-xs text-gray-500">
             Charts are descriptive + simple forecasting (trend-based). Exports are selectable (course + columns).
+            <span v-if="reportMode==='tesda'"> • TESDA mode</span>
           </p>
         </div>
 
@@ -38,7 +60,7 @@
         </div>
       </div>
 
-      <!-- TOP SUMMARY (cleaned: removed completion rate + cert issued) -->
+      <!-- TOP SUMMARY -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-green-50 p-4 rounded-lg border border-green-100">
           <p class="text-sm text-green-700 font-medium">Total Enrolled</p>
@@ -52,10 +74,20 @@
           <p class="text-xs text-gray-500 mt-1">Descriptive</p>
         </div>
 
-        <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+        <!-- ✅ DRIVING ONLY: REVENUE CARD -->
+        <div v-if="reportMode === 'driving'" class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
           <p class="text-sm text-emerald-700 font-medium">💰 Verified Revenue</p>
           <h3 class="text-2xl font-bold text-emerald-800 mt-1">
             {{ formatCurrency(summary.totalRevenuePeso) }}
+          </h3>
+          <p class="text-xs text-gray-500 mt-1">Descriptive</p>
+        </div>
+
+        <!-- ✅ TESDA ONLY: Attendance placeholder/stat (optional) -->
+        <div v-else class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+          <p class="text-sm text-emerald-700 font-medium">📌 TESDA KPI</p>
+          <h3 class="text-2xl font-bold text-emerald-800 mt-1">
+            {{ tesdaKpiLabel }}
           </h3>
           <p class="text-xs text-gray-500 mt-1">Descriptive</p>
         </div>
@@ -77,7 +109,9 @@
           Overview
         </button>
 
+        <!-- ✅ DRIVING ONLY: Revenue -->
         <button
+          v-if="reportMode === 'driving'"
           class="px-3 py-2 rounded-md text-sm font-medium border"
           :class="activeTab==='revenue' ? tabActive : tabInactive"
           @click="activeTab='revenue'"
@@ -93,7 +127,9 @@
           Detailed Reports
         </button>
 
+        <!-- ✅ DRIVING ONLY: Exams -->
         <button
+          v-if="reportMode === 'driving'"
           class="px-3 py-2 rounded-md text-sm font-medium border"
           :class="activeTab==='exams' ? tabActive : tabInactive"
           @click="activeTab='exams'"
@@ -188,7 +224,7 @@
           </div>
         </div>
 
-        <!-- OVERVIEW CHARTS (ECharts) -->
+        <!-- OVERVIEW CHARTS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Enrollment Trend -->
           <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
@@ -313,8 +349,8 @@
         </div>
       </div>
 
-      <!-- ===================== REVENUE (cleaned columns) ===================== -->
-      <div v-else-if="activeTab === 'revenue'" class="space-y-6">
+      <!-- ===================== REVENUE (DRIVING ONLY) ===================== -->
+      <div v-else-if="activeTab === 'revenue' && reportMode === 'driving'" class="space-y-6">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
@@ -382,7 +418,7 @@
           </div>
         </div>
 
-        <!-- Revenue Table (removed Payment Ref + Status + Verified At) -->
+        <!-- Revenue Table -->
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-3">
             <div>
@@ -475,7 +511,7 @@
         </div>
       </div>
 
-      <!-- ===================== DETAILED REPORTS (export templates + columns) ===================== -->
+      <!-- ===================== DETAILED REPORTS ===================== -->
       <div v-else-if="activeTab === 'detailed'" class="space-y-6">
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -516,7 +552,8 @@
                 </select>
               </div>
 
-              <div>
+              <!-- ✅ DRIVING ONLY: payment method filter (TESDA can keep it, pero usually wala) -->
+              <div v-if="reportMode === 'driving'">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                 <select v-model="detailedTabFilters.payment_method" class="w-36 p-2 border border-gray-300 rounded-md text-sm">
                   <option value="">All</option>
@@ -611,22 +648,29 @@
             <thead class="bg-gray-200 text-gray-900">
               <tr>
                 <th class="py-2 px-3 text-left">No.</th>
-                <th v-if="visibleColumns.lto_client_id" class="py-2 px-3 text-left">LTO Client ID</th>
+                <th v-if="visibleColumns.lto_client_id && reportMode==='driving'" class="py-2 px-3 text-left">LTO Client ID</th>
                 <th v-if="visibleColumns.fullname" class="py-2 px-3 text-left">Full Name</th>
                 <th v-if="visibleColumns.birthday" class="py-2 px-3 text-left">Birthdate</th>
                 <th v-if="visibleColumns.gender" class="py-2 px-3 text-left">Sex</th>
 
-                <th v-if="visibleColumns.instructor_name" class="py-2 px-3 text-left">Instructor</th>
+                <th v-if="visibleColumns.instructor_name" class="py-2 px-3 text-left">{{ reportMode==='driving' ? 'Instructor' : 'Trainer' }}</th>
                 <th v-if="visibleColumns.course_name" class="py-2 px-3 text-left">Course</th>
                 <th v-if="visibleColumns.course_start" class="py-2 px-3 text-left">Course Start</th>
                 <th v-if="visibleColumns.course_end" class="py-2 px-3 text-left">Course End</th>
 
-                <th v-if="visibleColumns.dl_code" class="py-2 px-3 text-left">DL Code</th>
+                <th v-if="visibleColumns.dl_code && reportMode==='driving'" class="py-2 px-3 text-left">DL Code</th>
                 <th v-if="visibleColumns.training_purpose" class="py-2 px-3 text-left">Training Purpose</th>
                 <th v-if="visibleColumns.municipality" class="py-2 px-3 text-left">Municipality</th>
 
                 <th v-if="visibleColumns.reservation_source" class="py-2 px-3 text-left">Source</th>
-                <th v-if="visibleColumns.payment_method" class="py-2 px-3 text-left">Payment</th>
+
+                <th v-if="visibleColumns.nationality" class="py-2 px-3 text-left">Nationality</th>
+                <th v-if="visibleColumns.civil_status" class="py-2 px-3 text-left">Civil Status</th>
+                <th v-if="visibleColumns.address" class="py-2 px-3 text-left">Address</th>
+
+                <!-- ✅ DRIVING ONLY: payment column visibility -->
+                <th v-if="visibleColumns.payment_method && reportMode==='driving'" class="py-2 px-3 text-left">Payment</th>
+
                 <th v-if="visibleColumns.created_at" class="py-2 px-3 text-left">Created</th>
               </tr>
             </thead>
@@ -639,33 +683,39 @@
               >
                 <td class="py-2 px-3">{{ detailedPageStart + idx }}</td>
 
-                <td v-if="visibleColumns.lto_client_id" class="py-2 px-3">{{ row.lto_client_id || '-' }}</td>
+                <td v-if="visibleColumns.lto_client_id && reportMode==='driving'" class="py-2 px-3">{{ row.lto_client_id || '-' }}</td>
                 <td v-if="visibleColumns.fullname" class="py-2 px-3">{{ row.fullname || row.group_label || '-' }}</td>
                 <td v-if="visibleColumns.birthday" class="py-2 px-3">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
                 <td v-if="visibleColumns.gender" class="py-2 px-3">
                   {{ row.gender ? (String(row.gender).toLowerCase() === 'male' ? 'M' : 'F') : '-' }}
                 </td>
 
-                <td v-if="visibleColumns.instructor_name" class="py-2 px-3">{{ row.instructor_name || '-' }}</td>
+                <td v-if="visibleColumns.instructor_name" class="py-2 px-3">{{ reportMode==='driving' ? (row.instructor_name || '-') : (row.trainer_name || '-') }}</td>
                 <td v-if="visibleColumns.course_name" class="py-2 px-3">{{ row.course_name || '-' }}</td>
-                <td v-if="visibleColumns.course_start" class="py-2 px-3">{{ row.course_start ? formatDate(row.course_start) : '-' }}</td>
-                <td v-if="visibleColumns.course_end" class="py-2 px-3">{{ row.course_end ? formatDate(row.course_end) : '-' }}</td>
+                <td v-if="visibleColumns.course_start" class="py-2 px-3">{{ (row.course_start || row.schedule_date) ? formatDate(row.course_start || row.schedule_date) : '-' }}</td>
+                <td v-if="visibleColumns.course_end" class="py-2 px-3">{{ (row.course_end || row.schedule_date) ? formatDate(row.course_end || row.schedule_date) : '-' }}</td>
 
-                <td v-if="visibleColumns.dl_code" class="py-2 px-3">{{ row.dl_code || '-' }}</td>
+                <td v-if="visibleColumns.dl_code && reportMode==='driving'" class="py-2 px-3">{{ row.dl_code || '-' }}</td>
                 <td v-if="visibleColumns.training_purpose" class="py-2 px-3">{{ row.training_purpose || '-' }}</td>
                 <td v-if="visibleColumns.municipality" class="py-2 px-3">{{ row.municipality || '-' }}</td>
 
                 <td v-if="visibleColumns.reservation_source" class="py-2 px-3">{{ row.reservation_source || '-' }}</td>
-                <td v-if="visibleColumns.payment_method" class="py-2 px-3">{{ normalizePaymentMethod(row.payment_method) || '-' }}</td>
+
+                <td v-if="visibleColumns.nationality" class="py-2 px-3">{{ row.nationality || '-' }}</td>
+                <td v-if="visibleColumns.civil_status" class="py-2 px-3">{{ row.civil_status || '-' }}</td>
+                <td v-if="visibleColumns.address" class="py-2 px-3">{{ row.address || '-' }}</td>
+
+                <td v-if="visibleColumns.payment_method && reportMode==='driving'" class="py-2 px-3">{{ normalizePaymentMethod(row.payment_method) || '-' }}</td>
+
                 <td v-if="visibleColumns.created_at" class="py-2 px-3">{{ row.created_at ? formatDate(row.created_at) : '-' }}</td>
               </tr>
 
               <tr v-if="!detailedLoading && detailedFiltered.length === 0">
-                <td :colspan="detailedColspan" class="py-8 text-center text-gray-500">No data for your filters</td>
+                <td :colspan="detailedColspanComputed" class="py-8 text-center text-gray-500">No data for your filters</td>
               </tr>
 
               <tr v-if="detailedLoading">
-                <td :colspan="detailedColspan" class="py-8 text-center text-gray-500">Loading detailed reports…</td>
+                <td :colspan="detailedColspanComputed" class="py-8 text-center text-gray-500">Loading detailed reports…</td>
               </tr>
             </tbody>
           </table>
@@ -702,7 +752,7 @@
         </div>
       </div>
 
-      <!-- ===================== EXAMS ===================== -->
+      <!-- ===================== EXAMS (DRIVING ONLY) ===================== -->
       <div v-else class="space-y-6">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex justify-between items-center">
@@ -766,9 +816,9 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Target</label>
                 <select v-model="exportTarget" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="all">All (Overview + Revenue + Detailed)</option>
+                  <option value="all">All (Overview + Detailed{{ reportMode==='driving' ? ' + Revenue' : '' }})</option>
                   <option value="overview">Overview (trend/top/gender/monthly)</option>
-                  <option value="revenue">Revenue table</option>
+                  <option v-if="reportMode==='driving'" value="revenue">Revenue table</option>
                   <option value="detailed">Detailed table</option>
                 </select>
               </div>
@@ -791,7 +841,6 @@
               </div>
             </div>
 
-            <!-- Course chooser applies mainly to Detailed/Revenue exports -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Course (optional)</label>
@@ -820,7 +869,6 @@
               </div>
             </div>
 
-            <!-- Columns selection (only meaningful for Detailed/Revenue; Overview has fixed sets) -->
             <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div class="flex items-center justify-between">
                 <p class="text-sm font-semibold text-gray-700">Columns</p>
@@ -869,7 +917,7 @@
         </div>
       </div>
 
-      <!-- hidden canvases for PNG export (ECharts renders to canvas internally; we grab it from DOM) -->
+      <!-- hidden canvases -->
       <div class="hidden">
         <canvas ref="tmpCanvas"></canvas>
       </div>
@@ -887,33 +935,50 @@ import VChart from "vue-echarts";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart, BarChart, PieChart } from "echarts/charts";
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-} from "echarts/components";
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from "echarts/components";
 
 // Export libs
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-echarts.use([
-  CanvasRenderer,
-  LineChart,
-  BarChart,
-  PieChart,
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-]);
+echarts.use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent]);
 
 export default {
   name: "AdminReports",
   components: { AdminLayout, DateRangePicker, VChart },
   setup() {
+    // ✅ NEW: report mode switch
+    const reportMode = ref("driving"); // 'driving' | 'tesda'
+    const reportModeLabel = computed(() => (reportMode.value === "driving" ? "Driving" : "TESDA"));
+
+    function toggleReportMode() {
+      reportMode.value = reportMode.value === "driving" ? "tesda" : "driving";
+    }
+
+    // ✅ when switching mode, reload everything + refresh dropdown courses
+    watch(reportMode, async (mode) => {
+      // reset pages to avoid empty pagination after switch
+      revenuePage.value = 1;
+      detailedPage.value = 1;
+
+      // clear mode-specific summaries
+      summary.totalRevenuePeso = 0;
+      revenuePayments.value = [];
+      revenueStats.verifiedCount = 0;
+      revenueStats.avgFeePeso = 0;
+      revenueStats.verifiedRevenuePeso = 0;
+      revenueStats.forecastRevenuePeso = 0;
+
+      await loadCourses();
+      await loadOverview();
+      await loadDetailed();
+      if (mode === "driving") await loadRevenue();
+
+      await nextTick();
+      resizeCharts();
+    });
+
     // UI
     const activeTab = ref("overview");
     const examOpen = ref(false);
@@ -935,9 +1000,9 @@ export default {
       }, 250);
     });
 
-    // Filters (per tab)
+    // ✅ Overview default "allMonths"
     const overviewFilters = reactive({
-      dateRange: "thisMonth",
+      dateRange: "allMonths",
       customFrom: "",
       customTo: "",
       courseId: "",
@@ -971,7 +1036,13 @@ export default {
     const summary = reactive({
       totalEnrolled: 0,
       mostPopularCourse: "",
-      totalRevenuePeso: 0,
+      totalRevenuePeso: 0, // driving only display
+    });
+
+    // TESDA KPI placeholder (optional)
+    const tesdaKpiLabel = computed(() => {
+      // you can replace this later with attendanceRate from backend
+      return `${summary.totalEnrolled || 0}`;
     });
 
     const trend = reactive({ labels: [], values: [] });
@@ -1004,15 +1075,23 @@ export default {
     const topCoursesChartRef = ref(null);
     const genderChartRef = ref(null);
 
+    // ✅ helper: get echarts instance safely (vue-echarts)
+    function getChartInstance(chartRef) {
+      try {
+        return chartRef?.value?.getEchartsInstance?.() || null;
+      } catch {
+        return null;
+      }
+    }
+
     // Pagination
     const revenuePage = ref(1);
     const revenuePageSize = ref(25);
     const detailedPage = ref(1);
     const detailedPageSize = ref(25);
 
-    // Columns (REMOVED: payment_ref, status, verified_at, reservation_status)
-    // ✅ CHANGED: client_id -> lto_client_id + label
-    const columnOptions = [
+    // Columns
+    const drivingColumnOptions = [
       { key: "lto_client_id", label: "LTO Client ID" },
       { key: "fullname", label: "Full Name" },
       { key: "birthday", label: "Birthdate" },
@@ -1027,10 +1106,32 @@ export default {
       { key: "reservation_source", label: "Source" },
       { key: "payment_method", label: "Payment" },
       { key: "created_at", label: "Created" },
+      { key: "nationality", label: "Nationality", defaultVisible: false },
+      { key: "civil_status", label: "Civil Status", defaultVisible: false },
+      { key: "address", label: "Address", defaultVisible: false },
     ];
 
-    // Default visible columns (PDC-ish)
-    // ✅ CHANGED: client_id -> lto_client_id
+    // ✅ TESDA detailed columns (NO LTO Client ID, NO DL Code, NO Payment)
+    // Instructor column is replaced by Trainer (trainer_code)
+    const tesdaColumnOptions = [
+      { key: "fullname", label: "Full Name" },
+      { key: "birthday", label: "Birthdate" },
+      { key: "gender", label: "Sex" },
+      { key: "instructor_name", label: "Trainer" },
+      { key: "course_name", label: "Course" },
+      { key: "course_start", label: "Course Start" },
+      { key: "course_end", label: "Course End" },
+      { key: "reservation_source", label: "Source" },
+      { key: "created_at", label: "Created" },
+      { key: "nationality", label: "Nationality", defaultVisible: false },
+      { key: "civil_status", label: "Civil Status", defaultVisible: false },
+      { key: "address", label: "Address", defaultVisible: false },
+    ];
+
+    const columnOptions = computed(() =>
+      reportMode.value === "driving" ? drivingColumnOptions : tesdaColumnOptions,
+    );
+
     const visibleColumns = reactive({
       lto_client_id: true,
       fullname: true,
@@ -1046,9 +1147,23 @@ export default {
       reservation_source: false,
       payment_method: false,
       created_at: false,
+
+      nationality: false,
+      civil_status: false,
+      address: false,
     });
 
-    const detailedColspan = computed(() => 1 + Object.values(visibleColumns).filter(Boolean).length);
+    // ✅ TESDA: payment column hidden in UI rendering
+    const detailedColspanComputed = computed(() => {
+      const keys = Object.keys(visibleColumns);
+      let count = 1; // No.
+      for (const k of keys) {
+        if (!visibleColumns[k]) continue;
+        if (k === "payment_method" && reportMode.value !== "driving") continue;
+        count++;
+      }
+      return count;
+    });
 
     // Exams placeholder
     const examStats = reactive({ passingRate: 0, highestScore: 0, belowPassing: 0 });
@@ -1105,6 +1220,8 @@ export default {
       const mm = today.getMonth();
 
       if (range === "custom") return { from: customFrom, to: customTo };
+      if (range === "allMonths") return { from: "2000-01-01", to: toISODateLocal(today) };
+
       if (range === "thisMonth") return { from: toISODateLocal(new Date(yyyy, mm, 1)), to: toISODateLocal(today) };
       if (range === "lastMonth") {
         return {
@@ -1124,7 +1241,7 @@ export default {
       return c?.course_name || "-";
     }
 
-    // Predictive (same logic)
+    // Forecast helpers
     function computeForecast(values) {
       const v = (values || []).map((x) => Number(x || 0)).filter((x) => Number.isFinite(x));
       if (v.length === 0) return 0;
@@ -1181,6 +1298,11 @@ export default {
       forecast.low = band.low;
       forecast.high = band.high;
 
+      if (reportMode.value !== "driving") {
+        revenueStats.forecastRevenuePeso = 0;
+        return;
+      }
+
       const avgFee = Number(revenueStats.avgFeePeso || 0);
       revenueStats.forecastRevenuePeso = avgFee > 0 ? Math.round(avgFee * forecast.nextForecast) : 0;
     }
@@ -1222,6 +1344,7 @@ export default {
         from: from || "",
         to: to || "",
         course_id,
+        report_mode: reportMode.value,
         ...extra,
       });
 
@@ -1232,7 +1355,7 @@ export default {
     // Loaders
     async function loadCourses() {
       try {
-        const json = await apiGet(`/api/admin/courses`);
+        const json = await apiGet(`/api/admin/courses?track=${reportMode.value}`);
         courses.value = json.status === "success" ? json.data || [] : [];
       } catch {
         courses.value = [];
@@ -1256,7 +1379,7 @@ export default {
         if (sum.status === "success" && sum.data) {
           summary.totalEnrolled = Number(sum.data.totalEnrolled || 0);
           summary.mostPopularCourse = String(sum.data.mostPopularCourse || "");
-          summary.totalRevenuePeso = Number(sum.data.totalRevenuePeso || 0);
+          summary.totalRevenuePeso = reportMode.value === "driving" ? Number(sum.data.totalRevenuePeso || 0) : 0;
         }
 
         if (tr.status === "success" && tr.data) {
@@ -1284,7 +1407,6 @@ export default {
         }
 
         courseMonthlyPreview.value = monthly.status === "success" && Array.isArray(monthly.data) ? monthly.data : [];
-
         computeForecastAndRevenueModel();
       } catch (e) {
         overviewError.value = e?.message || "Failed to load overview.";
@@ -1295,6 +1417,7 @@ export default {
         gender.labels = ["Male", "Female"];
         gender.values = [0, 0];
         courseMonthlyPreview.value = [];
+        summary.totalRevenuePeso = 0;
         computeForecastAndRevenueModel();
       } finally {
         overviewLoading.value = false;
@@ -1302,6 +1425,15 @@ export default {
     }
 
     async function loadRevenue() {
+      if (reportMode.value !== "driving") {
+        revenueStats.verifiedCount = 0;
+        revenueStats.avgFeePeso = 0;
+        revenueStats.verifiedRevenuePeso = 0;
+        revenueStats.forecastRevenuePeso = 0;
+        revenuePayments.value = [];
+        return;
+      }
+
       revenueLoading.value = true;
       revenueError.value = "";
       try {
@@ -1339,17 +1471,63 @@ export default {
     async function loadDetailed() {
       detailedLoading.value = true;
       detailedError.value = "";
+
+      // ✅ Adjust column visibility per mode
+      if (reportMode.value === "tesda") {
+        Object.assign(visibleColumns, {
+          lto_client_id: false,
+          dl_code: false,
+          training_purpose: false,
+          municipality: false,
+          payment_method: false,
+          instructor_name: true,
+          course_name: true,
+          course_start: true,
+          course_end: true,
+          reservation_source: true,
+          created_at: true,
+        });
+      }
       try {
+        // Driving = aggregated detailed (group_by etc.)
+        if (reportMode.value === "driving") {
+          const qs = buildParams("detailed", {
+            group_by: detailedTabFilters.groupBy,
+            source: detailedTabFilters.source || "",
+            payment_method:
+              detailedTabFilters.payment_method
+                ? normalizePaymentMethod(detailedTabFilters.payment_method)
+                : "",
+          });
+
+          const json = await apiGet(`/api/admin/reports/detailed?${qs.toString()}`);
+          detailedRows.value =
+            json.status === "success"
+              ? Array.isArray(json.data)
+                ? json.data
+                : []
+              : [];
+          return;
+        }
+
+        // TESDA = raw reservations list (no payment_method, no group_by)
         const qs = buildParams("detailed", {
-          group_by: detailedTabFilters.groupBy,
           source: detailedTabFilters.source || "",
-          payment_method: detailedTabFilters.payment_method ? normalizePaymentMethod(detailedTabFilters.payment_method) : "",
         });
 
         const json = await apiGet(`/api/admin/reports/detailed?${qs.toString()}`);
-        detailedRows.value = json.status === "success" ? (Array.isArray(json.data) ? json.data : []) : [];
+        detailedRows.value =
+          json.status === "success"
+            ? Array.isArray(json.data)
+              ? json.data
+              : []
+            : [];
       } catch (e) {
-        detailedError.value = e?.message || "Failed to load detailed reports.";
+        detailedError.value =
+          e?.response?.data?.message ||
+          e?.response?.data?.debug ||
+          e?.message ||
+          "Failed to load detailed reports.";
         detailedRows.value = [];
       } finally {
         detailedLoading.value = false;
@@ -1364,6 +1542,7 @@ export default {
       resizeCharts();
     }
     async function reloadRevenue() {
+      if (reportMode.value !== "driving") return;
       revenuePage.value = 1;
       await loadRevenue();
     }
@@ -1380,49 +1559,29 @@ export default {
     }
 
     function resizeCharts() {
-      // ECharts autoresize already, but on tab switch sometimes needs a poke
-      try { trendChartRef.value?.resize?.(); } catch {}
-      try { topCoursesChartRef.value?.resize?.(); } catch {}
-      try { genderChartRef.value?.resize?.(); } catch {}
+      const a = getChartInstance(trendChartRef);
+      const b = getChartInstance(topCoursesChartRef);
+      const c = getChartInstance(genderChartRef);
+      try { a?.resize?.(); } catch {}
+      try { b?.resize?.(); } catch {}
+      try { c?.resize?.(); } catch {}
     }
 
-    // ECharts options (computed)
+    // ECharts options
     const trendOption = computed(() => ({
       tooltip: { trigger: "axis" },
       grid: { left: 40, right: 20, top: 20, bottom: 40 },
-      xAxis: {
-        type: "category",
-        data: trend.labels || [],
-        axisLabel: { rotate: 0 },
-      },
+      xAxis: { type: "category", data: trend.labels || [], axisLabel: { rotate: 0 } },
       yAxis: { type: "value" },
-      series: [
-        {
-          name: "Enrollments",
-          type: "line",
-          smooth: true,
-          data: trend.values || [],
-          areaStyle: {},
-        },
-      ],
+      series: [{ name: "Enrollments", type: "line", smooth: true, data: trend.values || [], areaStyle: {} }],
     }));
 
     const topCoursesOption = computed(() => ({
       tooltip: { trigger: "axis" },
       grid: { left: 60, right: 20, top: 20, bottom: 60 },
-      xAxis: {
-        type: "category",
-        data: topCourses.labels || [],
-        axisLabel: { rotate: 35 },
-      },
+      xAxis: { type: "category", data: topCourses.labels || [], axisLabel: { rotate: 35 } },
       yAxis: { type: "value" },
-      series: [
-        {
-          name: "Enrollments",
-          type: "bar",
-          data: topCourses.values || [],
-        },
-      ],
+      series: [{ name: "Enrollments", type: "bar", data: topCourses.values || [] }],
     }));
 
     const genderOption = computed(() => ({
@@ -1439,30 +1598,25 @@ export default {
       ],
     }));
 
-    // PNG chart download from ECharts canvas
+    // ✅ FIXED: PNG export uses getEchartsInstance()
     function downloadChartImage(which) {
       const refMap = {
-        trend: trendChartRef.value,
-        topCourses: topCoursesChartRef.value,
-        gender: genderChartRef.value,
+        trend: trendChartRef,
+        topCourses: topCoursesChartRef,
+        gender: genderChartRef,
       };
-      const chartComp = refMap[which];
-      const instance = chartComp?.chart;
+      const targetRef = refMap[which];
+      const instance = getChartInstance(targetRef);
       if (!instance) return;
 
-      const dataUrl = instance.getDataURL({
-        type: "png",
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-      });
-
+      const dataUrl = instance.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#ffffff" });
       const link = document.createElement("a");
       link.download = `${which}-${new Date().toISOString().slice(0, 10)}.png`;
       link.href = dataUrl;
       link.click();
     }
 
-    // Computed: DETAILED filtered/search/sort + pagination
+    // Computed: detailed filtered + pagination
     const detailedFiltered = computed(() => {
       let arr = Array.isArray(detailedRows.value) ? [...detailedRows.value] : [];
       const q = debouncedQuery.value;
@@ -1492,7 +1646,7 @@ export default {
       const safeStr = (x) => String(x || "").toLowerCase();
 
       if (s === "created_desc") arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      else if (s === "created_asc") arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)); // ✅ fixed
+      else if (s === "created_asc") arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
       else if (s === "name_asc") arr.sort((a, b) => safeStr(a.fullname || a.group_label).localeCompare(safeStr(b.fullname || b.group_label)));
       else if (s === "name_desc") arr.sort((a, b) => safeStr(b.fullname || b.group_label).localeCompare(safeStr(a.fullname || a.group_label)));
 
@@ -1507,16 +1661,13 @@ export default {
       return detailedFiltered.value.slice(start, start + detailedPageSize.value);
     });
 
-    // Computed: REVENUE filtered/search + pagination
+    // Revenue filtered + pagination
     const revenueFiltered = computed(() => {
       let arr = Array.isArray(revenuePayments.value) ? [...revenuePayments.value] : [];
       const q = debouncedQuery.value;
       if (q) {
         arr = arr.filter((p) => {
-          const hay = [p.fullname, p.course_name, p.payment_method]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
+          const hay = [p.fullname, p.course_name, p.payment_method].filter(Boolean).join(" ").toLowerCase();
           return hay.includes(q);
         });
       }
@@ -1562,14 +1713,42 @@ export default {
       detailedPage.value = 1;
     });
 
+    // ✅ When tab changes, load based on mode
     watch(activeTab, async (newTab) => {
       if (newTab === "overview") {
         await nextTick();
         resizeCharts();
       } else if (newTab === "revenue") {
-        loadRevenue();
+        if (reportMode.value === "driving") loadRevenue();
+        else activeTab.value = "overview";
       } else if (newTab === "detailed") {
         loadDetailed();
+      } else if (newTab === "exams") {
+        if (reportMode.value !== "driving") activeTab.value = "overview";
+      }
+    });
+
+    // ✅ When switching mode:
+    watch(reportMode, async () => {
+      if (activeTab.value === "revenue" || activeTab.value === "exams") activeTab.value = "overview";
+
+      overviewError.value = "";
+      revenueError.value = "";
+      detailedError.value = "";
+
+      await loadOverview();
+      await loadDetailed();
+      await nextTick();
+      resizeCharts();
+
+      if (reportMode.value === "driving") await loadRevenue();
+      else {
+        revenueStats.verifiedCount = 0;
+        revenueStats.avgFeePeso = 0;
+        revenueStats.verifiedRevenuePeso = 0;
+        revenueStats.forecastRevenuePeso = 0;
+        revenuePayments.value = [];
+        summary.totalRevenuePeso = 0;
       }
     });
 
@@ -1622,13 +1801,12 @@ export default {
     const exportOpen = ref(false);
     const exportTarget = ref("all");
     const exportFormat = ref("xlsx");
-    const exportScope = ref("all"); // all or page
+    const exportScope = ref("all");
     const exportCourseId = ref("");
     const exportTemplate = ref("custom");
     const exportFileName = ref(`reports-${new Date().toISOString().slice(0, 10)}`);
     const exportError = ref("");
 
-    // export columns (for detailed/revenue; overview uses fixed sets)
     const exportColumnOptions = computed(() => {
       if (exportTarget.value === "revenue") {
         return [
@@ -1639,13 +1817,13 @@ export default {
           { key: "created_at", label: "Created" },
         ];
       }
-      // detailed default options
-      return columnOptions;
+      // IMPORTANT: columnOptions is a computed ref; return the ARRAY value.
+      // Returning the ref itself causes `forEach is not a function`.
+      return columnOptions.value;
     });
 
     const exportColumns = reactive({});
     function initExportColumnsFromVisible() {
-      // default based on visibleColumns (detailed), or all (revenue)
       exportColumnOptions.value.forEach((c) => {
         if (exportTarget.value === "detailed") exportColumns[c.key] = !!visibleColumns[c.key];
         else exportColumns[c.key] = true;
@@ -1656,18 +1834,19 @@ export default {
       exportError.value = "";
       exportOpen.value = true;
 
-      exportTarget.value = target === "all" ? "all" : (target || "all");
+      let normalized = target === "all" ? "all" : (target || "all");
+      if (reportMode.value !== "driving" && normalized === "revenue") normalized = "overview";
+      exportTarget.value = normalized;
+
       exportFormat.value = "xlsx";
       exportScope.value = "all";
       exportCourseId.value = "";
       exportTemplate.value = exportTarget.value === "detailed" ? "pdc" : "custom";
       exportFileName.value = `${exportTarget.value}-export-${new Date().toISOString().slice(0, 10)}`;
 
-      // reset exportColumns
       for (const k of Object.keys(exportColumns)) delete exportColumns[k];
       initExportColumnsFromVisible();
 
-      // apply template defaults if detailed
       if (exportTarget.value === "detailed" && exportTemplate.value !== "custom") {
         applyExportTemplate(exportTemplate.value);
       }
@@ -1682,7 +1861,6 @@ export default {
     function applyExportTemplate(tpl) {
       if (exportTarget.value !== "detailed") return;
 
-      // clear all first
       exportColumnOptions.value.forEach((c) => (exportColumns[c.key] = false));
 
       if (tpl === "pdc") {
@@ -1701,33 +1879,29 @@ export default {
     }
 
     function pickRowsForExport(target) {
-      // Use CURRENT loaded data (no backend export). We respect current filters and search.
-      // Optional: override courseId if exportCourseId is set.
       const overrideCourse = String(exportCourseId.value || "").trim();
 
       if (target === "detailed") {
         let base = detailedFiltered.value;
         if (overrideCourse) base = base.filter((r) => String(r.course_id || r.courseId || "") === overrideCourse || String(r.course_id || "") === overrideCourse);
-
         const rows = exportScope.value === "page" ? detailedPaginated.value : base;
         return rows;
       }
 
       if (target === "revenue") {
+        if (reportMode.value !== "driving") return [];
         let base = revenueFiltered.value;
         if (overrideCourse) base = base.filter((r) => String(r.course_id || r.courseId || "") === overrideCourse || String(r.course_id || "") === overrideCourse);
-
         const rows = exportScope.value === "page" ? revenuePaginated.value : base;
         return rows;
       }
 
-      // overview datasets exported as separate sheets/tables
       return [];
     }
 
     function selectedColumnDefs() {
       const defs = exportColumnOptions.value.filter((c) => !!exportColumns[c.key]);
-      return defs.length ? defs : exportColumnOptions.value; // fallback if none selected
+      return defs.length ? defs : exportColumnOptions.value;
     }
 
     function valueForCell(row, key) {
@@ -1795,32 +1969,27 @@ export default {
       try {
         const target = exportTarget.value;
 
-        // Overview export: multi tables
         if (target === "overview" || target === "all") {
           const tables = [];
 
-          // trend
           tables.push({
             sheetName: "Trend",
             headers: ["Label", "Enrollments"],
             rows: (trend.labels || []).map((l, i) => [l, Number(trend.values?.[i] || 0)]),
           });
 
-          // top courses
           tables.push({
             sheetName: "Top Courses",
             headers: ["Course", "Enrollments"],
             rows: (topCourses.labels || []).map((l, i) => [l, Number(topCourses.values?.[i] || 0)]),
           });
 
-          // gender
           tables.push({
             sheetName: "Gender",
             headers: ["Gender", "Count"],
             rows: (gender.labels || []).map((l, i) => [l, Number(gender.values?.[i] || 0)]),
           });
 
-          // monthly preview
           tables.push({
             sheetName: "Course Monthly",
             headers: ["Month", "Course", "Enrollments"],
@@ -1830,11 +1999,10 @@ export default {
           if (target === "overview") {
             return exportMulti(tables, exportFileName.value);
           }
-          // for "all", continue to revenue + detailed too
           exportMulti(tables, `${exportFileName.value}-overview`);
         }
 
-        if (target === "revenue" || target === "all") {
+        if ((target === "revenue" || target === "all") && reportMode.value === "driving") {
           const rows = pickRowsForExport("revenue");
           const defs = selectedColumnDefs();
           const table = buildTableFromRows(rows, defs);
@@ -1865,14 +2033,8 @@ export default {
 
     function exportMulti(tables, filename) {
       if (exportFormat.value === "xlsx") return exportXlsx(tables, filename);
-      if (exportFormat.value === "csv") {
-        // CSV can only be one table; we export the first + suffix warning
-        return exportCsv({ headers: tables[0].headers, rows: tables[0].rows }, `${filename}-trend-only`);
-      }
-      if (exportFormat.value === "pdf") {
-        // PDF can only be one table per file; export Trend as default
-        return exportPdf({ headers: tables[0].headers, rows: tables[0].rows }, `${filename}-trend-only`);
-      }
+      if (exportFormat.value === "csv") return exportCsv({ headers: tables[0].headers, rows: tables[0].rows }, `${filename}-trend-only`);
+      if (exportFormat.value === "pdf") return exportPdf({ headers: tables[0].headers, rows: tables[0].rows }, `${filename}-trend-only`);
       throw new Error("Unsupported export format.");
     }
 
@@ -1881,7 +2043,7 @@ export default {
       const today = new Date();
       const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
-      overviewFilters.customFrom = toISODateLocal(lastMonth);
+      overviewFilters.customFrom = "2000-01-01";
       overviewFilters.customTo = toISODateLocal(today);
 
       revenueTabFilters.customFrom = toISODateLocal(lastMonth);
@@ -1892,7 +2054,8 @@ export default {
 
       await loadCourses();
       await loadOverview();
-      await loadRevenue();
+      await loadDetailed();
+      if (reportMode.value === "driving") await loadRevenue();
       await nextTick();
       resizeCharts();
     });
@@ -1902,6 +2065,12 @@ export default {
     });
 
     return {
+      // mode
+      reportMode,
+      reportModeLabel,
+      toggleReportMode,
+      tesdaKpiLabel,
+
       // UI
       activeTab,
       examOpen,
@@ -1969,7 +2138,7 @@ export default {
       // detailed table
       columnOptions,
       visibleColumns,
-      detailedColspan,
+      detailedColspanComputed,
       detailedFiltered,
       detailedPaginated,
       detailedPage,

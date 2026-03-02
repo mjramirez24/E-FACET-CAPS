@@ -54,6 +54,25 @@ function clampLimitOffset(page, limit) {
   return { page: p, limit: l, offset };
 }
 
+// ------------------------
+// Report mode helpers (Driving vs TESDA)
+// ------------------------
+function getReportMode(req) {
+  const raw = String(
+    req.query.report_mode || req.query.mode || "driving",
+  ).toLowerCase();
+  return raw === "tesda" ? "tesda" : "driving";
+}
+
+function enrolledStatuses() {
+  // Anything outside this list (e.g., PENDING/REJECTED/CANCELLED) should not count as enrolled.
+  return ["CONFIRMED", "APPROVED", "ACTIVE", "DONE", "COMPLETED", "FINISHED"];
+}
+
+function sqlInPlaceholders(arr) {
+  return arr.map(() => "?").join(",");
+}
+
 // DONE logic from schedule_reservations (source of truth)
 function isDoneConditionSql() {
   return `(sr.done_at IS NOT NULL OR UPPER(sr.reservation_status) IN ('DONE','COMPLETED','FINISHED'))`;
@@ -166,7 +185,6 @@ function exportAsPdfSimple(res, title, columns, rows, baseName) {
   doc.fontSize(14).text(title);
   doc.moveDown(0.75);
 
-  // Header line
   doc.fontSize(9).text(columns.map((c) => c.header).join(" | "));
   doc.moveDown(0.25);
   doc.text("-".repeat(110));
@@ -190,6 +208,7 @@ function exportAsPdfSimple(res, title, columns, rows, baseName) {
 // GET /api/admin/reports/detailed?from&to&course_id&gender&payment_method&status&page&limit&q
 exports.getDetailed = async (req, res) => {
   try {
+    const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
 
     const courseId = safeStr(req.query.course_id);
@@ -198,6 +217,125 @@ exports.getDetailed = async (req, res) => {
     const status = safeStr(req.query.status).toLowerCase(); // done / pending
     const q = safeStr(req.query.q);
 
+    // -----------------------------
+    // TESDA mode
+    // -----------------------------
+    if (mode === "tesda") {
+      const { page, limit, offset } = clampLimitOffset(
+        req.query.page,
+        req.query.limit,
+      );
+      const enrolled = enrolledStatuses();
+
+      // NOTE: TESDA schema uses trainers + tesda_schedules(trainer_id) (not instructors).
+      // Also: some MySQL setups can throw "Incorrect arguments to mysqld_stmt_execute"
+      // when LIMIT/OFFSET are parameter markers. We'll inline sanitized integers.
+      const safeLimit = Number.isFinite(limit) ? limit : 20;
+      const safeOffset = Number.isFinite(offset) ? offset : 0;
+
+      let where = `WHERE tsr.created_at >= ? AND tsr.created_at < ? AND tsr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+      const params = [from, to, ...enrolled];
+
+      if (courseId) {
+        where += ` AND ts.course_id = ?`;
+        params.push(courseId);
+      }
+
+      if (gender === "male" || gender === "female") {
+        where += ` AND LOWER(u.gender) = ?`;
+        params.push(gender);
+      }
+
+      if (status) {
+        where += ` AND LOWER(tsr.reservation_status) = ?`;
+        params.push(status);
+      }
+
+      if (q) {
+        const like = `%${safeLike(q)}%`;
+        where += `
+          AND (
+            u.fullname LIKE ? OR
+            CAST(tsr.student_id AS CHAR) LIKE ? OR
+            tc.course_name LIKE ? OR
+            tc.course_code LIKE ? OR
+            CAST(tsr.reservation_id AS CHAR) LIKE ?
+          )
+        `;
+        params.push(like, like, like, like, like);
+      }
+
+      const [countRows] = await pool.execute(
+        `
+        SELECT COUNT(*) AS total
+        FROM tesda_schedule_reservations tsr
+        LEFT JOIN users u ON u.id = tsr.student_id
+        LEFT JOIN tesda_schedules ts ON ts.schedule_id = tsr.schedule_id
+        LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
+        LEFT JOIN trainers tr ON tr.trainer_id = ts.trainer_id
+        ${where}
+        `,
+        params,
+      );
+
+      const total = safeInt(countRows?.[0]?.total, 0);
+
+      const [rows] = await pool.execute(
+        `
+        SELECT
+          tsr.reservation_id,
+          tsr.schedule_id,
+          tsr.student_id,
+          NULL AS lto_client_id,
+          ts.course_id,
+          tsr.reservation_source,
+          tsr.reservation_status,
+          NULL AS payment_method,
+          NULL AS fee_option_code,
+          tsr.created_at,
+
+          u.fullname,
+          u.gender,
+          u.birthday,
+
+          tc.course_code,
+          tc.course_name,
+          tc.course_fee,
+          tc.duration,
+
+          NULL AS dl_code,
+
+          ts.schedule_date AS schedule_date,
+          ts.schedule_date AS course_start,
+          ts.schedule_date AS course_end,
+          ts.start_time,
+          ts.end_time,
+
+          ts.trainer_id,
+          CONCAT_WS(' ', tr.firstname, tr.lastname) AS trainer_name,
+          CONCAT_WS(' ', tr.firstname, tr.lastname) AS instructor_name
+        FROM tesda_schedule_reservations tsr
+        LEFT JOIN users u ON u.id = tsr.student_id
+        LEFT JOIN tesda_schedules ts ON ts.schedule_id = tsr.schedule_id
+        LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
+        LEFT JOIN trainers tr ON tr.trainer_id = ts.trainer_id
+        ${where}
+        ORDER BY tsr.created_at DESC
+        LIMIT ${safeLimit} OFFSET ${safeOffset}
+        `,
+        params,
+      );
+
+      return res.json({
+        status: "success",
+        data: rows,
+        meta: { from, to, total, page, limit },
+      });
+    }
+
+    // -----------------------------
+    // DRIVING mode
+    // -----------------------------
     const { page, limit, offset } = clampLimitOffset(
       req.query.page,
       req.query.limit,
@@ -260,7 +398,7 @@ exports.getDetailed = async (req, res) => {
         sr.reservation_id,
         sr.schedule_id,
         sr.student_id,
-        sr.lto_client_id,          -- ✅ NEW: this is the one you want to show
+        sr.lto_client_id,
         sr.course_id,
         sr.reservation_source,
         sr.reservation_status,
@@ -278,6 +416,10 @@ exports.getDetailed = async (req, res) => {
         u.fullname,
         u.gender,
         u.birthday,
+
+        u.nationality,
+        u.civil_status,
+        u.address,
 
         c.course_name,
         c.course_fee,
@@ -341,13 +483,16 @@ exports.getDetailed = async (req, res) => {
 // GET /api/admin/reports/summary?from&to&course_id&gender
 exports.getSummary = async (req, res) => {
   try {
+    const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
 
     const courseId = safeStr(req.query.course_id);
     const gender = safeStr(req.query.gender).toLowerCase();
 
-    let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
-    const params = [from, to];
+    const enrolled = enrolledStatuses();
+
+    let where = `WHERE sr.created_at >= ? AND sr.created_at < ? AND sr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+    const params = [from, to, ...enrolled];
 
     if (courseId) {
       where += ` AND sr.course_id = ?`;
@@ -356,6 +501,62 @@ exports.getSummary = async (req, res) => {
     if (gender === "male" || gender === "female") {
       where += ` AND LOWER(u.gender) = ?`;
       params.push(gender);
+    }
+
+    if (mode === "tesda") {
+      let whereTesda = `WHERE sr.created_at >= ? AND sr.created_at < ? AND sr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+      const paramsTesda = [from, to, ...enrolled];
+
+      if (courseId) {
+        whereTesda += ` AND s.course_id = ?`;
+        paramsTesda.push(courseId);
+      }
+      if (gender === "male" || gender === "female") {
+        whereTesda += ` AND LOWER(u.gender) = ?`;
+        paramsTesda.push(gender);
+      }
+
+      const [[{ totalEnrolled }]] = await pool.execute(
+        `
+        SELECT COUNT(*) AS totalEnrolled
+        FROM tesda_schedule_reservations sr
+        LEFT JOIN tesda_schedules s ON s.schedule_id = sr.schedule_id
+        LEFT JOIN users u ON u.id = sr.student_id
+        ${whereTesda}
+        `,
+        paramsTesda,
+      );
+
+      const [popularRows] = await pool.execute(
+        `
+        SELECT c.course_name AS name, COUNT(*) AS cnt
+        FROM tesda_schedule_reservations sr
+        LEFT JOIN tesda_schedules s ON s.schedule_id = sr.schedule_id
+        LEFT JOIN tesda_courses c ON c.id = s.course_id
+        LEFT JOIN users u ON u.id = sr.student_id
+        ${whereTesda}
+        GROUP BY s.course_id
+        ORDER BY cnt DESC
+        LIMIT 1
+        `,
+        paramsTesda,
+      );
+
+      const mostPopularCourse = popularRows.length ? popularRows[0].name : "";
+
+      return res.json({
+        status: "success",
+        data: {
+          from,
+          to,
+          totalEnrolled: safeInt(totalEnrolled, 0),
+          mostPopularCourse,
+          completionRate: 0,
+          certIssued: 0,
+          totalRevenuePeso: 0,
+          doneCount: 0,
+        },
+      });
     }
 
     const [[{ totalEnrolled }]] = await pool.execute(
@@ -384,7 +585,6 @@ exports.getSummary = async (req, res) => {
 
     const mostPopularCourse = popularRows.length ? popularRows[0].name : "";
 
-    // Revenue in summary: DONE only
     let doneWhere = `WHERE sr.created_at >= ? AND sr.created_at < ? AND ${isDoneConditionSql()}`;
     const doneParams = [from, to];
 
@@ -442,17 +642,19 @@ exports.getSummary = async (req, res) => {
 // GET /api/admin/reports/trend?from&to&period=day|week|month&course_id&gender
 exports.getTrend = async (req, res) => {
   try {
+    const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
 
     const period = safeStr(req.query.period || "month").toLowerCase();
     const courseId = safeStr(req.query.course_id);
     const gender = safeStr(req.query.gender).toLowerCase();
 
-    let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
-    const params = [from, to];
+    const enrolled = enrolledStatuses();
+    let where = `WHERE sr.created_at >= ? AND sr.created_at < ? AND sr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+    const params = [from, to, ...enrolled];
 
     if (courseId) {
-      where += ` AND sr.course_id = ?`;
+      where += ` AND ${mode === "tesda" ? "s.course_id" : "sr.course_id"} = ?`;
       params.push(courseId);
     }
     if (gender === "male" || gender === "female") {
@@ -467,14 +669,24 @@ exports.getTrend = async (req, res) => {
     }
 
     const [rows] = await pool.execute(
-      `
-      SELECT ${labelExpr} AS label, COUNT(*) AS cnt
-      FROM schedule_reservations sr
-      LEFT JOIN users u ON u.id = sr.student_id
-      ${where}
-      GROUP BY label
-      ORDER BY label ASC
-      `,
+      mode === "tesda"
+        ? `
+          SELECT ${labelExpr} AS label, COUNT(*) AS cnt
+          FROM tesda_schedule_reservations sr
+          LEFT JOIN tesda_schedules s ON s.schedule_id = sr.schedule_id
+          LEFT JOIN users u ON u.id = sr.student_id
+          ${where}
+          GROUP BY label
+          ORDER BY label ASC
+          `
+        : `
+          SELECT ${labelExpr} AS label, COUNT(*) AS cnt
+          FROM schedule_reservations sr
+          LEFT JOIN users u ON u.id = sr.student_id
+          ${where}
+          GROUP BY label
+          ORDER BY label ASC
+          `,
       params,
     );
 
@@ -501,16 +713,18 @@ exports.getTrend = async (req, res) => {
 // GET /api/admin/reports/top-courses?from&to&course_id&gender
 exports.getTopCourses = async (req, res) => {
   try {
+    const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
 
     const courseId = safeStr(req.query.course_id);
     const gender = safeStr(req.query.gender).toLowerCase();
 
-    let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
-    const params = [from, to];
+    const enrolled = enrolledStatuses();
+    let where = `WHERE sr.created_at >= ? AND sr.created_at < ? AND sr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+    const params = [from, to, ...enrolled];
 
     if (courseId) {
-      where += ` AND sr.course_id = ?`;
+      where += ` AND ${mode === "tesda" ? "s.course_id" : "sr.course_id"} = ?`;
       params.push(courseId);
     }
     if (gender === "male" || gender === "female") {
@@ -519,16 +733,28 @@ exports.getTopCourses = async (req, res) => {
     }
 
     const [rows] = await pool.execute(
-      `
-      SELECT c.course_name AS name, COUNT(*) AS students
-      FROM schedule_reservations sr
-      LEFT JOIN courses c ON c.id = sr.course_id
-      LEFT JOIN users u ON u.id = sr.student_id
-      ${where}
-      GROUP BY sr.course_id
-      ORDER BY students DESC
-      LIMIT 10
-      `,
+      mode === "tesda"
+        ? `
+          SELECT c.course_name AS name, COUNT(*) AS students
+          FROM tesda_schedule_reservations sr
+          LEFT JOIN tesda_schedules s ON s.schedule_id = sr.schedule_id
+          LEFT JOIN tesda_courses c ON c.id = s.course_id
+          LEFT JOIN users u ON u.id = sr.student_id
+          ${where}
+          GROUP BY s.course_id
+          ORDER BY students DESC
+          LIMIT 10
+          `
+        : `
+          SELECT c.course_name AS name, COUNT(*) AS students
+          FROM schedule_reservations sr
+          LEFT JOIN courses c ON c.id = sr.course_id
+          LEFT JOIN users u ON u.id = sr.student_id
+          ${where}
+          GROUP BY sr.course_id
+          ORDER BY students DESC
+          LIMIT 10
+          `,
       params,
     );
 
@@ -552,26 +778,38 @@ exports.getTopCourses = async (req, res) => {
 // GET /api/admin/reports/gender-breakdown?from&to&course_id
 exports.getGenderBreakdown = async (req, res) => {
   try {
+    const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
     const courseId = safeStr(req.query.course_id);
 
-    let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
-    const params = [from, to];
+    const enrolled = enrolledStatuses();
+    let where = `WHERE sr.created_at >= ? AND sr.created_at < ? AND sr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+    const params = [from, to, ...enrolled];
 
     if (courseId) {
-      where += ` AND sr.course_id = ?`;
+      where += ` AND ${mode === "tesda" ? "s.course_id" : "sr.course_id"} = ?`;
       params.push(courseId);
     }
 
     const [rows] = await pool.execute(
-      `
-      SELECT
-        SUM(CASE WHEN LOWER(u.gender) = 'male' THEN 1 ELSE 0 END) AS maleCount,
-        SUM(CASE WHEN LOWER(u.gender) = 'female' THEN 1 ELSE 0 END) AS femaleCount
-      FROM schedule_reservations sr
-      LEFT JOIN users u ON u.id = sr.student_id
-      ${where}
-      `,
+      mode === "tesda"
+        ? `
+          SELECT
+            SUM(CASE WHEN LOWER(u.gender) = 'male' THEN 1 ELSE 0 END) AS maleCount,
+            SUM(CASE WHEN LOWER(u.gender) = 'female' THEN 1 ELSE 0 END) AS femaleCount
+          FROM tesda_schedule_reservations sr
+          LEFT JOIN tesda_schedules s ON s.schedule_id = sr.schedule_id
+          LEFT JOIN users u ON u.id = sr.student_id
+          ${where}
+          `
+        : `
+          SELECT
+            SUM(CASE WHEN LOWER(u.gender) = 'male' THEN 1 ELSE 0 END) AS maleCount,
+            SUM(CASE WHEN LOWER(u.gender) = 'female' THEN 1 ELSE 0 END) AS femaleCount
+          FROM schedule_reservations sr
+          LEFT JOIN users u ON u.id = sr.student_id
+          ${where}
+          `,
       params,
     );
 
@@ -595,30 +833,46 @@ exports.getGenderBreakdown = async (req, res) => {
 // GET /api/admin/reports/course-monthly-preview?from&to&course_id
 exports.getCourseMonthlyPreview = async (req, res) => {
   try {
+    const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
     const courseId = safeStr(req.query.course_id);
 
-    let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
-    const params = [from, to];
+    const enrolled = enrolledStatuses();
+    let where = `WHERE sr.created_at >= ? AND sr.created_at < ? AND sr.reservation_status IN (${sqlInPlaceholders(enrolled)})`;
+    const params = [from, to, ...enrolled];
 
     if (courseId) {
-      where += ` AND sr.course_id = ?`;
+      where += ` AND ${mode === "tesda" ? "s.course_id" : "sr.course_id"} = ?`;
       params.push(courseId);
     }
 
     const [rows] = await pool.execute(
-      `
-      SELECT
-        DATE_FORMAT(sr.created_at, '%Y-%m') AS month_label,
-        c.course_name,
-        COUNT(*) AS count
-      FROM schedule_reservations sr
-      LEFT JOIN courses c ON c.id = sr.course_id
-      ${where}
-      GROUP BY month_label, sr.course_id
-      ORDER BY month_label DESC, count DESC
-      LIMIT 50
-      `,
+      mode === "tesda"
+        ? `
+          SELECT
+            DATE_FORMAT(sr.created_at, '%Y-%m') AS month_label,
+            c.course_name,
+            COUNT(*) AS count
+          FROM tesda_schedule_reservations sr
+          LEFT JOIN tesda_schedules s ON s.schedule_id = sr.schedule_id
+          LEFT JOIN tesda_courses c ON c.id = s.course_id
+          ${where}
+          GROUP BY month_label, s.course_id
+          ORDER BY month_label DESC, count DESC
+          LIMIT 50
+          `
+        : `
+          SELECT
+            DATE_FORMAT(sr.created_at, '%Y-%m') AS month_label,
+            c.course_name,
+            COUNT(*) AS count
+          FROM schedule_reservations sr
+          LEFT JOIN courses c ON c.id = sr.course_id
+          ${where}
+          GROUP BY month_label, sr.course_id
+          ORDER BY month_label DESC, count DESC
+          LIMIT 50
+          `,
       params,
     );
 
@@ -630,6 +884,81 @@ exports.getCourseMonthlyPreview = async (req, res) => {
       message: "Failed to load course monthly preview",
       debug: err.sqlMessage || err.message,
     });
+  }
+};
+
+// =====================
+// Attendance report (Driving + TESDA)
+// =====================
+exports.getAttendanceReport = async (req, res) => {
+  try {
+    const mode = getReportMode(req);
+    const { from, to } = getDateRange(req);
+    const courseId = safeStr(req.query.course_id);
+    const enrolled = enrolledStatuses();
+
+    const params = [from, to, ...enrolled];
+    let courseFilter = "";
+    if (courseId) {
+      courseFilter = " AND s.course_id = ?";
+      params.push(courseId);
+    }
+
+    const sqlTesda = `
+      SELECT
+        s.schedule_id,
+        DATE(s.course_start) AS schedule_date,
+        c.course_name,
+        COUNT(DISTINCT r.student_id) AS enrolled_count,
+        COUNT(DISTINCT a.student_id) AS present_count
+      FROM tesda_schedules s
+      LEFT JOIN tesda_courses c ON c.id = s.course_id
+      LEFT JOIN tesda_schedule_reservations r
+        ON r.schedule_id = s.schedule_id
+       AND r.reservation_status IN (${sqlInPlaceholders(enrolled)})
+      LEFT JOIN attendance a
+        ON a.schedule_id = s.schedule_id
+      WHERE s.course_start >= ? AND s.course_start < ?
+        ${courseFilter}
+      GROUP BY s.schedule_id, schedule_date, c.course_name
+      ORDER BY schedule_date DESC, c.course_name ASC
+      LIMIT 500
+    `;
+
+    const sqlDriving = `
+      SELECT
+        s.schedule_id,
+        DATE(s.schedule_date) AS schedule_date,
+        c.course_name,
+        COUNT(DISTINCT r.student_id) AS enrolled_count,
+        COUNT(DISTINCT a.student_id) AS present_count
+      FROM schedules s
+      LEFT JOIN courses c ON c.id = s.course_id
+      LEFT JOIN schedule_reservations r
+        ON r.schedule_id = s.schedule_id
+       AND r.reservation_status IN (${sqlInPlaceholders(enrolled)})
+      LEFT JOIN attendance a
+        ON a.schedule_id = s.schedule_id
+      WHERE s.schedule_date >= ? AND s.schedule_date < ?
+        ${courseFilter}
+      GROUP BY s.schedule_id, schedule_date, c.course_name
+      ORDER BY schedule_date DESC, c.course_name ASC
+      LIMIT 500
+    `;
+
+    const [rows] = await pool.execute(
+      mode === "tesda" ? sqlTesda : sqlDriving,
+      params,
+    );
+
+    return res.json({
+      status: "success",
+      data: rows,
+      meta: { from, to, mode },
+    });
+  } catch (err) {
+    console.error("getAttendanceReport error:", err);
+    return res.status(500).json({ status: "error", message: "Server error" });
   }
 };
 
@@ -1127,10 +1456,15 @@ exports.exportDetailed = async (req, res) => {
         sr.reservation_id,
         sr.schedule_id,
         sr.student_id,
-        sr.lto_client_id,      -- ✅ add
+        sr.lto_client_id,
         u.fullname,
         u.gender,
         u.birthday,
+
+        u.nationality,
+        u.civil_status,
+        u.address,
+
         c.course_name,
         ${dlCodeExprSql()} AS dl_code,
         i.fullname AS instructor_name,
@@ -1165,10 +1499,13 @@ exports.exportDetailed = async (req, res) => {
       { header: "Reservation ID", key: "reservation_id", width: 14 },
       { header: "Schedule ID", key: "schedule_id", width: 12 },
       { header: "Student ID", key: "student_id", width: 10 },
-      { header: "LTO Client ID", key: "lto_client_id", width: 18 }, // ✅ NEW
+      { header: "LTO Client ID", key: "lto_client_id", width: 18 },
       { header: "Full Name", key: "fullname", width: 26 },
       { header: "Gender", key: "gender", width: 8 },
       { header: "Birthdate", key: "birthday", width: 12 },
+      { header: "Nationality", key: "nationality", width: 14 },
+      { header: "Civil Status", key: "civil_status", width: 12 },
+      { header: "Address", key: "address", width: 28 },
       { header: "Course", key: "course_name", width: 22 },
       { header: "DL Code", key: "dl_code", width: 10 },
       { header: "Instructor", key: "instructor_name", width: 22 },
@@ -1189,10 +1526,13 @@ exports.exportDetailed = async (req, res) => {
       reservation_id: r.reservation_id,
       schedule_id: r.schedule_id,
       student_id: r.student_id,
-      lto_client_id: r.lto_client_id || "", // ✅
+      lto_client_id: r.lto_client_id || "",
       fullname: r.fullname || "",
       gender: r.gender || "",
       birthday: r.birthday ? toISODate(r.birthday) : "",
+      nationality: r.nationality || "",
+      civil_status: r.civil_status || "",
+      address: r.address || "",
       course_name: r.course_name || "",
       dl_code: r.dl_code || "",
       instructor_name: r.instructor_name || "",
@@ -1234,7 +1574,6 @@ exports.exportAll = async (req, res) => {
   try {
     const format = getExportFormat(req);
     if (format !== "xlsx") {
-      // easiest behavior: if not xlsx, export overview only
       return exports.exportOverview(req, res);
     }
 
@@ -1271,7 +1610,6 @@ exports.exportAll = async (req, res) => {
     );
     const mostPopularCourse = popularRows.length ? popularRows[0].name : "";
 
-    // Revenue total (DONE)
     let doneWhere = `WHERE sr.created_at >= ? AND sr.created_at < ? AND ${isDoneConditionSql()}`;
     const doneParams = [from, to];
     if (courseId) {
@@ -1296,7 +1634,6 @@ exports.exportAll = async (req, res) => {
       doneParams,
     );
 
-    // Top courses
     const [topRows] = await pool.execute(
       `
       SELECT c.course_name AS course_name, COUNT(*) AS students
@@ -1310,7 +1647,6 @@ exports.exportAll = async (req, res) => {
       params,
     );
 
-    // Course monthly
     const [monthlyRows] = await pool.execute(
       `
       SELECT
@@ -1326,7 +1662,6 @@ exports.exportAll = async (req, res) => {
       params,
     );
 
-    // Revenue list (DONE)
     const dateExpr = `COALESCE(sr.done_at, sr.updated_at, sr.created_at)`;
     let revWhere = `WHERE ${dateExpr} >= ? AND ${dateExpr} < ? AND ${isDoneConditionSql()}`;
     const revParams = [from, to];
@@ -1359,17 +1694,21 @@ exports.exportAll = async (req, res) => {
       revParams,
     );
 
-    // Detailed (cap)
     const [detailedRows] = await pool.execute(
       `
       SELECT
         sr.reservation_id,
         sr.schedule_id,
         sr.student_id,
-        sr.lto_client_id,     -- ✅ add
+        sr.lto_client_id,
         u.fullname,
         u.gender,
         u.birthday,
+
+        u.nationality,
+        u.civil_status,
+        u.address,
+
         c.course_name,
         ${dlCodeExprSql()} AS dl_code,
         sr.training_purpose,
@@ -1394,7 +1733,6 @@ exports.exportAll = async (req, res) => {
 
     const wb = new ExcelJS.Workbook();
 
-    // Overview sheet
     const s1 = wb.addWorksheet("Overview");
     s1.columns = [
       { header: "Metric", key: "metric", width: 28 },
@@ -1415,7 +1753,6 @@ exports.exportAll = async (req, res) => {
     s1.getRow(1).font = { bold: true };
     s1.views = [{ state: "frozen", ySplit: 1 }];
 
-    // Top courses
     const s2 = wb.addWorksheet("TopCourses");
     s2.columns = [
       { header: "Course", key: "course_name", width: 35 },
@@ -1430,7 +1767,6 @@ exports.exportAll = async (req, res) => {
     s2.getRow(1).font = { bold: true };
     s2.views = [{ state: "frozen", ySplit: 1 }];
 
-    // Monthly
     const s3 = wb.addWorksheet("CourseMonthly");
     s3.columns = [
       { header: "Month", key: "month_label", width: 14 },
@@ -1447,7 +1783,6 @@ exports.exportAll = async (req, res) => {
     s3.getRow(1).font = { bold: true };
     s3.views = [{ state: "frozen", ySplit: 1 }];
 
-    // Revenue
     const s4 = wb.addWorksheet("Revenue");
     s4.columns = [
       { header: "Reservation ID", key: "reservation_id", width: 14 },
@@ -1474,16 +1809,18 @@ exports.exportAll = async (req, res) => {
     s4.getRow(1).font = { bold: true };
     s4.views = [{ state: "frozen", ySplit: 1 }];
 
-    // Detailed
     const s5 = wb.addWorksheet("Detailed");
     s5.columns = [
       { header: "Reservation ID", key: "reservation_id", width: 14 },
       { header: "Schedule ID", key: "schedule_id", width: 12 },
       { header: "Student ID", key: "student_id", width: 10 },
-      { header: "LTO Client ID", key: "lto_client_id", width: 18 }, // ✅ NEW
+      { header: "LTO Client ID", key: "lto_client_id", width: 18 },
       { header: "Full Name", key: "fullname", width: 26 },
       { header: "Gender", key: "gender", width: 8 },
       { header: "Birthdate", key: "birthday", width: 12 },
+      { header: "Nationality", key: "nationality", width: 14 },
+      { header: "Civil Status", key: "civil_status", width: 12 },
+      { header: "Address", key: "address", width: 28 },
       { header: "Course", key: "course_name", width: 22 },
       { header: "DL Code", key: "dl_code", width: 10 },
       { header: "Training Purpose", key: "training_purpose", width: 22 },
@@ -1505,6 +1842,9 @@ exports.exportAll = async (req, res) => {
         fullname: r.fullname || "",
         gender: r.gender || "",
         birthday: r.birthday ? toISODate(r.birthday) : "",
+        nationality: r.nationality || "",
+        civil_status: r.civil_status || "",
+        address: r.address || "",
         course_name: r.course_name || "",
         dl_code: r.dl_code || "",
         training_purpose: r.training_purpose || "",

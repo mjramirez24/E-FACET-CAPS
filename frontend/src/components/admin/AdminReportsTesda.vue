@@ -1,600 +1,342 @@
-<!-- frontend/src/components/AdminReportsTesda.vue -->
-<!-- TESDA REPORTS PANEL - COMPLETELY SEPARATE FROM LTO -->
 <template>
-  <AdminLayout>
-    <!-- Header with LTO tab button -->
-    <template #header-left>
-      <div class="flex items-center gap-4">
-        <input
-          type="text"
-          placeholder="Search TESDA tables..."
-          v-model="searchQuery"
-          class="w-80 p-2 rounded-md text-gray-800 focus:outline-none"
-        />
-        
-        <!-- LTO TAB BUTTON -->
+  <div class="space-y-6">
+    <!-- TESDA PAGE HEADER -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-blue-800">📊 TESDA Reports Panel</h2>
+        <p class="text-xs text-gray-500">Overview + Detailed Reports (TESDA) • Separate from Driving</p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
         <button
           @click="$emit('switch-to-lto')"
-          class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium"
+          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
-          <span>🚗 LTO Reports</span>
-          <span class="text-xs bg-white text-green-600 px-2 py-0.5 rounded-full">Click to switch</span>
-        </button>
-      </div>
-    </template>
-
-    <div class="space-y-6">
-      <!-- TESDA PAGE HEADER -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h2 class="text-lg font-bold text-blue-800">📊 TESDA Reports Panel</h2>
-          <p class="text-xs text-gray-500">
-            Overview, Detailed Reports, at Attendance Report para sa TESDA scholars/trainees
-          </p>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <button
-            @click="openExportModal('all')"
-            class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
-          >
-            📤 Export All
-          </button>
-
-          <button
-            @click="openExportModal(activeTab)"
-            class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
-          >
-            📤 Export This Tab
-          </button>
-        </div>
-      </div>
-
-      <!-- TESDA TABS: Overview | Detailed Reports | Attendance -->
-      <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
-        <button
-          class="px-4 py-2 rounded-t-md text-sm font-medium transition-colors"
-          :class="activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-          @click="activeTab = 'overview'"
-        >
-          📈 Overview
+          🚗 Back to Driving
         </button>
 
         <button
-          class="px-4 py-2 rounded-t-md text-sm font-medium transition-colors"
-          :class="activeTab === 'detailed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-          @click="activeTab = 'detailed'"
+          @click="openExport('overview')"
+          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
-          📋 Detailed Reports
+          📤 Export Overview
         </button>
 
         <button
-          class="px-4 py-2 rounded-t-md text-sm font-medium transition-colors"
-          :class="activeTab === 'attendance' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-          @click="activeTab = 'attendance'"
+          @click="openExport('detailed')"
+          class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
-          📅 Attendance Report
+          📤 Export Detailed
         </button>
       </div>
+    </div>
 
-      <!-- ===================== TESDA OVERVIEW TAB ===================== -->
-      <div v-if="activeTab === 'overview'" class="space-y-6">
-        <!-- Filters -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            <div class="flex flex-wrap gap-4">
-              <DateRangePicker
-                v-model:range="overviewFilters.dateRange"
-                v-model:from="overviewFilters.customFrom"
-                v-model:to="overviewFilters.customTo"
-              />
+    <!-- TABS -->
+    <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <button
+        class="px-4 py-2 rounded-t-md text-sm font-medium transition-colors"
+        :class="activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        @click="activeTab = 'overview'"
+      >
+        📈 Overview
+      </button>
+      <button
+        class="px-4 py-2 rounded-t-md text-sm font-medium transition-colors"
+        :class="activeTab === 'detailed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        @click="activeTab = 'detailed'"
+      >
+        📋 Detailed Reports
+      </button>
+    </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Program/Training</label>
-                <select v-model="overviewFilters.programId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All Programs</option>
-                  <option v-for="p in tesdaPrograms" :key="p.id" :value="String(p.id)">
-                    {{ p.program_name }}
-                  </option>
-                </select>
-              </div>
+    <!-- ===================== OVERVIEW ===================== -->
+    <div v-if="activeTab === 'overview'" class="space-y-6">
+      <!-- Filters -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div class="flex flex-wrap gap-4">
+            <DateRangePicker
+              v-model:range="overviewFilters.dateRange"
+              v-model:from="overviewFilters.customFrom"
+              v-model:to="overviewFilters.customTo"
+            />
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select v-model="overviewFilters.status" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All</option>
-                  <option value="enrolled">Enrolled</option>
-                  <option value="graduated">Graduated</option>
-                  <option value="dropped">Dropped</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              @click="loadOverviewData"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-            >
-              Apply Filters
-            </button>
-          </div>
-
-          <div v-if="overviewError" class="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-            {{ overviewError }}
-          </div>
-        </div>
-
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <p class="text-sm text-blue-700 font-medium">Total TESDA Scholars</p>
-            <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ summary.totalScholars }}</h3>
-          </div>
-
-          <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-            <p class="text-sm text-green-700 font-medium">Currently Enrolled</p>
-            <h3 class="text-2xl font-bold text-green-800 mt-1">{{ summary.currentEnrolled }}</h3>
-          </div>
-
-          <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-            <p class="text-sm text-purple-700 font-medium">Graduates</p>
-            <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ summary.graduates }}</h3>
-          </div>
-
-          <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-            <p class="text-sm text-yellow-700 font-medium">Dropped Out</p>
-            <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ summary.dropped }}</h3>
-          </div>
-        </div>
-
-        <!-- Charts Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Enrollment Trend -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h3 class="text-blue-800 font-semibold mb-3">Enrollment Trend (TESDA)</h3>
-            <div class="h-64">
-              <VChart ref="trendChartRef" :option="trendOption" autoresize />
-            </div>
-          </div>
-
-          <!-- Programs Distribution -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h3 class="text-blue-800 font-semibold mb-3">Top Programs</h3>
-            <div class="h-64">
-              <VChart ref="programsChartRef" :option="programsOption" autoresize />
-            </div>
-          </div>
-
-          <!-- Gender Distribution -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h3 class="text-blue-800 font-semibold mb-3">Scholars by Gender</h3>
-            <div class="h-64">
-              <VChart ref="genderChartRef" :option="genderOption" autoresize />
-            </div>
-          </div>
-
-          <!-- Age Distribution -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h3 class="text-blue-800 font-semibold mb-3">Age Distribution</h3>
-            <div class="h-64">
-              <VChart ref="ageChartRef" :option="ageOption" autoresize />
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent Scholars Table -->
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-blue-800 font-semibold">Recent TESDA Scholars</h3>
-            <button @click="activeTab = 'detailed'" class="text-sm text-blue-600 hover:underline">
-              View All →
-            </button>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="min-w-full border border-gray-200 text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="py-2 px-3 text-left">Name</th>
-                  <th class="py-2 px-3 text-left">Program</th>
-                  <th class="py-2 px-3 text-left">Status</th>
-                  <th class="py-2 px-3 text-left">Enrolled Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="s in recentScholars" :key="s.id" class="border-b border-gray-100 hover:bg-gray-50">
-                  <td class="py-2 px-3">{{ s.fullname }}</td>
-                  <td class="py-2 px-3">{{ s.program_name }}</td>
-                  <td class="py-2 px-3">
-                    <span class="px-2 py-1 rounded-full text-xs" 
-                      :class="{
-                        'bg-green-100 text-green-800': s.status === 'enrolled',
-                        'bg-blue-100 text-blue-800': s.status === 'graduated',
-                        'bg-red-100 text-red-800': s.status === 'dropped'
-                      }"
-                    >
-                      {{ s.status }}
-                    </span>
-                  </td>
-                  <td class="py-2 px-3">{{ formatDate(s.enrolled_date) }}</td>
-                </tr>
-                <tr v-if="recentScholars.length === 0">
-                  <td colspan="4" class="py-6 text-center text-gray-500">No recent scholars</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== TESDA DETAILED REPORTS TAB ===================== -->
-      <div v-else-if="activeTab === 'detailed'" class="space-y-6">
-        <!-- Detailed Filters -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            <div class="flex flex-wrap gap-4">
-              <DateRangePicker
-                v-model:range="detailedFilters.dateRange"
-                v-model:from="detailedFilters.customFrom"
-                v-model:to="detailedFilters.customTo"
-              />
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Program</label>
-                <select v-model="detailedFilters.programId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All Programs</option>
-                  <option v-for="p in tesdaPrograms" :key="p.id" :value="String(p.id)">
-                    {{ p.program_name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select v-model="detailedFilters.status" class="w-40 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All</option>
-                  <option value="enrolled">Enrolled</option>
-                  <option value="graduated">Graduated</option>
-                  <option value="dropped">Dropped</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                <select v-model="detailedFilters.sort" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="enrolled_desc">Enrolled Date (Newest)</option>
-                  <option value="enrolled_asc">Enrolled Date (Oldest)</option>
-                  <option value="name_asc">Name (A-Z)</option>
-                  <option value="name_desc">Name (Z-A)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="flex gap-2">
-              <button @click="loadDetailedData" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Apply
-              </button>
-              <button @click="showColumnSelector = !showColumnSelector" class="px-4 py-2 border rounded-md hover:bg-gray-50">
-                {{ showColumnSelector ? 'Hide' : 'Show' }} Columns
-              </button>
-            </div>
-          </div>
-
-          <!-- Column Selector -->
-          <div v-if="showColumnSelector" class="mt-4 p-3 bg-gray-50 rounded-lg">
-            <div class="flex flex-wrap gap-4">
-              <label v-for="col in columnOptions" :key="col.key" class="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" v-model="visibleColumns[col.key]" />
-                <span>{{ col.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div v-if="detailedError" class="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-            {{ detailedError }}
-          </div>
-        </div>
-
-        <!-- Detailed Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div class="p-4 border-b flex justify-between items-center">
             <div>
-              <h3 class="text-lg font-bold text-blue-800">📋 TESDA Scholars List</h3>
-              <p class="text-xs text-gray-500">Total: {{ detailedFiltered.length }} scholars</p>
-            </div>
-            
-            <div class="flex items-center gap-3">
-              <select v-model.number="detailedPageSize" class="w-24 p-2 border rounded-md text-sm">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-                <option :value="100">100</option>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+              <select v-model="overviewFilters.courseId" class="w-60 p-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All TESDA Courses</option>
+                <option v-for="c in tesdaCourses" :key="c.id" :value="String(c.id)">
+                  {{ c.course_name }}
+                </option>
               </select>
-              <span class="text-sm text-gray-600">
-                {{ detailedPageStart }}-{{ detailedPageEnd }} of {{ detailedFiltered.length }}
-              </span>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Trend Period</label>
+              <select v-model="overviewFilters.period" class="w-40 p-2 border border-gray-300 rounded-md text-sm">
+                <option value="day">Daily</option>
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+              </select>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="py-2 px-3 text-left">#</th>
-                  <th v-if="visibleColumns.scholar_id" class="py-2 px-3 text-left">Scholar ID</th>
-                  <th v-if="visibleColumns.fullname" class="py-2 px-3 text-left">Full Name</th>
-                  <th v-if="visibleColumns.birthdate" class="py-2 px-3 text-left">Birthdate</th>
-                  <th v-if="visibleColumns.gender" class="py-2 px-3 text-left">Gender</th>
-                  <th v-if="visibleColumns.program" class="py-2 px-3 text-left">Program</th>
-                  <th v-if="visibleColumns.instructor" class="py-2 px-3 text-left">Instructor</th>
-                  <th v-if="visibleColumns.enrolled_date" class="py-2 px-3 text-left">Enrolled Date</th>
-                  <th v-if="visibleColumns.graduation_date" class="py-2 px-3 text-left">Graduation Date</th>
-                  <th v-if="visibleColumns.status" class="py-2 px-3 text-left">Status</th>
-                  <th v-if="visibleColumns.contact" class="py-2 px-3 text-left">Contact</th>
-                  <th v-if="visibleColumns.address" class="py-2 px-3 text-left">Address</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(s, idx) in detailedPaginated" :key="s.id" class="border-b hover:bg-gray-50">
-                  <td class="py-2 px-3">{{ detailedPageStart + idx }}</td>
-                  <td v-if="visibleColumns.scholar_id" class="py-2 px-3">{{ s.scholar_id || '-' }}</td>
-                  <td v-if="visibleColumns.fullname" class="py-2 px-3">{{ s.fullname }}</td>
-                  <td v-if="visibleColumns.birthdate" class="py-2 px-3">{{ formatDateShort(s.birthdate) }}</td>
-                  <td v-if="visibleColumns.gender" class="py-2 px-3">{{ s.gender === 'Male' ? 'M' : 'F' }}</td>
-                  <td v-if="visibleColumns.program" class="py-2 px-3">{{ s.program_name }}</td>
-                  <td v-if="visibleColumns.instructor" class="py-2 px-3">{{ s.instructor_name || '-' }}</td>
-                  <td v-if="visibleColumns.enrolled_date" class="py-2 px-3">{{ formatDate(s.enrolled_date) }}</td>
-                  <td v-if="visibleColumns.graduation_date" class="py-2 px-3">{{ formatDate(s.graduation_date) || '-' }}</td>
-                  <td v-if="visibleColumns.status" class="py-2 px-3">
-                    <span class="px-2 py-1 rounded-full text-xs"
-                      :class="{
-                        'bg-green-100 text-green-800': s.status === 'enrolled',
-                        'bg-blue-100 text-blue-800': s.status === 'graduated',
-                        'bg-red-100 text-red-800': s.status === 'dropped'
-                      }"
-                    >
-                      {{ s.status }}
-                    </span>
-                  </td>
-                  <td v-if="visibleColumns.contact" class="py-2 px-3">{{ s.contact_number || '-' }}</td>
-                  <td v-if="visibleColumns.address" class="py-2 px-3">{{ s.address || '-' }}</td>
-                </tr>
-                <tr v-if="detailedLoading">
-                  <td :colspan="detailedColspan" class="py-8 text-center text-gray-500">Loading...</td>
-                </tr>
-                <tr v-if="!detailedLoading && detailedFiltered.length === 0">
-                  <td :colspan="detailedColspan" class="py-8 text-center text-gray-500">No scholars found</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <button
+            @click="loadOverview()"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+          >
+            Apply Filters
+          </button>
+        </div>
 
-          <!-- Pagination -->
-          <div v-if="detailedTotalPages > 1" class="p-4 flex justify-between items-center border-t">
-            <button
-              class="px-3 py-2 border rounded text-sm disabled:opacity-50"
-              :disabled="detailedPage === 1"
-              @click="detailedPage--"
-            >
-              ← Prev
-            </button>
-            <div class="flex gap-1">
-              <button
-                v-for="p in detailedPageButtons"
-                :key="p"
-                class="px-3 py-2 border rounded text-sm"
-                :class="p === detailedPage ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'"
-                @click="detailedPage = p"
-              >
-                {{ p }}
-              </button>
-            </div>
-            <button
-              class="px-3 py-2 border rounded text-sm disabled:opacity-50"
-              :disabled="detailedPage === detailedTotalPages"
-              @click="detailedPage++"
-            >
-              Next →
-            </button>
-          </div>
+        <div v-if="overviewError" class="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
+          {{ overviewError }}
         </div>
       </div>
 
-      <!-- ===================== TESDA ATTENDANCE REPORT TAB ===================== -->
-      <div v-else-if="activeTab === 'attendance'" class="space-y-6">
-        <!-- Attendance Filters -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            <div class="flex flex-wrap gap-4">
-              <DateRangePicker
-                v-model:range="attendanceFilters.dateRange"
-                v-model:from="attendanceFilters.customFrom"
-                v-model:to="attendanceFilters.customTo"
-              />
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Program</label>
-                <select v-model="attendanceFilters.programId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All Programs</option>
-                  <option v-for="p in tesdaPrograms" :key="p.id" :value="String(p.id)">
-                    {{ p.program_name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
-                <select v-model="attendanceFilters.instructorId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All Instructors</option>
-                  <option v-for="i in instructors" :key="i.id" :value="String(i.id)">
-                    {{ i.fullname }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">View Type</label>
-                <select v-model="attendanceFilters.viewType" class="w-40 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-            </div>
-
-            <button @click="loadAttendanceData" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-              Generate Report
-            </button>
-          </div>
-
-          <div v-if="attendanceError" class="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-            {{ attendanceError }}
-          </div>
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <p class="text-sm text-blue-700 font-medium">Total Enrolled</p>
+          <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ summary.totalEnrolled }}</h3>
         </div>
 
-        <!-- Attendance Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-            <p class="text-sm text-green-700 font-medium">Total Sessions</p>
-            <h3 class="text-2xl font-bold text-green-800 mt-1">{{ attendanceStats.totalSessions }}</h3>
-          </div>
-          <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <p class="text-sm text-blue-700 font-medium">Total Attendance</p>
-            <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ attendanceStats.totalAttendance }}</h3>
-          </div>
-          <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-            <p class="text-sm text-purple-700 font-medium">Attendance Rate</p>
-            <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ attendanceStats.attendanceRate }}%</h3>
-          </div>
-          <div class="bg-orange-50 p-4 rounded-lg border border-orange-100">
-            <p class="text-sm text-orange-700 font-medium">Avg Daily Attendance</p>
-            <h3 class="text-2xl font-bold text-orange-800 mt-1">{{ attendanceStats.avgDaily }}</h3>
-          </div>
+        <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+          <p class="text-sm text-emerald-700 font-medium">Completed (DONE)</p>
+          <h3 class="text-2xl font-bold text-emerald-800 mt-1">{{ summary.doneCount }}</h3>
         </div>
 
-        <!-- Attendance Chart -->
+        <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+          <p class="text-sm text-purple-700 font-medium">Completion Rate</p>
+          <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ summary.completionRate }}%</h3>
+        </div>
+
+        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+          <p class="text-sm text-yellow-700 font-medium">Estimated Revenue</p>
+          <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ formatCurrency(summary.totalRevenuePeso) }}</h3>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-          <h3 class="text-blue-800 font-semibold mb-3">Attendance Trend</h3>
-          <div class="h-80">
-            <VChart ref="attendanceChartRef" :option="attendanceOption" autoresize />
+          <h3 class="text-blue-800 font-semibold mb-3">Enrollment Trend (TESDA)</h3>
+          <div class="h-64">
+            <VChart ref="trendChartRef" :option="trendOption" autoresize />
           </div>
         </div>
 
-        <!-- Attendance Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div class="p-4 border-b">
-            <h3 class="text-lg font-bold text-blue-800">📅 Daily Attendance Records</h3>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="py-2 px-3 text-left">Date</th>
-                  <th class="py-2 px-3 text-left">Program</th>
-                  <th class="py-2 px-3 text-left">Instructor</th>
-                  <th class="py-2 px-3 text-left">Present</th>
-                  <th class="py-2 px-3 text-left">Absent</th>
-                  <th class="py-2 px-3 text-left">Late</th>
-                  <th class="py-2 px-3 text-left">Total Scholars</th>
-                  <th class="py-2 px-3 text-left">Attendance Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(a, idx) in attendanceRecords" :key="idx" class="border-b hover:bg-gray-50">
-                  <td class="py-2 px-3">{{ formatDate(a.date) }}</td>
-                  <td class="py-2 px-3">{{ a.program_name }}</td>
-                  <td class="py-2 px-3">{{ a.instructor_name }}</td>
-                  <td class="py-2 px-3 font-medium text-green-600">{{ a.present }}</td>
-                  <td class="py-2 px-3 text-red-600">{{ a.absent }}</td>
-                  <td class="py-2 px-3 text-orange-600">{{ a.late }}</td>
-                  <td class="py-2 px-3">{{ a.total }}</td>
-                  <td class="py-2 px-3">
-                    <span class="px-2 py-1 rounded-full text-xs"
-                      :class="{
-                        'bg-green-100 text-green-800': a.rate >= 80,
-                        'bg-yellow-100 text-yellow-800': a.rate >= 60 && a.rate < 80,
-                        'bg-red-100 text-red-800': a.rate < 60
-                      }"
-                    >
-                      {{ a.rate }}%
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="attendanceRecords.length === 0">
-                  <td colspan="8" class="py-6 text-center text-gray-500">No attendance records found</td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+          <h3 class="text-blue-800 font-semibold mb-3">Top TESDA Courses</h3>
+          <div class="h-64">
+            <VChart ref="topCoursesChartRef" :option="topCoursesOption" autoresize />
           </div>
         </div>
 
-        <!-- Export Buttons for Attendance -->
-        <div class="flex justify-end gap-2">
-          <button @click="exportAttendance('excel')" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-            📊 Export to Excel
-          </button>
-          <button @click="exportAttendance('pdf')" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-            📄 Export to PDF
-          </button>
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 lg:col-span-2">
+          <h3 class="text-blue-800 font-semibold mb-3">Gender Breakdown</h3>
+          <div class="h-72">
+            <VChart ref="genderChartRef" :option="genderOption" autoresize />
+          </div>
         </div>
       </div>
 
-      <!-- ===================== EXPORT MODAL ===================== -->
-      <div v-if="exportModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-2xl bg-white rounded-xl shadow-xl">
-          <div class="p-4 border-b flex justify-between items-center">
-            <h3 class="text-lg font-bold text-blue-800">📤 Export TESDA Reports</h3>
-            <button @click="exportModalOpen = false" class="px-3 py-1 border rounded hover:bg-gray-50">✖</button>
+      <!-- Recent (from detailed page 1) -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-blue-800 font-semibold">Recent TESDA Enrollments</h3>
+          <button @click="activeTab = 'detailed'" class="text-sm text-blue-600 hover:underline">View All →</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full border border-gray-200 text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="py-2 px-3 text-left">Name</th>
+                <th class="py-2 px-3 text-left">Course</th>
+                <th class="py-2 px-3 text-left">Status</th>
+                <th class="py-2 px-3 text-left">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in recentRows" :key="r.reservation_id" class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="py-2 px-3">{{ r.fullname || '-' }}</td>
+                <td class="py-2 px-3">{{ r.course_name || '-' }}</td>
+                <td class="py-2 px-3">{{ r.reservation_status || '-' }}</td>
+                <td class="py-2 px-3">{{ r.created_at ? formatDate(r.created_at) : '-' }}</td>
+              </tr>
+              <tr v-if="recentRows.length === 0">
+                <td colspan="4" class="py-6 text-center text-gray-500">No recent enrollments</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== DETAILED ===================== -->
+    <div v-else class="space-y-6">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div class="flex flex-wrap gap-4">
+            <DateRangePicker
+              v-model:range="detailedFilters.dateRange"
+              v-model:from="detailedFilters.customFrom"
+              v-model:to="detailedFilters.customTo"
+            />
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+              <select v-model="detailedFilters.courseId" class="w-60 p-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All TESDA Courses</option>
+                <option v-for="c in tesdaCourses" :key="c.id" :value="String(c.id)">
+                  {{ c.course_name }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select v-model="detailedFilters.gender" class="w-40 p-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Sort</label>
+              <select v-model="detailedFilters.sort" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
+                <option value="created_desc">Created (Newest)</option>
+                <option value="created_asc">Created (Oldest)</option>
+              </select>
+            </div>
           </div>
 
-          <div class="p-4 space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium mb-1">Export Format</label>
-                <select v-model="exportFormat" class="w-full p-2 border rounded-md">
-                  <option value="xlsx">Excel (.xlsx)</option>
-                  <option value="csv">CSV</option>
-                  <option value="pdf">PDF</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">Scope</label>
-                <select v-model="exportScope" class="w-full p-2 border rounded-md">
-                  <option value="all">All Data</option>
-                  <option value="filtered">Filtered Data</option>
-                  <option value="page">Current Page Only</option>
-                </select>
-              </div>
-            </div>
+          <div class="flex gap-2">
+            <button @click="detailedPage = 1; loadDetailed()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              Apply
+            </button>
+          </div>
+        </div>
 
-            <div v-if="exportTarget === 'detailed'">
-              <label class="block text-sm font-medium mb-2">Select Columns to Export</label>
-              <div class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
-                <label v-for="col in columnOptions" :key="col.key" class="inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" v-model="exportColumns[col.key]" />
-                  <span>{{ col.label }}</span>
-                </label>
-              </div>
-            </div>
+        <div v-if="detailedError" class="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
+          {{ detailedError }}
+        </div>
+      </div>
 
-            <div class="flex justify-end gap-2">
-              <button @click="exportModalOpen = false" class="px-4 py-2 border rounded-md hover:bg-gray-50">
-                Cancel
-              </button>
-              <button @click="runExport" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Export Now
-              </button>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-4 border-b flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-blue-800">📋 TESDA Detailed (Enrollments)</h3>
+            <p class="text-xs text-gray-500">Total: {{ detailedMeta.total }} records</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <select v-model.number="detailedPageSize" class="w-24 p-2 border rounded-md text-sm" @change="detailedPage = 1; loadDetailed()">
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+            <span class="text-sm text-gray-600">Page {{ detailedPage }} / {{ detailedTotalPages }}</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="py-2 px-3 text-left">#</th>
+                <th class="py-2 px-3 text-left">Name</th>
+                <th class="py-2 px-3 text-left">Course</th>
+                <th class="py-2 px-3 text-left">Instructor</th>
+                <th class="py-2 px-3 text-left">Gender</th>
+                <th class="py-2 px-3 text-left">Status</th>
+                <th class="py-2 px-3 text-left">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(r, idx) in detailedRows" :key="r.reservation_id || idx" class="border-b hover:bg-gray-50">
+                <td class="py-2 px-3">{{ (detailedMeta.offset || 0) + idx + 1 }}</td>
+                <td class="py-2 px-3">{{ r.fullname || '-' }}</td>
+                <td class="py-2 px-3">{{ r.course_name || '-' }}</td>
+                <td class="py-2 px-3">{{ r.instructor_name || '-' }}</td>
+                <td class="py-2 px-3">{{ r.gender ? (String(r.gender).toLowerCase() === 'male' ? 'M' : 'F') : '-' }}</td>
+                <td class="py-2 px-3">{{ r.reservation_status || '-' }}</td>
+                <td class="py-2 px-3">{{ r.created_at ? formatDate(r.created_at) : '-' }}</td>
+              </tr>
+              <tr v-if="detailedLoading">
+                <td colspan="7" class="py-8 text-center text-gray-500">Loading...</td>
+              </tr>
+              <tr v-if="!detailedLoading && detailedRows.length === 0">
+                <td colspan="7" class="py-8 text-center text-gray-500">No records found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="detailedTotalPages > 1" class="p-4 flex justify-between items-center border-t">
+          <button class="px-3 py-2 border rounded text-sm disabled:opacity-50" :disabled="detailedPage === 1" @click="detailedPage--; loadDetailed()">
+            ← Prev
+          </button>
+          <div class="flex gap-1">
+            <button
+              v-for="p in detailedPageButtons"
+              :key="p"
+              class="px-3 py-2 border rounded text-sm"
+              :class="p === detailedPage ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'"
+              @click="detailedPage = p; loadDetailed()"
+            >
+              {{ p }}
+            </button>
+          </div>
+          <button class="px-3 py-2 border rounded text-sm disabled:opacity-50" :disabled="detailedPage === detailedTotalPages" @click="detailedPage++; loadDetailed()">
+            Next →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORT MODAL -->
+    <div v-if="exportOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="w-full max-w-xl bg-white rounded-xl shadow-xl">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h3 class="text-lg font-bold text-blue-800">📤 Export TESDA</h3>
+          <button @click="exportOpen = false" class="px-3 py-1 border rounded hover:bg-gray-50">✖</button>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Format</label>
+              <select v-model="exportFormat" class="w-full p-2 border rounded-md">
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="csv">CSV</option>
+                <option value="pdf">PDF</option>
+              </select>
             </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">What</label>
+              <select v-model="exportTarget" class="w-full p-2 border rounded-md">
+                <option value="overview">Overview</option>
+                <option value="detailed">Detailed (current page)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button @click="exportOpen = false" class="px-4 py-2 border rounded-md hover:bg-gray-50">Cancel</button>
+            <button @click="runExport" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Export</button>
           </div>
         </div>
       </div>
     </div>
-  </AdminLayout>
+  </div>
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, watch, nextTick } from "vue";
-import AdminLayout from "./AdminLayout.vue";
+import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import DateRangePicker from "./DateRangePicker.vue";
 
 // ECharts
@@ -602,323 +344,84 @@ import VChart from "vue-echarts";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart, BarChart, PieChart } from "echarts/charts";
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-} from "echarts/components";
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from "echarts/components";
 
 // Export libs
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-echarts.use([
-  CanvasRenderer,
-  LineChart,
-  BarChart,
-  PieChart,
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-]);
+echarts.use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent]);
 
 export default {
   name: "AdminReportsTesda",
-  components: { AdminLayout, DateRangePicker, VChart },
-  emits: ['switch-to-lto'],
+  components: { DateRangePicker, VChart },
+  emits: ["switch-to-lto"],
 
-  setup(props, { emit }) {
-    // State
+  setup() {
     const activeTab = ref("overview");
-    const searchQuery = ref("");
-    const debouncedQuery = ref("");
-    const showColumnSelector = ref(false);
-    const exportModalOpen = ref(false);
-    const exportTarget = ref("");
-    const exportFormat = ref("xlsx");
-    const exportScope = ref("filtered");
-    const exportColumns = ref({});
 
     // Data
-    const tesdaPrograms = ref([]);
-    const instructors = ref([]);
-    
-    // Overview data
+    const tesdaCourses = ref([]);
+
     const summary = reactive({
-      totalScholars: 0,
-      currentEnrolled: 0,
-      graduates: 0,
-      dropped: 0,
+      totalEnrolled: 0,
+      doneCount: 0,
+      completionRate: 0,
+      totalRevenuePeso: 0,
     });
 
-    const recentScholars = ref([]);
-    
-    // Detailed data
+    const trend = reactive({ labels: [], values: [] });
+    const topCourses = reactive({ labels: [], values: [] });
+    const gender = reactive({ labels: ["Male", "Female"], values: [0, 0] });
+
+    const recentRows = ref([]);
+
+    // Detailed
     const detailedRows = ref([]);
-    
-    // Attendance data
-    const attendanceRecords = ref([]);
-    const attendanceStats = reactive({
-      totalSessions: 0,
-      totalAttendance: 0,
-      attendanceRate: 0,
-      avgDaily: 0,
-    });
+    const detailedMeta = reactive({ total: 0, page: 1, limit: 25, offset: 0 });
+    const detailedPage = ref(1);
+    const detailedPageSize = ref(25);
 
-    // Charts data
-    const trendData = reactive({ labels: [], values: [] });
-    const programsData = reactive({ labels: [], values: [] });
-    const genderData = reactive({ labels: ['Male', 'Female'], values: [0, 0] });
-    const ageData = reactive({ labels: [], values: [] });
-    const attendanceChartData = reactive({ labels: [], present: [], absent: [], late: [] });
-
-    // Loading states
+    // Loading + errors
     const overviewLoading = ref(false);
     const detailedLoading = ref(false);
-    const attendanceLoading = ref(false);
-
-    // Errors
     const overviewError = ref("");
     const detailedError = ref("");
-    const attendanceError = ref("");
 
     // Filters
     const overviewFilters = reactive({
       dateRange: "thisMonth",
       customFrom: "",
       customTo: "",
-      programId: "",
-      status: "",
+      courseId: "",
+      period: "month",
     });
 
     const detailedFilters = reactive({
       dateRange: "thisMonth",
       customFrom: "",
       customTo: "",
-      programId: "",
-      status: "",
-      sort: "enrolled_desc",
+      courseId: "",
+      gender: "",
+      sort: "created_desc",
     });
-
-    const attendanceFilters = reactive({
-      dateRange: "thisMonth",
-      customFrom: "",
-      customTo: "",
-      programId: "",
-      instructorId: "",
-      viewType: "daily",
-    });
-
-    // Column options for detailed table
-    const columnOptions = [
-      { key: "scholar_id", label: "Scholar ID" },
-      { key: "fullname", label: "Full Name" },
-      { key: "birthdate", label: "Birthdate" },
-      { key: "gender", label: "Gender" },
-      { key: "program", label: "Program" },
-      { key: "instructor", label: "Instructor" },
-      { key: "enrolled_date", label: "Enrolled Date" },
-      { key: "graduation_date", label: "Graduation Date" },
-      { key: "status", label: "Status" },
-      { key: "contact", label: "Contact" },
-      { key: "address", label: "Address" },
-    ];
-
-    // Visible columns
-    const visibleColumns = reactive({
-      scholar_id: true,
-      fullname: true,
-      birthdate: true,
-      gender: true,
-      program: true,
-      instructor: true,
-      enrolled_date: true,
-      graduation_date: false,
-      status: true,
-      contact: false,
-      address: false,
-    });
-
-    // Pagination
-    const detailedPage = ref(1);
-    const detailedPageSize = ref(25);
-
-    // Computed properties
-    const detailedColspan = computed(() => 2 + Object.values(visibleColumns).filter(Boolean).length);
-
-    const detailedFiltered = computed(() => {
-      let arr = [...detailedRows.value];
-      const q = debouncedQuery.value.toLowerCase();
-
-      if (q) {
-        arr = arr.filter(r => 
-          [r.fullname, r.scholar_id, r.program_name, r.instructor_name]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-            .includes(q)
-        );
-      }
-
-      // Apply sorting
-      if (detailedFilters.sort === "enrolled_desc") {
-        arr.sort((a, b) => new Date(b.enrolled_date) - new Date(a.enrolled_date));
-      } else if (detailedFilters.sort === "enrolled_asc") {
-        arr.sort((a, b) => new Date(a.enrolled_date) - new Date(b.enrolled_date));
-      } else if (detailedFilters.sort === "name_asc") {
-        arr.sort((a, b) => a.fullname.localeCompare(b.fullname));
-      } else if (detailedFilters.sort === "name_desc") {
-        arr.sort((a, b) => b.fullname.localeCompare(a.fullname));
-      }
-
-      return arr;
-    });
-
-    const detailedTotalPages = computed(() => 
-      Math.max(1, Math.ceil(detailedFiltered.value.length / detailedPageSize.value))
-    );
-
-    const detailedPageStart = computed(() => 
-      detailedFiltered.value.length ? (detailedPage.value - 1) * detailedPageSize.value + 1 : 0
-    );
-
-    const detailedPageEnd = computed(() => 
-      Math.min(detailedFiltered.value.length, detailedPage.value * detailedPageSize.value)
-    );
-
-    const detailedPaginated = computed(() => {
-      const start = (detailedPage.value - 1) * detailedPageSize.value;
-      return detailedFiltered.value.slice(start, start + detailedPageSize.value);
-    });
-
-    const detailedPageButtons = computed(() => {
-      const total = detailedTotalPages.value;
-      const current = detailedPage.value;
-      const max = 5;
-      
-      if (total <= max) {
-        return Array.from({ length: total }, (_, i) => i + 1);
-      }
-      
-      let start = Math.max(1, current - 2);
-      let end = Math.min(total, start + max - 1);
-      start = Math.max(1, end - max + 1);
-      
-      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-    });
-
-    // Chart options
-    const trendOption = computed(() => ({
-      tooltip: { trigger: "axis" },
-      grid: { left: 40, right: 20, top: 20, bottom: 40 },
-      xAxis: { type: "category", data: trendData.labels },
-      yAxis: { type: "value" },
-      series: [{
-        name: "Enrollments",
-        type: "line",
-        smooth: true,
-        data: trendData.values,
-        lineStyle: { color: "#2563eb" },
-        areaStyle: { color: "rgba(37, 99, 235, 0.1)" }
-      }]
-    }));
-
-    const programsOption = computed(() => ({
-      tooltip: { trigger: "axis" },
-      grid: { left: 60, right: 20, top: 20, bottom: 60 },
-      xAxis: {
-        type: "category",
-        data: programsData.labels,
-        axisLabel: { rotate: 35 }
-      },
-      yAxis: { type: "value" },
-      series: [{
-        name: "Scholars",
-        type: "bar",
-        data: programsData.values,
-        itemStyle: { color: "#2563eb" }
-      }]
-    }));
-
-    const genderOption = computed(() => ({
-      tooltip: { trigger: "item" },
-      legend: { bottom: 0 },
-      series: [{
-        name: "Gender",
-        type: "pie",
-        radius: ["40%", "70%"],
-        data: genderData.labels.map((l, i) => ({
-          name: l,
-          value: genderData.values[i]
-        })),
-        color: ["#2563eb", "#dc2626"]
-      }]
-    }));
-
-    const ageOption = computed(() => ({
-      tooltip: { trigger: "axis" },
-      grid: { left: 40, right: 20, top: 20, bottom: 40 },
-      xAxis: { type: "category", data: ageData.labels },
-      yAxis: { type: "value" },
-      series: [{
-        name: "Scholars",
-        type: "bar",
-        data: ageData.values,
-        itemStyle: { color: "#8b5cf6" }
-      }]
-    }));
-
-    const attendanceOption = computed(() => ({
-      tooltip: { trigger: "axis" },
-      legend: { bottom: 0 },
-      grid: { left: 40, right: 20, top: 40, bottom: 40 },
-      xAxis: { type: "category", data: attendanceChartData.labels },
-      yAxis: { type: "value" },
-      series: [
-        {
-          name: "Present",
-          type: "line",
-          data: attendanceChartData.present,
-          color: "#16a34a"
-        },
-        {
-          name: "Absent",
-          type: "line",
-          data: attendanceChartData.absent,
-          color: "#dc2626"
-        },
-        {
-          name: "Late",
-          type: "line",
-          data: attendanceChartData.late,
-          color: "#ea580c"
-        }
-      ]
-    }));
 
     // Chart refs
     const trendChartRef = ref(null);
-    const programsChartRef = ref(null);
+    const topCoursesChartRef = ref(null);
     const genderChartRef = ref(null);
-    const ageChartRef = ref(null);
-    const attendanceChartRef = ref(null);
 
-    // Helper functions
+    function formatCurrency(amount) {
+      const n = Number(amount || 0);
+      return "₱" + n.toLocaleString("en-PH");
+    }
+
     function formatDate(dateString) {
       if (!dateString) return "-";
       const d = new Date(dateString);
-      if (isNaN(d.getTime())) return "-";
+      if (Number.isNaN(d.getTime())) return "-";
       return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    }
-
-    function formatDateShort(dateString) {
-      if (!dateString) return "-";
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return "-";
-      return d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" });
     }
 
     function toISODateLocal(dt) {
@@ -934,116 +437,126 @@ export default {
       const mm = today.getMonth();
 
       if (range === "custom") return { from: customFrom, to: customTo };
-      if (range === "thisMonth") return {
-        from: toISODateLocal(new Date(yyyy, mm, 1)),
-        to: toISODateLocal(today)
-      };
-      if (range === "lastMonth") return {
-        from: toISODateLocal(new Date(yyyy, mm - 1, 1)),
-        to: toISODateLocal(new Date(yyyy, mm, 0))
-      };
+      if (range === "thisMonth") return { from: toISODateLocal(new Date(yyyy, mm, 1)), to: toISODateLocal(today) };
+      if (range === "lastMonth") return { from: toISODateLocal(new Date(yyyy, mm - 1, 1)), to: toISODateLocal(new Date(yyyy, mm, 0)) };
       if (range === "thisQuarter") {
         const qStart = Math.floor(mm / 3) * 3;
-        return {
-          from: toISODateLocal(new Date(yyyy, qStart, 1)),
-          to: toISODateLocal(today)
-        };
+        return { from: toISODateLocal(new Date(yyyy, qStart, 1)), to: toISODateLocal(today) };
       }
-      return {
-        from: toISODateLocal(new Date(yyyy, 0, 1)),
-        to: toISODateLocal(today)
-      };
+      return { from: toISODateLocal(new Date(yyyy, 0, 1)), to: toISODateLocal(today) };
     }
 
-    // API calls
     async function apiGet(url) {
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Request failed: ${res.status}`);
+      }
       return res.json();
     }
 
-    async function apiPost(url, data) {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data)
+    async function loadTesdaCourses() {
+      // ✅ use existing admin courses OR tesda courses endpoint if you already have it
+      // If you don't have /api/tesda/courses, change it to /api/admin/courses?report_mode=tesda (optional).
+      try {
+        const json = await apiGet("/api/tesda/courses");
+        tesdaCourses.value = json.status === "success" ? json.data || [] : [];
+      } catch {
+        tesdaCourses.value = [];
+      }
+    }
+
+    function buildQsForOverview() {
+      const range = getRangeDates(overviewFilters.dateRange, overviewFilters.customFrom, overviewFilters.customTo);
+      const qs = new URLSearchParams({
+        from: range.from,
+        to: range.to,
+        course_id: overviewFilters.courseId || "",
+        period: overviewFilters.period || "month",
+        report_mode: "tesda", // ✅ CRITICAL FIX
       });
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      return res.json();
+      return { range, qs };
     }
 
-    // Load TESDA programs
-    async function loadTesdaPrograms() {
-      try {
-        const json = await apiGet("/api/tesda/programs");
-        tesdaPrograms.value = json.status === "success" ? json.data || [] : [];
-      } catch (e) {
-        console.error("Failed to load TESDA programs:", e);
-        tesdaPrograms.value = [];
-      }
+    function buildQsForDetailed() {
+      const range = getRangeDates(detailedFilters.dateRange, detailedFilters.customFrom, detailedFilters.customTo);
+      const qs = new URLSearchParams({
+        from: range.from,
+        to: range.to,
+        course_id: detailedFilters.courseId || "",
+        gender: detailedFilters.gender || "",
+        sort: detailedFilters.sort || "created_desc", // backend ignores sort for tesda right now (ok)
+        page: String(detailedPage.value || 1),
+        limit: String(detailedPageSize.value || 25),
+        report_mode: "tesda", // ✅ CRITICAL FIX
+      });
+      return { range, qs };
     }
 
-    // Load instructors
-    async function loadInstructors() {
-      try {
-        const json = await apiGet("/api/tesda/instructors");
-        instructors.value = json.status === "success" ? json.data || [] : [];
-      } catch (e) {
-        console.error("Failed to load instructors:", e);
-        instructors.value = [];
-      }
-    }
-
-    // Load overview data
-    async function loadOverviewData() {
+    async function loadOverview() {
       overviewLoading.value = true;
       overviewError.value = "";
 
       try {
-        const range = getRangeDates(
-          overviewFilters.dateRange,
-          overviewFilters.customFrom,
-          overviewFilters.customTo
-        );
+        const { range, qs } = buildQsForOverview();
 
-        const params = new URLSearchParams({
+        const [sum, tr, top, gen] = await Promise.all([
+          apiGet(`/api/admin/reports/summary?${qs.toString()}`),
+          apiGet(`/api/admin/reports/trend?${qs.toString()}`),
+          apiGet(`/api/admin/reports/top-courses?${qs.toString()}`),
+          apiGet(`/api/admin/reports/gender-breakdown?${qs.toString()}`),
+        ]);
+
+        if (sum.status === "success" && sum.data) {
+          summary.totalEnrolled = Number(sum.data.totalEnrolled || 0);
+          summary.doneCount = Number(sum.data.doneCount || 0);
+          summary.completionRate = Number(sum.data.completionRate || 0);
+          summary.totalRevenuePeso = Number(sum.data.totalRevenuePeso || 0);
+        } else {
+          summary.totalEnrolled = 0;
+          summary.doneCount = 0;
+          summary.completionRate = 0;
+          summary.totalRevenuePeso = 0;
+        }
+
+        trend.labels = tr.status === "success" ? (tr.data?.labels || []) : [];
+        trend.values = tr.status === "success" ? (tr.data?.values || []) : [];
+
+        topCourses.labels = top.status === "success" ? (top.data?.labels || []) : [];
+        topCourses.values = top.status === "success" ? (top.data?.values || []) : [];
+
+        if (gen.status === "success" && gen.data) {
+          gender.labels = Array.isArray(gen.data.labels) ? gen.data.labels : ["Male", "Female"];
+          gender.values = Array.isArray(gen.data.values) ? gen.data.values : [0, 0];
+        } else {
+          gender.labels = ["Male", "Female"];
+          gender.values = [0, 0];
+        }
+
+        // recent rows (page1, limit5)
+        const recentQs = new URLSearchParams({
           from: range.from,
           to: range.to,
-          program_id: overviewFilters.programId || "",
-          status: overviewFilters.status || ""
+          course_id: overviewFilters.courseId || "",
+          page: "1",
+          limit: "5",
+          report_mode: "tesda",
         });
-
-        const json = await apiGet(`/api/tesda/reports/overview?${params}`);
-
-        if (json.status === "success") {
-          // Summary
-          summary.totalScholars = json.data.summary.total || 0;
-          summary.currentEnrolled = json.data.summary.enrolled || 0;
-          summary.graduates = json.data.summary.graduated || 0;
-          summary.dropped = json.data.summary.dropped || 0;
-
-          // Recent scholars
-          recentScholars.value = json.data.recent || [];
-
-          // Chart data
-          trendData.labels = json.data.trend?.labels || [];
-          trendData.values = json.data.trend?.values || [];
-
-          programsData.labels = json.data.programs?.labels || [];
-          programsData.values = json.data.programs?.values || [];
-
-          genderData.values = [
-            json.data.gender?.male || 0,
-            json.data.gender?.female || 0
-          ];
-
-          ageData.labels = json.data.age?.labels || [];
-          ageData.values = json.data.age?.values || [];
-        }
+        const recent = await apiGet(`/api/admin/reports/detailed?${recentQs.toString()}`);
+        recentRows.value = recent.status === "success" ? (recent.data || []) : [];
       } catch (e) {
-        overviewError.value = e.message || "Failed to load overview data";
-        console.error(e);
+        overviewError.value = e?.message || "Failed to load TESDA overview.";
+        trend.labels = [];
+        trend.values = [];
+        topCourses.labels = [];
+        topCourses.values = [];
+        gender.labels = ["Male", "Female"];
+        gender.values = [0, 0];
+        recentRows.value = [];
+        summary.totalEnrolled = 0;
+        summary.doneCount = 0;
+        summary.completionRate = 0;
+        summary.totalRevenuePeso = 0;
       } finally {
         overviewLoading.value = false;
         await nextTick();
@@ -1051,208 +564,198 @@ export default {
       }
     }
 
-    // Load detailed data
-    async function loadDetailedData() {
+    async function loadDetailed() {
       detailedLoading.value = true;
       detailedError.value = "";
 
       try {
-        const range = getRangeDates(
-          detailedFilters.dateRange,
-          detailedFilters.customFrom,
-          detailedFilters.customTo
-        );
+        const { qs } = buildQsForDetailed();
 
-        const params = new URLSearchParams({
-          from: range.from,
-          to: range.to,
-          program_id: detailedFilters.programId || "",
-          status: detailedFilters.status || ""
-        });
+        const json = await apiGet(`/api/admin/reports/detailed?${qs.toString()}`);
+        detailedRows.value = json.status === "success" ? (json.data || []) : [];
 
-        const json = await apiGet(`/api/tesda/reports/detailed?${params}`);
-
-        if (json.status === "success") {
-          detailedRows.value = json.data || [];
+        // ✅ your getDetailed returns meta
+        if (json.status === "success" && json.meta) {
+          detailedMeta.total = Number(json.meta.total || 0);
+          detailedMeta.page = Number(json.meta.page || detailedPage.value || 1);
+          detailedMeta.limit = Number(json.meta.limit || detailedPageSize.value || 25);
+          detailedMeta.offset = (detailedMeta.page - 1) * detailedMeta.limit;
         } else {
-          detailedRows.value = [];
+          detailedMeta.total = 0;
+          detailedMeta.page = detailedPage.value;
+          detailedMeta.limit = detailedPageSize.value;
+          detailedMeta.offset = 0;
         }
       } catch (e) {
-        detailedError.value = e.message || "Failed to load detailed data";
-        console.error(e);
+        detailedError.value = e?.message || "Failed to load TESDA detailed.";
+        detailedRows.value = [];
+        detailedMeta.total = 0;
+        detailedMeta.offset = 0;
       } finally {
         detailedLoading.value = false;
       }
     }
 
-    // Load attendance data
-    async function loadAttendanceData() {
-      attendanceLoading.value = true;
-      attendanceError.value = "";
+    const trendOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      grid: { left: 40, right: 20, top: 20, bottom: 40 },
+      xAxis: { type: "category", data: trend.labels },
+      yAxis: { type: "value" },
+      series: [{ name: "Enrollments", type: "line", smooth: true, data: trend.values, areaStyle: {} }],
+    }));
 
-      try {
-        const range = getRangeDates(
-          attendanceFilters.dateRange,
-          attendanceFilters.customFrom,
-          attendanceFilters.customTo
-        );
+    const topCoursesOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      grid: { left: 60, right: 20, top: 20, bottom: 60 },
+      xAxis: { type: "category", data: topCourses.labels, axisLabel: { rotate: 35 } },
+      yAxis: { type: "value" },
+      series: [{ name: "Enrollments", type: "bar", data: topCourses.values }],
+    }));
 
-        const params = new URLSearchParams({
-          from: range.from,
-          to: range.to,
-          program_id: attendanceFilters.programId || "",
-          instructor_id: attendanceFilters.instructorId || "",
-          view_type: attendanceFilters.viewType
-        });
-
-        const json = await apiGet(`/api/tesda/reports/attendance?${params}`);
-
-        if (json.status === "success") {
-          // Stats
-          attendanceStats.totalSessions = json.data.stats?.total_sessions || 0;
-          attendanceStats.totalAttendance = json.data.stats?.total_attendance || 0;
-          attendanceStats.attendanceRate = json.data.stats?.attendance_rate || 0;
-          attendanceStats.avgDaily = json.data.stats?.avg_daily || 0;
-
-          // Records
-          attendanceRecords.value = json.data.records || [];
-
-          // Chart data
-          attendanceChartData.labels = json.data.chart?.labels || [];
-          attendanceChartData.present = json.data.chart?.present || [];
-          attendanceChartData.absent = json.data.chart?.absent || [];
-          attendanceChartData.late = json.data.chart?.late || [];
-        }
-      } catch (e) {
-        attendanceError.value = e.message || "Failed to load attendance data";
-        console.error(e);
-      } finally {
-        attendanceLoading.value = false;
-        await nextTick();
-        resizeCharts();
-      }
-    }
-
-    // Export functions
-    function openExportModal(target) {
-      exportTarget.value = target;
-      exportModalOpen.value = true;
-
-      // Initialize export columns
-      if (target === "detailed") {
-        columnOptions.forEach(col => {
-          exportColumns.value[col.key] = visibleColumns[col.key];
-        });
-      }
-    }
-
-    async function runExport() {
-      try {
-        if (exportTarget.value === "overview") {
-          await exportOverview();
-        } else if (exportTarget.value === "detailed") {
-          await exportDetailed();
-        } else if (exportTarget.value === "attendance") {
-          await exportAttendance(exportFormat.value);
-        }
-        exportModalOpen.value = false;
-      } catch (e) {
-        alert(`Export failed: ${e.message}`);
-      }
-    }
-
-    async function exportOverview() {
-      const data = {
-        summary: summary,
-        recent: recentScholars.value,
-        trend: trendData,
-        programs: programsData,
-        gender: genderData,
-        age: ageData
-      };
-
-      const json = await apiPost("/api/tesda/reports/export/overview", {
-        format: exportFormat.value,
-        data: data
-      });
-
-      if (json.status === "success") {
-        downloadFile(json.data.url);
-      }
-    }
-
-    async function exportDetailed() {
-      const rows = exportScope.value === "page" ? detailedPaginated.value : detailedFiltered.value;
-
-      // Filter columns
-      const selectedCols = columnOptions.filter(col => exportColumns.value[col.key]);
-
-      const json = await apiPost("/api/tesda/reports/export/detailed", {
-        format: exportFormat.value,
-        rows: rows,
-        columns: selectedCols.map(c => ({
-          key: c.key,
-          label: c.label
-        }))
-      });
-
-      if (json.status === "success") {
-        downloadFile(json.data.url);
-      }
-    }
-
-    async function exportAttendance(format) {
-      const json = await apiPost("/api/tesda/reports/export/attendance", {
-        format: format,
-        filters: {
-          from: attendanceFilters.customFrom,
-          to: attendanceFilters.customTo,
-          program_id: attendanceFilters.programId,
-          instructor_id: attendanceFilters.instructorId,
-          view_type: attendanceFilters.viewType
+    const genderOption = computed(() => ({
+      tooltip: { trigger: "item" },
+      legend: { bottom: 0 },
+      series: [
+        {
+          name: "Gender",
+          type: "pie",
+          radius: ["40%", "70%"],
+          data: (gender.labels || []).map((lbl, i) => ({ name: lbl, value: Number(gender.values?.[i] || 0) })),
         },
-        records: attendanceRecords.value,
-        stats: attendanceStats
-      });
-
-      if (json.status === "success") {
-        downloadFile(json.data.url);
-      }
-    }
-
-    function downloadFile(url) {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "";
-      a.click();
-    }
+      ],
+    }));
 
     function resizeCharts() {
       try { trendChartRef.value?.resize?.(); } catch {}
-      try { programsChartRef.value?.resize?.(); } catch {}
+      try { topCoursesChartRef.value?.resize?.(); } catch {}
       try { genderChartRef.value?.resize?.(); } catch {}
-      try { ageChartRef.value?.resize?.(); } catch {}
-      try { attendanceChartRef.value?.resize?.(); } catch {}
     }
 
-    // Watch for search debounce
-    watch(searchQuery, (val) => {
-      const timer = setTimeout(() => {
-        debouncedQuery.value = val;
-      }, 300);
-      return () => clearTimeout(timer);
+    const detailedTotalPages = computed(() =>
+      Math.max(1, Math.ceil(Number(detailedMeta.total || 0) / Number(detailedPageSize.value || 25)))
+    );
+
+    const detailedPageButtons = computed(() => {
+      const total = detailedTotalPages.value;
+      const current = detailedPage.value;
+      const max = 5;
+      if (total <= max) return Array.from({ length: total }, (_, i) => i + 1);
+      let start = Math.max(1, current - 2);
+      let end = Math.min(total, start + max - 1);
+      start = Math.max(1, end - max + 1);
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
     });
 
-    // Watch for filter changes
-    watch(() => detailedFilters.sort, () => {
-      detailedPage.value = 1;
-    });
+    // Export
+    const exportOpen = ref(false);
+    const exportTarget = ref("overview");
+    const exportFormat = ref("xlsx");
 
-    watch(detailedTotalPages, (tp) => {
-      if (detailedPage.value > tp) detailedPage.value = tp;
-    });
+    function openExport(target) {
+      exportTarget.value = target;
+      exportFormat.value = "xlsx";
+      exportOpen.value = true;
+    }
 
-    // Initialize
+    function exportXlsx(tables, filename) {
+      const wb = XLSX.utils.book_new();
+      for (const t of tables) {
+        const ws = XLSX.utils.aoa_to_sheet([t.headers, ...t.rows]);
+        XLSX.utils.book_append_sheet(wb, ws, t.sheetName.slice(0, 31));
+      }
+      XLSX.writeFile(wb, `${filename}.xlsx`);
+    }
+
+    function exportCsv(table, filename) {
+      const esc = (v) => {
+        const s = String(v ?? "");
+        if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      };
+      const lines = [table.headers.map(esc).join(",")];
+      for (const r of table.rows) lines.push(r.map(esc).join(","));
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filename}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPdf(table, filename) {
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      doc.setFontSize(12);
+      doc.text(filename, 40, 30);
+      autoTable(doc, {
+        startY: 50,
+        head: [table.headers],
+        body: table.rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [230, 230, 230] },
+      });
+      doc.save(`${filename}.pdf`);
+    }
+
+    function runExport() {
+      const stamp = new Date().toISOString().slice(0, 10);
+
+      if (exportTarget.value === "overview") {
+        const tables = [
+          {
+            sheetName: "Summary",
+            headers: ["Metric", "Value"],
+            rows: [
+              ["Total Enrolled", summary.totalEnrolled],
+              ["Completed (DONE)", summary.doneCount],
+              ["Completion Rate", `${summary.completionRate}%`],
+              ["Estimated Revenue", summary.totalRevenuePeso],
+            ],
+          },
+          {
+            sheetName: "Trend",
+            headers: ["Label", "Enrollments"],
+            rows: (trend.labels || []).map((l, i) => [l, Number(trend.values?.[i] || 0)]),
+          },
+          {
+            sheetName: "Top Courses",
+            headers: ["Course", "Enrollments"],
+            rows: (topCourses.labels || []).map((l, i) => [l, Number(topCourses.values?.[i] || 0)]),
+          },
+          {
+            sheetName: "Gender",
+            headers: ["Gender", "Count"],
+            rows: (gender.labels || []).map((l, i) => [l, Number(gender.values?.[i] || 0)]),
+          },
+        ];
+
+        if (exportFormat.value === "xlsx") exportXlsx(tables, `tesda-overview-${stamp}`);
+        else if (exportFormat.value === "csv") exportCsv({ headers: tables[0].headers, rows: tables[0].rows }, `tesda-overview-${stamp}`);
+        else exportPdf({ headers: tables[0].headers, rows: tables[0].rows }, `tesda-overview-${stamp}`);
+
+        exportOpen.value = false;
+        return;
+      }
+
+      // detailed (current page)
+      const headers = ["Name", "Course", "Instructor", "Gender", "Status", "Created"];
+      const rows = (detailedRows.value || []).map((r) => [
+        r.fullname || "",
+        r.course_name || "",
+        r.instructor_name || "",
+        r.gender ? (String(r.gender).toLowerCase() === "male" ? "M" : "F") : "",
+        r.reservation_status || "",
+        r.created_at ? formatDate(r.created_at) : "",
+      ]);
+
+      const table = { headers, rows };
+      if (exportFormat.value === "xlsx") exportXlsx([{ sheetName: "Detailed", ...table }], `tesda-detailed-${stamp}`);
+      else if (exportFormat.value === "csv") exportCsv(table, `tesda-detailed-${stamp}`);
+      else exportPdf(table, `tesda-detailed-${stamp}`);
+
+      exportOpen.value = false;
+    }
+
     onMounted(async () => {
       const today = new Date();
       const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -1263,98 +766,60 @@ export default {
       detailedFilters.customFrom = toISODateLocal(lastMonth);
       detailedFilters.customTo = toISODateLocal(today);
 
-      attendanceFilters.customFrom = toISODateLocal(lastMonth);
-      attendanceFilters.customTo = toISODateLocal(today);
-
-      await loadTesdaPrograms();
-      await loadInstructors();
-      await loadOverviewData();
-      await loadDetailedData();
-      await loadAttendanceData();
+      await loadTesdaCourses();
+      await loadOverview();
+      await loadDetailed();
     });
 
     return {
-      // UI
       activeTab,
-      searchQuery,
-      showColumnSelector,
-      exportModalOpen,
-      exportTarget,
-      exportFormat,
-      exportScope,
-      exportColumns,
-      
-      // Data
-      tesdaPrograms,
-      instructors,
+      tesdaCourses,
+
       summary,
-      recentScholars,
+      trend,
+      topCourses,
+      gender,
+      recentRows,
+
       detailedRows,
-      attendanceRecords,
-      attendanceStats,
-      
-      // Chart data
-      trendData,
-      programsData,
-      genderData,
-      ageData,
-      attendanceChartData,
-      
-      // Chart refs
-      trendChartRef,
-      programsChartRef,
-      genderChartRef,
-      ageChartRef,
-      attendanceChartRef,
-      
-      // Chart options
-      trendOption,
-      programsOption,
-      genderOption,
-      ageOption,
-      attendanceOption,
-      
-      // Loading states
-      overviewLoading,
-      detailedLoading,
-      attendanceLoading,
-      
-      // Errors
-      overviewError,
-      detailedError,
-      attendanceError,
-      
-      // Filters
-      overviewFilters,
-      detailedFilters,
-      attendanceFilters,
-      
-      // Columns
-      columnOptions,
-      visibleColumns,
-      detailedColspan,
-      
-      // Pagination
+      detailedMeta,
       detailedPage,
       detailedPageSize,
-      detailedFiltered,
-      detailedPaginated,
       detailedTotalPages,
-      detailedPageStart,
-      detailedPageEnd,
       detailedPageButtons,
-      
-      // Methods
-      loadOverviewData,
-      loadDetailedData,
-      loadAttendanceData,
-      openExportModal,
-      runExport,
-      exportAttendance,
+
+      overviewFilters,
+      detailedFilters,
+
+      overviewLoading,
+      detailedLoading,
+      overviewError,
+      detailedError,
+
+      // charts
+      trendChartRef,
+      topCoursesChartRef,
+      genderChartRef,
+      trendOption,
+      topCoursesOption,
+      genderOption,
+
+      // helpers
       formatDate,
-      formatDateShort,
+      formatCurrency,
+
+      // actions
+      loadOverview,
+      loadDetailed,
       resizeCharts,
+
+      // export
+      exportOpen,
+      exportTarget,
+      exportFormat,
+      openExport,
+      runExport,
     };
-  }
+  },
 };
 </script>

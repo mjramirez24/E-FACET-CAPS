@@ -86,7 +86,7 @@
             class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
           >
             <option value="full_name">Full Name</option>
-            <option value="client_id">Client ID</option>
+            <option v-if="activeTab === 'driving'" value="client_id">Client ID</option>
             <option value="course_start">Course Start</option>
             <option value="course_end">Course End</option>
             <option value="status">Status</option>
@@ -182,7 +182,6 @@
           <thead class="bg-blue-50 text-blue-900">
             <tr>
               <th class="text-left p-3 w-12">No.</th>
-              <th class="text-left p-3">Client ID</th>
               <th class="text-left p-3">Full Name</th>
               <th class="text-left p-3">Birthdate <span class="text-[10px]">(MM/DD/YY)</span></th>
               <th class="text-left p-3">Sex <span class="text-[10px]">(M/F)</span></th>
@@ -190,7 +189,6 @@
               <th class="text-left p-3">Course / Qualification</th>
               <th class="text-left p-3">Course Start</th>
               <th class="text-left p-3">Course End</th>
-              <th class="text-left p-3">Training Purpose</th>
               <th class="text-left p-3">Source</th>
               <th class="text-left p-3">Status</th>
               <th class="text-right p-3 w-40">Actions</th>
@@ -204,15 +202,13 @@
               class="border-t border-gray-100 hover:bg-gray-50"
             >
               <td class="p-3">{{ idx + 1 }}</td>
-              <td class="p-3 font-medium text-gray-800">{{ s.client_id || "—" }}</td>
               <td class="p-3 text-gray-900 font-medium">{{ s.full_name || "—" }}</td>
               <td class="p-3 text-gray-700">{{ fmtBirth(s.birthdate) }}</td>
               <td class="p-3 text-gray-700">{{ s.sex || "—" }}</td>
               <td class="p-3 text-gray-700">{{ s.instructor_name || "—" }}</td>
               <td class="p-3 text-gray-700">{{ s.course_name || "—" }}</td>
               <td class="p-3 text-gray-700">{{ fmtYMD(s.course_start) }}</td>
-              <td class="p-3 text-gray-700">{{ fmtYMD(s.course_end) }}</td>
-              <td class="p-3 text-gray-700">{{ s.training_purpose || "—" }}</td>
+              <td class="p-3 text-gray-700">{{ fmtYMD(getTesdaEndDate(s)) }}</td>
 
               <td class="p-3">
                 <span
@@ -322,7 +318,7 @@
 
           <!-- Fields -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+            <div v-if="formData.track === 'driving'">
               <label class="block text-sm text-gray-700 mb-1">Client ID</label>
               <input
                 v-model="formData.client_id"
@@ -629,6 +625,56 @@ export default {
       return s.includes("T") ? s.split("T")[0] : s;
     };
 
+    const toYMD = (d) => {
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime())) return "";
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, "0");
+      const day = String(dt.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    // supports "356 Hours", "15 Days", "2 Weeks", "1 Month"
+    const tesdaEndDateFromStart = (startYmd, durationText) => {
+      if (!startYmd) return "";
+      const start = new Date(startYmd);
+      if (Number.isNaN(start.getTime())) return "";
+
+      const s = String(durationText || "").toLowerCase();
+      const m = s.match(/(\d+)\s*(hour|hours|day|days|week|weeks|month|months)/);
+      if (!m) return toYMD(start);
+
+      const n = Number(m[1]);
+      const unit = m[2];
+
+      // training days (exclude Sundays)
+      let days = 0;
+      if (unit.startsWith("hour")) days = Math.ceil(n / 8);
+      else if (unit.startsWith("day")) days = n;
+      else if (unit.startsWith("week")) days = n * 6;
+      else if (unit.startsWith("month")) days = n * 26;
+
+      if (!days || days <= 1) return toYMD(start);
+
+      let remaining = days - 1; // start day counts as day1
+      const cur = new Date(start);
+
+      while (remaining > 0) {
+        cur.setDate(cur.getDate() + 1);
+        if (cur.getDay() === 0) continue; // skip Sundays
+        remaining--;
+      }
+      return toYMD(cur);
+    };
+
+    const getTesdaEndDate = (row) => {
+      // if backend gives course_end, use it; else compute from duration
+      const start = row?.course_start || row?.schedule_date || "";
+      const dur = row?.duration || row?.course_duration || row?.course_hours || "";
+      const computed = tesdaEndDateFromStart(start, dur);
+      return row?.course_end || computed || "";
+    };
+
     const fmtBirth = (d) => {
       if (!d) return "—";
       const dt = new Date(d);
@@ -686,8 +732,16 @@ export default {
         const dl = deriveDlFromCourseCode(c.course_code);
         if (dl) formData.dl_code = dl;
       } else {
-        // TESDA: optional fallback mirror (not required)
+        // ✅ TESDA: optional fallback mirror (not required)
         if (!formData.course_name) formData.course_name = c.course_name || "";
+
+        // ✅ TESDA: auto-compute end date kapag may start date
+        if (formData.course_start) {
+          formData.course_end = tesdaEndDateFromStart(
+            formData.course_start,
+            c.duration || ""   // duration galing sa tesda_courses.duration
+          );
+        }
       }
     };
 
@@ -699,36 +753,73 @@ export default {
     };
 
     // -------- API
-    const fetchStudents = async (track) => {
-      const params = new URLSearchParams({
-        track,
-        q: searchQuery.value || "",
-        source: selectedSource.value || "all",
-        status: selectedStatus.value || "all",
-        page: "1",
-        limit: "200",
-      });
+const fetchStudents = async (track) => {
+  const params = new URLSearchParams({
+    q: searchQuery.value || "",
+    source: selectedSource.value || "all",
+    status: selectedStatus.value || "all",
+    sort: sortBy.value || "full_name",
+    page: "1",
+    limit: "200",
+  });
 
-      const json = await apiJson(`/api/admin/students?${params.toString()}`);
-      const rows = Array.isArray(json.data) ? json.data : [];
+  // ✅ IMPORTANT: separate endpoint per tab
+  const url =
+    track === "tesda"
+      ? `/api/admin/tesda/students?${params.toString()}`
+      : `/api/admin/students?${params.toString()}&track=driving`;
 
+  const json = await apiJson(url);
+  const rows = Array.isArray(json.data) ? json.data : [];
+
+    // ✅ normalize mapping PER TRACK
+    if (track === "tesda") {
       return rows.map((r) => ({
         ...r,
         reservation_id: r.reservation_id,
-        student_id: r.student_id,
+        student_id: r.student_id || r.id,
         schedule_id: r.schedule_id,
         course_id: r.course_id,
 
-        client_id: r.client_id ?? r.lto_client_id ?? "",
-        full_name: r.full_name ?? r.fullname ?? "",
+        // ❌ no client_id for TESDA
+        client_id: "",
+
+        full_name: r.full_name ?? r.fullname ?? r.fullname ?? "",
         birthdate: r.birthdate ?? r.birthday ?? "",
         sex: r.sex ?? r.gender ?? "",
+
+        instructor_name: r.instructor_name ?? r.trainer_name ?? "",
+        course_name: r.course_name ?? "",
+        course_code: r.course_code ?? "",
+
+        // TESDA uses schedule_date as start
         course_start: r.course_start ?? r.schedule_date ?? "",
-        course_end: r.course_end ?? r.schedule_date ?? "",
+        course_end: r.course_end ?? "",
+
+        training_purpose: r.training_purpose ?? "",
         status: (r.status || r.reservation_status || "").toLowerCase(),
         source: (r.source || r.reservation_source || "online").toLowerCase(),
       }));
-    };
+    }
+
+    // driving mapping (keep yours)
+    return rows.map((r) => ({
+      ...r,
+      reservation_id: r.reservation_id,
+      student_id: r.student_id,
+      schedule_id: r.schedule_id,
+      course_id: r.course_id,
+
+      client_id: r.client_id ?? r.lto_client_id ?? "",
+      full_name: r.full_name ?? r.fullname ?? "",
+      birthdate: r.birthdate ?? r.birthday ?? "",
+      sex: r.sex ?? r.gender ?? "",
+      course_start: r.course_start ?? r.schedule_date ?? "",
+      course_end: r.course_end ?? r.schedule_date ?? "",
+      status: (r.status || r.reservation_status || "").toLowerCase(),
+      source: (r.source || r.reservation_source || "online").toLowerCase(),
+    }));
+  };
 
     const fetchActiveTabStudents = async () => {
       loading.value = true;
@@ -786,7 +877,7 @@ export default {
             s.course_name,
             s.instructor_name,
             s.dl_code,
-            s.training_purpose,
+            s.training_purpose || "",
             s.status,
             s.source,
           ]
@@ -815,6 +906,17 @@ export default {
     const filteredTesda = computed(() => applyLocalFilters(tesdaStudents.value));
 
     watch(sortBy, () => {});
+
+    watch(
+      () => [formData.track, formData.course_start, formData.course_id],
+      () => {
+        if (formData.track !== "tesda") return;
+        const c = findCourseById(formData.course_id);
+        if (!c) return;
+        if (!formData.course_start) return;
+        formData.course_end = tesdaEndDateFromStart(formData.course_start, c.duration || "");
+      }
+    );
 
     // -------- modals
     const resetForm = () => {
@@ -922,7 +1024,7 @@ export default {
         birthdate: formData.birthdate || null,
         sex: formData.sex || null,
 
-        client_id: formData.client_id || null,
+        client_id: formData.track === "driving" ? (formData.client_id || null) : null,
         training_purpose: formData.training_purpose || null,
 
         schedule_id: formData.schedule_id || null,
@@ -940,13 +1042,18 @@ export default {
 
       saving.value = true;
       try {
+        const isTesda = formData.track === "tesda";
+
+        const base =
+          isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
+
         if (isEditing.value && formData.reservation_id) {
-          await apiJson(`/api/admin/students/${formData.reservation_id}`, {
+          await apiJson(`${base}/${formData.reservation_id}`, {
             method: "PUT",
             body: JSON.stringify(payload),
           });
         } else {
-          await apiJson(`/api/admin/students`, {
+          await apiJson(`${base}`, {
             method: "POST",
             body: JSON.stringify(payload),
           });
@@ -963,11 +1070,21 @@ export default {
 
     const confirmDelete = async () => {
       if (!studentToDelete.value?.reservation_id) return;
+
       saving.value = true;
       try {
-        await apiJson(`/api/admin/students/${studentToDelete.value.reservation_id}`, {
-          method: "DELETE",
-        });
+        const isTesda =
+          (studentToDelete.value?.track || activeTab.value) === "tesda";
+
+        const base = isTesda
+          ? "/api/admin/tesda/students"
+          : "/api/admin/students";
+
+        await apiJson(
+          `${base}/${studentToDelete.value.reservation_id}`,
+          { method: "DELETE" }
+        );
+
         closeDeleteModal();
         await fetchAll();
       } catch (e) {
@@ -1027,6 +1144,9 @@ export default {
       modalCourses,
       onCoursePick,
       onTrackChange,
+
+      tesdaEndDateFromStart,
+      getTesdaEndDate,
     };
   },
 };

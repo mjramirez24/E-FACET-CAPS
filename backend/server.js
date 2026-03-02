@@ -85,6 +85,10 @@ const trainerTesdaStudentsRoutes = require("./src/routes/trainerTesdaStudentsRou
 const trainerTesdaSchedulesRoutes = require("./src/routes/trainerTesdaSchedulesRoutes");
 
 const adminTesdaRoutes = require("./src/routes/adminTesdaRoutes");
+const adminTesdaReportsRoutes = require("./src/routes/adminTesdaReportsRoutes");
+const adminTesdaStudentsRoutes = require("./src/routes/adminTesdaStudentsRoutes");
+const adminTesdaStudentsCrudRoutes = require("./src/routes/adminTesdaStudentsCrudRoutes");
+const adminCoursesRoutes = require("./src/routes/adminCoursesRoutes");
 const tesdaPublicRoutes = require("./src/routes/tesdaPublicRoutes");
 const tesdaRoutes = require("./src/routes/tesdaRoutes");
 
@@ -122,6 +126,10 @@ app.use("/api/student/certificates", studentCertificateRoutes);
 
 // TESDA
 app.use("/api/admin/tesda", adminTesdaRoutes); // admin only
+app.use("/api/admin/tesda-reports", adminTesdaReportsRoutes);
+app.use("/api/admin/tesda", adminTesdaStudentsRoutes);
+app.use("/api/admin/tesda", adminTesdaStudentsCrudRoutes);
+app.use("/api/admin", adminCoursesRoutes);
 app.use("/api/tesda", tesdaPublicRoutes); // public/student (existing)
 app.use("/api/tesda", tesdaRoutes); // requirements upload endpoints, etc.
 

@@ -57,7 +57,6 @@ function isValidYmdDate(s) {
 }
 
 async function getDisableColumn() {
-  // Prefer a simple boolean flag.
   if (await hasColumn("users", "is_disabled")) return "is_disabled";
   if (await hasColumn("users", "disabled")) return "disabled";
   return null;
@@ -79,6 +78,9 @@ async function listUsers(req, res) {
     const offset = (page - 1) * limit;
 
     const hasGenderCol = await hasColumn("users", "gender");
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
     const hasBirthdayCol = await hasColumn("users", "birthday");
     const disableCol = await getDisableColumn();
 
@@ -87,19 +89,85 @@ async function listUsers(req, res) {
       ? await hasColumn("tracks", "track_code")
       : false;
 
+    const joinTracks = hasTracksTbl
+      ? "LEFT JOIN tracks t ON t.track_id = u.track_id"
+      : "";
+
     const where = [];
     const params = [];
 
+    // ✅ SEARCH (matches any visible columns + track + status)
     if (search) {
-      where.push("(u.fullname LIKE ? OR u.username LIKE ? OR u.email LIKE ?)");
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      const s = `%${search}%`;
+      const ors = [];
+
+      // always safe core fields
+      ors.push("u.fullname LIKE ?");
+      params.push(s);
+
+      ors.push("u.username LIKE ?");
+      params.push(s);
+
+      ors.push("u.email LIKE ?");
+      params.push(s);
+
+      ors.push("u.contact LIKE ?");
+      params.push(s);
+
+      if (hasGenderCol) {
+        ors.push("u.gender LIKE ?");
+        params.push(s);
+      }
+
+      if (hasBirthdayCol) {
+        // allow searching date string
+        ors.push("DATE_FORMAT(u.birthday, '%Y-%m-%d') LIKE ?");
+        params.push(s);
+      }
+
+      if (hasAddressCol) {
+        ors.push("u.address LIKE ?");
+        params.push(s);
+      }
+
+      if (hasCivilStatusCol) {
+        ors.push("u.civil_status LIKE ?");
+        params.push(s);
+      }
+
+      if (hasNationalityCol) {
+        ors.push("u.nationality LIKE ?");
+        params.push(s);
+      }
+
+      // ✅ track_code is on tracks table (t), not users (u)
+      if (hasTracksTbl && hasTrackCodeCol) {
+        ors.push("t.track_code LIKE ?");
+        params.push(s);
+      }
+
+      // role
+      ors.push("u.role LIKE ?");
+      params.push(s);
+
+      // status (active/disabled) only if we have disableCol
+      if (disableCol) {
+        ors.push(
+          `(CASE WHEN u.${disableCol} = 1 THEN 'disabled' ELSE 'active' END) LIKE ?`,
+        );
+        params.push(s);
+      }
+
+      where.push(`(${ors.join(" OR ")})`);
     }
 
+    // role filter
     if (role && ALLOWED_ROLES.has(role)) {
       where.push("u.role = ?");
       params.push(role);
     }
 
+    // track filter
     if (
       hasTracksTbl &&
       hasTrackCodeCol &&
@@ -111,49 +179,63 @@ async function listUsers(req, res) {
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const joinTracks = hasTracksTbl
-      ? "LEFT JOIN tracks t ON t.track_id = u.track_id"
-      : "";
+    // select safe optional fields
     const trackSelect =
-      hasTracksTbl && hasTrackCodeCol ? "t.track_code" : "NULL AS track_code";
-    const genderSelect = hasGenderCol ? "u.gender" : "NULL AS gender";
-    const birthdaySelect = hasBirthdayCol ? "u.birthday" : "NULL AS birthday";
+      hasTracksTbl && hasTrackCodeCol
+        ? "t.track_code AS track_code"
+        : "NULL AS track_code";
+    const genderSelect = hasGenderCol ? "u.gender AS gender" : "NULL AS gender";
+    const addressSelect = hasAddressCol
+      ? "u.address AS address"
+      : "NULL AS address";
+    const civilSelect = hasCivilStatusCol
+      ? "u.civil_status AS civil_status"
+      : "NULL AS civil_status";
+    const nationalitySelect = hasNationalityCol
+      ? "u.nationality AS nationality"
+      : "NULL AS nationality";
+    const birthdaySelect = hasBirthdayCol
+      ? "u.birthday AS birthday"
+      : "NULL AS birthday";
     const disabledSelect = disableCol
       ? `u.${disableCol} AS is_disabled`
       : "NULL AS is_disabled";
 
     const [countRows] = await pool.query(
       `
-      SELECT COUNT(*) AS total
-      FROM users u
-      ${joinTracks}
-      ${whereSql}
+        SELECT COUNT(*) AS total
+        FROM users u
+        ${joinTracks}
+        ${whereSql}
       `,
       params,
     );
-    const total = countRows[0]?.total || 0;
+    const total = Number(countRows?.[0]?.total || 0);
 
     const [rows] = await pool.query(
       `
-      SELECT
-        u.id,
-        u.fullname,
-        u.username,
-        u.email,
-        u.contact,
-        u.role,
-        u.track_id,
-        ${trackSelect},
-        ${genderSelect},
-        ${birthdaySelect},
-        ${disabledSelect}
-      FROM users u
-      ${joinTracks}
-      ${whereSql}
-      ORDER BY u.id DESC
-      LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+        SELECT
+          u.id,
+          u.fullname,
+          u.username,
+          u.email,
+          u.contact,
+          u.role,
+          u.track_id,
+          ${trackSelect},
+          ${genderSelect},
+          ${birthdaySelect},
+          ${addressSelect},
+          ${civilSelect},
+          ${nationalitySelect},
+          ${disabledSelect}
+        FROM users u
+        ${joinTracks}
+        ${whereSql}
+        ORDER BY u.id DESC
+        LIMIT ? OFFSET ?
       `,
-      params,
+      [...params, limit, offset],
     );
 
     return res.json({
@@ -189,6 +271,9 @@ async function getUserById(req, res) {
         .json({ status: "error", message: "Invalid user id" });
 
     const hasGenderCol = await hasColumn("users", "gender");
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
     const hasBirthdayCol = await hasColumn("users", "birthday");
     const disableCol = await getDisableColumn();
 
@@ -201,25 +286,41 @@ async function getUserById(req, res) {
       ? "LEFT JOIN tracks t ON t.track_id = u.track_id"
       : "";
     const trackSelect =
-      hasTracksTbl && hasTrackCodeCol ? "t.track_code" : "NULL AS track_code";
-    const genderSelect = hasGenderCol ? "u.gender" : "NULL AS gender";
-    const birthdaySelect = hasBirthdayCol ? "u.birthday" : "NULL AS birthday";
+      hasTracksTbl && hasTrackCodeCol
+        ? "t.track_code AS track_code"
+        : "NULL AS track_code";
+    const genderSelect = hasGenderCol ? "u.gender AS gender" : "NULL AS gender";
+    const addressSelect = hasAddressCol
+      ? "u.address AS address"
+      : "NULL AS address";
+    const civilSelect = hasCivilStatusCol
+      ? "u.civil_status AS civil_status"
+      : "NULL AS civil_status";
+    const nationalitySelect = hasNationalityCol
+      ? "u.nationality AS nationality"
+      : "NULL AS nationality";
+    const birthdaySelect = hasBirthdayCol
+      ? "u.birthday AS birthday"
+      : "NULL AS birthday";
     const disabledSelect = disableCol
       ? `u.${disableCol} AS is_disabled`
       : "NULL AS is_disabled";
 
     const [rows] = await pool.query(
       `
-      SELECT
-        u.id, u.fullname, u.username, u.email, u.contact, u.role, u.track_id,
-        ${trackSelect},
-        ${genderSelect},
-        ${birthdaySelect},
-        ${disabledSelect}
-      FROM users u
-      ${joinTracks}
-      WHERE u.id = ?
-      LIMIT 1
+        SELECT
+          u.id, u.fullname, u.username, u.email, u.contact, u.role, u.track_id,
+          ${trackSelect},
+          ${genderSelect},
+          ${birthdaySelect},
+          ${addressSelect},
+          ${civilSelect},
+          ${nationalitySelect},
+          ${disabledSelect}
+        FROM users u
+        ${joinTracks}
+        WHERE u.id = ?
+        LIMIT 1
       `,
       [id],
     );
@@ -241,6 +342,9 @@ async function getUserById(req, res) {
 async function createUser(req, res) {
   try {
     const hasGenderCol = await hasColumn("users", "gender");
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
     const hasBirthdayCol = await hasColumn("users", "birthday");
     const hasTracksTbl = await hasTable("tracks");
     const disableCol = await getDisableColumn();
@@ -255,12 +359,18 @@ async function createUser(req, res) {
       track,
       gender,
       birthday,
+      address,
+      civil_status,
+      nationality,
     } = req.body;
 
     const fullnameTrim = String(fullname || "").trim();
     const usernameTrim = String(username || "").trim();
     const emailTrim = String(email || "").trim();
     const contactTrim = String(contact || "").trim();
+    const addressTrim = String(address || "").trim();
+    const civilTrim = String(civil_status || "").trim();
+    const nationalityTrim = String(nationality || "").trim();
     const roleNorm = String(role || "user")
       .trim()
       .toLowerCase();
@@ -279,7 +389,6 @@ async function createUser(req, res) {
       return res.status(400).json({ status: "error", message: "Invalid role" });
     }
 
-    // track required for user/student
     let trackId = null;
     if (roleNorm === "user" || roleNorm === "student") {
       if (!hasTracksTbl) {
@@ -288,16 +397,13 @@ async function createUser(req, res) {
           message: "tracks table is required for user/student accounts",
         });
       }
-
       trackId = await getTrackIdByCode(trackCode);
-      if (!trackId) {
+      if (!trackId)
         return res
           .status(400)
           .json({ status: "error", message: "Invalid track" });
-      }
     }
 
-    // unique email/username
     const [dupe] = await pool.query(
       "SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1",
       [emailTrim, usernameTrim],
@@ -310,7 +416,6 @@ async function createUser(req, res) {
 
     const hash = await bcrypt.hash(String(password), 10);
 
-    // optional fields
     const genderNorm = hasGenderCol ? normalizeGender(gender) : null;
 
     let birthdayVal = null;
@@ -352,15 +457,25 @@ async function createUser(req, res) {
       cols.push("birthday");
       vals.push(birthdayVal);
     }
+    if (hasAddressCol) {
+      cols.push("address");
+      vals.push(addressTrim || null);
+    }
+    if (hasCivilStatusCol) {
+      cols.push("civil_status");
+      vals.push(civilTrim ? civilTrim.toLowerCase() : null);
+    }
+    if (hasNationalityCol) {
+      cols.push("nationality");
+      vals.push(nationalityTrim || null);
+    }
 
-    // new users default to enabled (0)
     if (disableCol) {
       cols.push(disableCol);
       vals.push(0);
     }
 
     const placeholders = cols.map(() => "?").join(", ");
-
     await pool.query(
       `INSERT INTO users (${cols.join(", ")}) VALUES (${placeholders})`,
       vals,
@@ -385,10 +500,12 @@ async function updateUser(req, res) {
         .json({ status: "error", message: "Invalid user id" });
 
     const hasGenderCol = await hasColumn("users", "gender");
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
     const hasBirthdayCol = await hasColumn("users", "birthday");
     const hasTracksTbl = await hasTable("tracks");
 
-    // verify exists
     const [exists] = await pool.query("SELECT id FROM users WHERE id = ?", [
       id,
     ]);
@@ -407,12 +524,18 @@ async function updateUser(req, res) {
       track,
       gender,
       birthday,
+      address,
+      civil_status,
+      nationality,
     } = req.body;
 
     const fullnameTrim = String(fullname || "").trim();
     const usernameTrim = String(username || "").trim();
     const emailTrim = String(email || "").trim();
     const contactTrim = String(contact || "").trim();
+    const addressTrim = String(address || "").trim();
+    const civilTrim = String(civil_status || "").trim();
+    const nationalityTrim = String(nationality || "").trim();
     const roleNorm = String(role || "user")
       .trim()
       .toLowerCase();
@@ -431,7 +554,6 @@ async function updateUser(req, res) {
       return res.status(400).json({ status: "error", message: "Invalid role" });
     }
 
-    // unique email/username (exclude self)
     const [dupe] = await pool.query(
       "SELECT id FROM users WHERE (email = ? OR username = ?) AND id <> ? LIMIT 1",
       [emailTrim, usernameTrim, id],
@@ -442,7 +564,6 @@ async function updateUser(req, res) {
         .json({ status: "error", message: "Email or Username already exists" });
     }
 
-    // track handling
     let trackId = null;
     if (roleNorm === "user" || roleNorm === "student") {
       if (!hasTracksTbl) {
@@ -452,11 +573,10 @@ async function updateUser(req, res) {
         });
       }
       trackId = await getTrackIdByCode(trackCode);
-      if (!trackId) {
+      if (!trackId)
         return res
           .status(400)
           .json({ status: "error", message: "Invalid track" });
-      }
     }
 
     const updates = [];
@@ -464,30 +584,23 @@ async function updateUser(req, res) {
 
     updates.push("fullname = ?");
     params.push(fullnameTrim);
-
     updates.push("username = ?");
     params.push(usernameTrim);
-
     updates.push("email = ?");
     params.push(emailTrim);
-
     updates.push("contact = ?");
     params.push(contactTrim);
-
     updates.push("role = ?");
     params.push(roleNorm);
-
     updates.push("track_id = ?");
     params.push(trackId);
 
-    // password optional
     if (password && String(password).trim()) {
       const hash = await bcrypt.hash(String(password).trim(), 10);
       updates.push("password = ?");
       params.push(hash);
     }
 
-    // gender optional: if blank -> keep current
     if (hasGenderCol) {
       const gTrim = String(gender || "").trim();
       if (gTrim) {
@@ -496,7 +609,6 @@ async function updateUser(req, res) {
       }
     }
 
-    // birthday optional: if blank -> keep current
     if (hasBirthdayCol) {
       const bTrim = String(birthday || "").trim();
       if (bTrim) {
@@ -507,6 +619,27 @@ async function updateUser(req, res) {
         }
         updates.push("birthday = ?");
         params.push(bTrim);
+      }
+    }
+
+    if (hasAddressCol) {
+      if (String(address || "").trim()) {
+        updates.push("address = ?");
+        params.push(addressTrim);
+      }
+    }
+
+    if (hasCivilStatusCol) {
+      if (String(civil_status || "").trim()) {
+        updates.push("civil_status = ?");
+        params.push(civilTrim.toLowerCase());
+      }
+    }
+
+    if (hasNationalityCol) {
+      if (String(nationality || "").trim()) {
+        updates.push("nationality = ?");
+        params.push(nationalityTrim);
       }
     }
 
@@ -544,7 +677,6 @@ async function deleteUser(req, res) {
         .json({ status: "error", message: "User not found" });
 
     await pool.query("DELETE FROM users WHERE id = ? LIMIT 1", [id]);
-
     return res.json({ status: "success", message: "User deleted" });
   } catch (err) {
     console.error("deleteUser error:", err);
@@ -576,7 +708,6 @@ async function disableUser(req, res) {
       `UPDATE users SET ${disableCol} = 1 WHERE id = ? LIMIT 1`,
       [id],
     );
-
     return res.json({ status: "success", message: "User disabled" });
   } catch (err) {
     console.error("disableUser error:", err);
@@ -608,7 +739,6 @@ async function enableUser(req, res) {
       `UPDATE users SET ${disableCol} = 0 WHERE id = ? LIMIT 1`,
       [id],
     );
-
     return res.json({ status: "success", message: "User enabled" });
   } catch (err) {
     console.error("enableUser error:", err);

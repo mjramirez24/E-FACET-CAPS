@@ -1017,7 +1017,12 @@ export default {
 
     // endpoints
     const scheduleUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/schedules" : "/admin/schedules");
-    const coursesUrl = () => (activeTrack.value === "tesda" ? "/admin/tesda/courses" : "/admin/courses");
+    const coursesUrl = () => {
+      // ✅ always pass track so backend won't return BOTH
+      return activeTrack.value === "tesda"
+        ? "/admin/tesda/courses"
+        : "/admin/courses?track=driving";
+    };
     const peopleUrl = () => "/admin/instructors"; // ✅ driving only (tesda = no dropdown)
 
     const courseById = computed(() => {

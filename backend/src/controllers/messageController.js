@@ -17,7 +17,6 @@ exports.sendMessage = async (req, res) => {
         .json({ status: "error", message: "Missing fields" });
     }
 
-    // Find existing conversation between these two users
     const [conversationRows] = await pool.query(
       `SELECT c.id
        FROM conversations c
@@ -169,7 +168,6 @@ exports.getThread = async (req, res) => {
 
     const conversationId = convRows[0].id;
 
-    // Mark as read when thread is opened
     await pool.query(
       `UPDATE conversation_participants
        SET last_read_at = CURRENT_TIMESTAMP
@@ -235,61 +233,45 @@ exports.getContacts = async (req, res) => {
         .json({ status: "error", message: "Not logged in" });
     }
 
-    const [[me]] = await pool.query("SELECT role FROM users WHERE id = ?", [
-      userId,
-    ]);
+    const [[me]] = await pool.query(
+      "SELECT role, track_id FROM users WHERE id = ?",
+      [userId],
+    );
 
     let rows = [];
 
     if (me.role === "admin") {
-      // Admin can message everyone
       [rows] = await pool.query(
-        "SELECT id, fullname AS name, role FROM users WHERE id != ? ORDER BY fullname",
+        "SELECT id, fullname AS name, role FROM users WHERE id != ? ORDER BY role, fullname",
         [userId],
       );
     } else if (me.role === "user" || me.role === "student") {
-      // Get the student track_id
-      const [[myTrack]] = await pool.query(
-        "SELECT track_id FROM users WHERE id = ?",
-        [userId],
-      );
-      const trackId = myTrack?.track_id;
+      const trackId = me.track_id;
 
       if (trackId === 1) {
-        // Driving: admins + instructors + other driving students
         [rows] = await pool.query(
           `SELECT id, fullname AS name, role
            FROM users
-           WHERE (
-             role IN ('admin', 'instructor')
-             OR (role = 'user' AND track_id = 1 AND id != ?)
-           )
+           WHERE (role IN ('admin', 'instructor') OR (role = 'user' AND track_id = 1 AND id != ?))
            AND id != ?
            ORDER BY role, fullname`,
           [userId, userId],
         );
       } else if (trackId === 2) {
-        // TESDA: admins + trainers + other tesda students
         [rows] = await pool.query(
           `SELECT id, fullname AS name, role
            FROM users
-           WHERE (
-             role = 'admin'
-             OR role = 'trainer'
-             OR (role = 'user' AND track_id = 2 AND id != ?)
-           )
+           WHERE (role = 'admin' OR role = 'trainer' OR (role = 'user' AND track_id = 2 AND id != ?))
            AND id != ?
            ORDER BY role, fullname`,
           [userId, userId],
         );
       } else {
-        // Unknown track: just admins
         [rows] = await pool.query(
-          `SELECT id, fullname AS name, role FROM users WHERE role = 'admin' ORDER BY fullname`,
+          "SELECT id, fullname AS name, role FROM users WHERE role = 'admin' ORDER BY fullname",
         );
       }
     } else if (me.role === "instructor") {
-      // Instructors can message: all admins + all students + all other instructors
       [rows] = await pool.query(
         `SELECT id, fullname AS name, role
          FROM users
@@ -299,27 +281,19 @@ exports.getContacts = async (req, res) => {
         [userId],
       );
     } else if (me.role === "trainer") {
-      // Trainers can message admins + their tesda students
+      // Trainers: all admins + all other trainers + all TESDA students (track_id = 2)
       [rows] = await pool.query(
-        `
-        SELECT DISTINCT u.id, u.fullname AS name, u.role
-        FROM users u
-        WHERE u.role = 'admin'
-
-        UNION
-
-        SELECT DISTINCT u.id, u.fullname AS name, u.role
-        FROM users u
-        JOIN students s ON s.id = u.id
-        JOIN tesda_classes tc ON tc.id = s.id
-        JOIN tesda_course_trainers tct ON tct.course_id = tc.course_id
-        JOIN trainers t ON t.trainer_id = tct.trainer_id AND t.user_id = ?
-        WHERE u.role = 'user'
-        `,
+        `SELECT id, fullname AS name, role
+         FROM users
+         WHERE (
+           role IN ('admin', 'trainer')
+           OR (role = 'user' AND track_id = 2)
+         )
+         AND id != ?
+         ORDER BY role, fullname`,
         [userId],
       );
     } else {
-      // Fallback: can at least message admins
       [rows] = await pool.query(
         "SELECT id, fullname AS name, role FROM users WHERE role = 'admin' ORDER BY fullname",
       );

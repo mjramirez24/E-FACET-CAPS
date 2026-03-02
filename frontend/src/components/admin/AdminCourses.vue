@@ -841,7 +841,7 @@ export default {
     const fetchCourses = async () => {
       loading.value = true;
       try {
-        const res = await api.get("/admin/courses");
+        const res = await api.get("/admin/courses?track=driving");
         const maybe = res.data?.data;
         courses.value = Array.isArray(maybe) ? maybe : (maybe?.data ?? []);
       } catch (err) {

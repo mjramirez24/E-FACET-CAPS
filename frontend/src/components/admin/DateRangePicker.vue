@@ -6,6 +6,7 @@
         v-model="localRange"
         class="w-48 p-2 border border-gray-300 rounded-md text-sm"
       >
+        <option value="allMonths">All Months</option>
         <option value="thisMonth">This Month</option>
         <option value="lastMonth">Last Month</option>
         <option value="thisQuarter">This Quarter</option>

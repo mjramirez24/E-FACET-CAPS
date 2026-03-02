@@ -54,6 +54,10 @@ const login = async (req, res) => {
       .toLowerCase(); // tesda/driving
 
     const disableCol = await getDisableColumn();
+
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
     const disabledSelect = disableCol
       ? `, u.${disableCol} AS is_disabled`
       : `, 0 AS is_disabled`;
@@ -297,12 +301,18 @@ const signup = async (req, res) => {
       track,
       gender,
       birthday,
+      address,
+      civil_status,
+      nationality,
     } = req.body;
 
     const fullnameTrimmed = (fullname || "").trim();
     const usernameTrimmed = (username || "").trim();
     const emailTrimmed = (email || "").trim();
     const contactTrimmed = (contact || "").trim();
+    const addressTrimmed = (address || "").trim();
+    const civilStatusTrimmed = (civil_status || "").trim();
+    const nationalityTrimmed = (nationality || "").trim();
     const trackCode = String(track || "")
       .trim()
       .toLowerCase();
@@ -314,11 +324,21 @@ const signup = async (req, res) => {
 
     const errors = {};
 
+    const allowedCivil = new Set(["single", "married", "widowed", "separated"]);
+
     if (!fullnameTrimmed) errors.fullname = "Full name is required";
     if (!usernameTrimmed) errors.username = "Username is required";
     if (!emailTrimmed) errors.email = "Email is required";
     if (!password) errors.password = "Password is required";
     if (!confirm) errors.confirm = "Confirm password is required";
+
+    if (!addressTrimmed) errors.address = "Address is required";
+    if (!civilStatusTrimmed) errors.civil_status = "Civil status is required";
+    else if (!allowedCivil.has(civilStatusTrimmed.toLowerCase())) {
+      errors.civil_status = "Civil status is invalid";
+    }
+
+    if (!nationalityTrimmed) errors.nationality = "Nationality is required";
 
     if (genderNormalized !== "male" && genderNormalized !== "female") {
       errors.gender = "Gender is required (male or female)";
@@ -379,6 +399,10 @@ const signup = async (req, res) => {
 
     const disableCol = await getDisableColumn();
 
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
+
     const cols = [
       "fullname",
       "username",
@@ -401,6 +425,19 @@ const signup = async (req, res) => {
       genderNormalized,
       birthdayTrimmed,
     ];
+
+    if (hasAddressCol) {
+      cols.push("address");
+      vals.push(addressTrimmed);
+    }
+    if (hasCivilStatusCol) {
+      cols.push("civil_status");
+      vals.push(civilStatusTrimmed.toLowerCase());
+    }
+    if (hasNationalityCol) {
+      cols.push("nationality");
+      vals.push(nationalityTrimmed);
+    }
 
     if (disableCol) {
       cols.push(disableCol);
@@ -427,6 +464,9 @@ const signup = async (req, res) => {
         track: trackCode,
         gender: genderNormalized,
         birthday: birthdayTrimmed,
+        address: addressTrimmed,
+        civil_status: civilStatusTrimmed.toLowerCase(),
+        nationality: nationalityTrimmed,
       },
     });
   } catch (error) {
@@ -449,14 +489,27 @@ const signupInstructor = async (req, res) => {
     const usernameTrimmed = (username || "").trim();
     const emailTrimmed = (email || "").trim();
     const contactTrimmed = (contact || "").trim();
+    const addressTrimmed = (address || "").trim();
+    const civilStatusTrimmed = (civil_status || "").trim();
+    const nationalityTrimmed = (nationality || "").trim();
 
     const errors = {};
+
+    const allowedCivil = new Set(["single", "married", "widowed", "separated"]);
 
     if (!fullnameTrimmed) errors.fullname = "Full name is required";
     if (!usernameTrimmed) errors.username = "Username is required";
     if (!emailTrimmed) errors.email = "Email is required";
     if (!password) errors.password = "Password is required";
     if (!confirm) errors.confirm = "Confirm password is required";
+
+    if (!addressTrimmed) errors.address = "Address is required";
+    if (!civilStatusTrimmed) errors.civil_status = "Civil status is required";
+    else if (!allowedCivil.has(civilStatusTrimmed.toLowerCase())) {
+      errors.civil_status = "Civil status is invalid";
+    }
+
+    if (!nationalityTrimmed) errors.nationality = "Nationality is required";
 
     if (password && confirm && password !== confirm) {
       errors.confirm = "Passwords do not match";
@@ -482,6 +535,10 @@ const signupInstructor = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const disableCol = await getDisableColumn();
+
+    const hasAddressCol = await hasColumn("users", "address");
+    const hasCivilStatusCol = await hasColumn("users", "civil_status");
+    const hasNationalityCol = await hasColumn("users", "nationality");
 
     const cols = [
       "fullname",
