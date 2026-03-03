@@ -33,7 +33,7 @@
           <span class="ml-2">👨‍🎓 Students</span>
         </router-link>
 
-        <!-- ✅ Reservations -->
+        <!-- Reservations -->
         <router-link
           to="/admin-reservations"
           :class="[
@@ -58,7 +58,7 @@
           <span class="ml-2">📚 Manage Courses</span>
         </router-link>
 
-        <!-- ✅ Instructors -->
+        <!-- Instructors -->
         <router-link
           to="/admin-instructors"
           :class="[
@@ -119,7 +119,7 @@
           <span class="ml-2">🧠 Mock Exam Management</span>
         </router-link>
 
-        <!-- ✅ NEW: USER MANAGEMENT (after Mock Exam) -->
+        <!-- User Management -->
         <router-link
           to="/admin-users"
           :class="[
@@ -186,6 +186,12 @@
 
 <script>
 import { useRouter } from 'vue-router'
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
 
 export default {
   name: 'AdminSidebar',
@@ -195,7 +201,11 @@ export default {
   },
   data() {
     return {
-      user: {}
+      user: {
+        fullname: '',
+        username: '',
+        email: ''
+      }
     }
   },
   computed: {
@@ -204,26 +214,80 @@ export default {
       return 'A'
     }
   },
-  mounted() {
-    const userData = localStorage.getItem('user')
-    if (userData) this.user = JSON.parse(userData)
-  },
   methods: {
+    async fetchUserData() {
+      try {
+        const response = await api.get("/settings/profile");
+        if (response.data?.status === "success" && response.data?.profile) {
+          this.user = {
+            fullname: response.data.profile.fullname || '',
+            username: response.data.profile.username || '',
+            email: response.data.profile.email || ''
+          };
+        }
+      } catch (err) {
+        console.error("Fetch user data error:", err);
+        // If unauthorized, redirect to login
+        if (err.response?.status === 401) {
+          this.router.push("/login");
+        }
+      }
+    },
+
+    handleUserUpdate(event) {
+      this.user = event.detail;
+    },
+
     async logout() {
       try {
-        const response = await fetch('/api/auth/logout', { credentials: 'include' })
-        const data = await response.json()
+        const response = await fetch('/api/auth/logout', { 
+          credentials: 'include' 
+        });
+        const data = await response.json();
 
         if (data.status === 'success') {
-          localStorage.removeItem('user')
-          this.router.push('/login')
+          this.router.push('/login');
         }
       } catch (error) {
-        console.error('Logout error:', error)
-        localStorage.removeItem('user')
-        this.router.push('/login')
+        console.error('Logout error:', error);
+        this.router.push('/login');
       }
     }
+  },
+  async mounted() {
+    await this.fetchUserData();
+    window.addEventListener('user-updated', this.handleUserUpdate);
+  },
+  beforeUnmount() {
+    window.removeEventListener('user-updated', this.handleUserUpdate);
   }
 }
 </script>
+
+<style scoped>
+aside {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+aside::-webkit-scrollbar {
+  width: 6px;
+}
+aside::-webkit-scrollbar-track {
+  background: transparent;
+}
+aside::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 3px;
+}
+
+/* Router link active styles */
+.router-link-exact-active {
+  background-color: #d1fae5;
+  color: #047857;
+  font-weight: 500;
+}
+
+.router-link-active:hover:not(.router-link-exact-active) {
+  background-color: #f3f4f6;
+}
+</style>

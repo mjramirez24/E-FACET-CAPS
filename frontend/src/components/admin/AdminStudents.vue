@@ -1,13 +1,18 @@
+<!-- frontend/src/components/admin/AdminStudents.vue -->
 <template>
   <AdminLayout>
     <!-- Header -->
     <template #header-left>
       <input
         type="text"
-        :placeholder="activeTab === 'driving' ? 'Search driving student...' : 'Search TESDA student...'"
+        :placeholder="
+          activeTab === 'driving'
+            ? 'Search driving student...'
+            : 'Search TESDA student...'
+        "
         v-model="searchQuery"
         class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-        @input="debouncedFetch()"
+        @input="debouncedFetch"
       />
     </template>
 
@@ -16,7 +21,9 @@
       <div class="flex justify-between items-center mb-6">
         <div>
           <h2 class="text-lg font-bold text-green-800">👨‍🎓 Students Management</h2>
-          <p class="text-xs text-gray-500 mt-1">Sections: Driving / TESDA • Source: Online + Walk-in</p>
+          <p class="text-xs text-gray-500 mt-1">
+            Sections: Driving / TESDA • Source: Online + Walk-in
+          </p>
         </div>
 
         <button
@@ -31,14 +38,23 @@
       <div class="flex gap-2 mb-5">
         <button
           class="px-4 py-2 rounded-md font-medium text-sm"
-          :class="activeTab === 'driving' ? 'bg-green-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+          :class="
+            activeTab === 'driving'
+              ? 'bg-green-700 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          "
           @click="switchTab('driving')"
         >
           🚗 Driving
         </button>
+
         <button
           class="px-4 py-2 rounded-md font-medium text-sm"
-          :class="activeTab === 'tesda' ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+          :class="
+            activeTab === 'tesda'
+              ? 'bg-blue-700 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          "
           @click="switchTab('tesda')"
         >
           🛠 TESDA
@@ -51,8 +67,8 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <select
             v-model="selectedStatus"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-            @change="fetchActiveTabStudents()"
+            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none"
+            @change="fetchActiveTabStudents"
           >
             <option value="all">All</option>
             <option value="pending">pending</option>
@@ -70,8 +86,8 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Source</label>
           <select
             v-model="selectedSource"
-            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-            @change="fetchActiveTabStudents()"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none"
+            @change="fetchActiveTabStudents"
           >
             <option value="all">Online + Walk-in</option>
             <option value="online">Online only</option>
@@ -83,7 +99,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
           <select
             v-model="sortBy"
-            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none"
           >
             <option value="full_name">Full Name</option>
             <option v-if="activeTab === 'driving'" value="client_id">Client ID</option>
@@ -96,75 +112,65 @@
 
       <!-- Table -->
       <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
-        <div v-if="loading" class="p-6 text-center text-gray-500">Loading students...</div>
+        <div v-if="loading" class="p-6 text-center text-gray-500">
+          Loading students...
+        </div>
 
-        <!-- DRIVING TABLE -->
+        <!-- DRIVING -->
         <table v-else-if="activeTab === 'driving'" class="w-full text-xs md:text-sm">
-          <thead class="bg-green-50 text-green-900">
-            <tr>
-              <th class="text-left p-3 w-12">No.</th>
-              <th class="text-left p-3">Client ID</th>
-              <th class="text-left p-3">Full Name</th>
-              <th class="text-left p-3">Birthdate <span class="text-[10px]">(MM/DD/YY)</span></th>
-              <th class="text-left p-3">Sex <span class="text-[10px]">(M/F)</span></th>
-              <th class="text-left p-3">Instructor Name</th>
-              <th class="text-left p-3">Course Start</th>
-              <th class="text-left p-3">Course End</th>
-              <th class="text-left p-3">DL CODE</th>
-              <th class="text-left p-3">Training Purpose</th>
-              <th class="text-left p-3">Source</th>
-              <th class="text-left p-3">Status</th>
-              <th class="text-right p-3 w-40">Actions</th>
+          <thead class="bg-green-50">
+            <tr class="text-left text-gray-700">
+              <th class="p-3">#</th>
+              <th class="p-3">Client ID</th>
+              <th class="p-3">Full Name</th>
+              <th class="p-3">Birthdate</th>
+              <th class="p-3">Sex</th>
+              <th class="p-3">DL Code</th>
+              <th class="p-3">Course</th>
+              <th class="p-3">Start</th>
+              <th class="p-3">End</th>
+              <th class="p-3">Instructor</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Source</th>
+              <th class="p-3">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             <tr
-              v-for="(s, idx) in filteredDriving"
+              v-for="(s, idx) in paginatedDriving"
               :key="s.reservation_id"
               class="border-t border-gray-100 hover:bg-gray-50"
             >
-              <td class="p-3">{{ idx + 1 }}</td>
-              <td class="p-3 font-medium text-gray-800">{{ s.client_id || "—" }}</td>
-              <td class="p-3 text-gray-900 font-medium">{{ s.full_name || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ fmtBirth(s.birthdate) }}</td>
-              <td class="p-3 text-gray-700">{{ s.sex || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ s.instructor_name || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ fmtYMD(s.course_start) }}</td>
-              <td class="p-3 text-gray-700">{{ fmtYMD(s.course_end) }}</td>
-              <td class="p-3 text-gray-700">{{ s.dl_code || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ s.training_purpose || "—" }}</td>
-
+              <td class="p-3">{{ (pageRange.start || 1) + idx }}</td>
+              <td class="p-3">{{ s.client_id || "—" }}</td>
+              <td class="p-3 font-medium">{{ s.full_name || "—" }}</td>
+              <td class="p-3">{{ fmtBirth(s.birthdate) }}</td>
+              <td class="p-3">{{ s.sex || "—" }}</td>
+              <td class="p-3">{{ s.dl_code || "—" }}</td>
+              <td class="p-3">{{ s.course_name || "—" }}</td>
+              <td class="p-3">{{ fmtYMD(s.course_start) }}</td>
+              <td class="p-3">{{ fmtYMD(s.course_end) }}</td>
+              <td class="p-3">{{ s.instructor_name || "—" }}</td>
               <td class="p-3">
                 <span
-                  class="px-2 py-1 rounded-full text-[11px] font-semibold"
-                  :class="(s.source || 'online') === 'walkin'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-indigo-100 text-indigo-800'"
-                >
-                  {{ s.source || "online" }}
-                </span>
-              </td>
-
-              <td class="p-3">
-                <span
-                  class="px-2 py-1 rounded-full text-[11px] font-semibold"
+                  class="px-2 py-1 rounded-full text-xs font-semibold"
                   :class="statusPill(s.status)"
                 >
                   {{ s.status || "—" }}
                 </span>
               </td>
-
-              <td class="p-3 text-right">
+              <td class="p-3">{{ s.source || "—" }}</td>
+              <td class="p-3">
                 <button
+                  class="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-xs mr-2"
                   @click="openEditModal(s, 'driving')"
-                  class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700 mr-2"
                 >
                   Edit
                 </button>
                 <button
-                  @click="openDeleteModal(s)"
-                  class="px-3 py-1.5 text-xs rounded-md bg-red-600 text-white hover:bg-red-700"
+                  class="px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-xs"
+                  @click="openDeleteModal(s, 'driving')"
                 >
                   Delete
                 </button>
@@ -172,74 +178,64 @@
             </tr>
 
             <tr v-if="!filteredDriving.length">
-              <td colspan="13" class="p-6 text-center text-gray-500">No driving students found.</td>
+              <td colspan="13" class="p-6 text-center text-gray-500">
+                No driving students found.
+              </td>
             </tr>
           </tbody>
         </table>
 
-        <!-- TESDA TABLE -->
+        <!-- TESDA -->
         <table v-else class="w-full text-xs md:text-sm">
-          <thead class="bg-blue-50 text-blue-900">
-            <tr>
-              <th class="text-left p-3 w-12">No.</th>
-              <th class="text-left p-3">Full Name</th>
-              <th class="text-left p-3">Birthdate <span class="text-[10px]">(MM/DD/YY)</span></th>
-              <th class="text-left p-3">Sex <span class="text-[10px]">(M/F)</span></th>
-              <th class="text-left p-3">Trainer / Instructor</th>
-              <th class="text-left p-3">Course / Qualification</th>
-              <th class="text-left p-3">Course Start</th>
-              <th class="text-left p-3">Course End</th>
-              <th class="text-left p-3">Source</th>
-              <th class="text-left p-3">Status</th>
-              <th class="text-right p-3 w-40">Actions</th>
+          <thead class="bg-blue-50">
+            <tr class="text-left text-gray-700">
+              <th class="p-3">#</th>
+              <th class="p-3">Full Name</th>
+              <th class="p-3">Birthdate</th>
+              <th class="p-3">Sex</th>
+              <th class="p-3">Course</th>
+              <th class="p-3">Start</th>
+              <th class="p-3">End</th>
+              <th class="p-3">Trainer</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Source</th>
+              <th class="p-3">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             <tr
-              v-for="(s, idx) in filteredTesda"
+              v-for="(s, idx) in paginatedTesda"
               :key="s.reservation_id"
               class="border-t border-gray-100 hover:bg-gray-50"
             >
-              <td class="p-3">{{ idx + 1 }}</td>
-              <td class="p-3 text-gray-900 font-medium">{{ s.full_name || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ fmtBirth(s.birthdate) }}</td>
-              <td class="p-3 text-gray-700">{{ s.sex || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ s.instructor_name || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ s.course_name || "—" }}</td>
-              <td class="p-3 text-gray-700">{{ fmtYMD(s.course_start) }}</td>
-              <td class="p-3 text-gray-700">{{ fmtYMD(getTesdaEndDate(s)) }}</td>
-
+              <td class="p-3">{{ (pageRange.start || 1) + idx }}</td>
+              <td class="p-3 font-medium">{{ s.full_name || "—" }}</td>
+              <td class="p-3">{{ fmtBirth(s.birthdate) }}</td>
+              <td class="p-3">{{ s.sex || "—" }}</td>
+              <td class="p-3">{{ s.course_name || "—" }}</td>
+              <td class="p-3">{{ fmtYMD(s.course_start) }}</td>
+              <td class="p-3">{{ fmtYMD(getTesdaEndDate(s)) }}</td>
+              <td class="p-3">{{ s.instructor_name || "—" }}</td>
               <td class="p-3">
                 <span
-                  class="px-2 py-1 rounded-full text-[11px] font-semibold"
-                  :class="(s.source || 'online') === 'walkin'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-indigo-100 text-indigo-800'"
-                >
-                  {{ s.source || "online" }}
-                </span>
-              </td>
-
-              <td class="p-3">
-                <span
-                  class="px-2 py-1 rounded-full text-[11px] font-semibold"
+                  class="px-2 py-1 rounded-full text-xs font-semibold"
                   :class="statusPill(s.status)"
                 >
                   {{ s.status || "—" }}
                 </span>
               </td>
-
-              <td class="p-3 text-right">
+              <td class="p-3">{{ s.source || "—" }}</td>
+              <td class="p-3">
                 <button
+                  class="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-xs mr-2"
                   @click="openEditModal(s, 'tesda')"
-                  class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700 mr-2"
                 >
                   Edit
                 </button>
                 <button
-                  @click="openDeleteModal(s)"
-                  class="px-3 py-1.5 text-xs rounded-md bg-red-600 text-white hover:bg-red-700"
+                  class="px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-xs"
+                  @click="openDeleteModal(s, 'tesda')"
                 >
                   Delete
                 </button>
@@ -247,63 +243,131 @@
             </tr>
 
             <tr v-if="!filteredTesda.length">
-              <td colspan="13" class="p-6 text-center text-gray-500">No TESDA students found.</td>
+              <td colspan="11" class="p-6 text-center text-gray-500">
+                No TESDA students found.
+              </td>
             </tr>
           </tbody>
         </table>
-      </div>
 
-      <!-- Add/Edit Modal -->
-      <div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div class="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-gray-800">
-              {{ isEditing ? "Edit Student" : "Add Student" }}
-              <span
-                class="text-sm font-semibold ml-2"
-                :class="formData.track === 'tesda' ? 'text-blue-700' : 'text-green-700'"
-              >
-                ({{ formData.track.toUpperCase() }})
-              </span>
-            </h3>
-            <button @click="closeModal" class="text-gray-500 hover:text-gray-800">✖</button>
+        <!-- Pagination -->
+        <div
+          class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 border-t bg-gray-50 text-sm"
+        >
+          <div class="text-gray-600">
+            Showing
+            <span class="font-semibold">{{ pageRange.start }}</span>
+            –
+            <span class="font-semibold">{{ pageRange.end }}</span>
+            of
+            <span class="font-semibold">{{ activeTotal }}</span>
           </div>
 
-          <div v-if="formError" class="mb-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
+          <div class="flex items-center gap-2 justify-end">
+            <button
+              class="px-3 py-1.5 rounded-md border text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              :disabled="activePage <= 1"
+              @click="goPrevPage"
+            >
+              ◀ Prev
+            </button>
+
+            <span class="text-gray-700">
+              Page <span class="font-semibold">{{ activePage }}</span> /
+              <span class="font-semibold">{{ activeTotalPages }}</span>
+            </span>
+
+            <button
+              class="px-3 py-1.5 rounded-md border text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              :disabled="activePage >= activeTotalPages"
+              @click="goNextPage"
+            >
+              Next ▶
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD/EDIT MODAL -->
+    <div
+      v-if="showModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+    >
+      <div class="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
+        <div
+          class="flex items-center justify-between px-5 py-4 border-b"
+          :class="formData.track === 'tesda' ? 'bg-blue-50' : 'bg-green-50'"
+        >
+          <h3 class="font-bold text-gray-800">
+            {{ isEditing ? "✏️ Edit Student" : "➕ Add Student" }}
+            <span class="text-xs font-semibold ml-2 px-2 py-1 rounded"
+              :class="formData.track === 'tesda' ? 'bg-blue-200 text-blue-900' : 'bg-green-200 text-green-900'">
+              {{ formData.track.toUpperCase() }}
+            </span>
+          </h3>
+
+          <button class="text-gray-500 hover:text-gray-700" @click="closeModal">
+            ✖
+          </button>
+        </div>
+
+        <div class="p-5 space-y-4">
+          <div v-if="formError" class="p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">
             {{ formError }}
           </div>
 
-          <!-- Track selector -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Section</label>
-              <select
-                v-model="formData.track"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                @change="onTrackChange()"
-              >
-                <option value="driving">Driving</option>
-                <option value="tesda">TESDA</option>
+              <label class="text-sm font-medium text-gray-700">Full Name *</label>
+              <input
+                v-model="formData.full_name"
+                class="w-full mt-1 p-2 border rounded-md"
+                type="text"
+                placeholder="Juan Dela Cruz"
+              />
+            </div>
+
+            <div v-if="formData.track === 'driving'">
+              <label class="text-sm font-medium text-gray-700">Client ID</label>
+              <input
+                v-model="formData.client_id"
+                class="w-full mt-1 p-2 border rounded-md"
+                type="text"
+                placeholder="LTO Client ID"
+              />
+            </div>
+
+            <div>
+              <label class="text-sm font-medium text-gray-700">Birthdate</label>
+              <input v-model="formData.birthdate" class="w-full mt-1 p-2 border rounded-md" type="date" />
+            </div>
+
+            <div>
+              <label class="text-sm font-medium text-gray-700">Sex</label>
+              <select v-model="formData.sex" class="w-full mt-1 p-2 border rounded-md">
+                <option value="">—</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
               </select>
             </div>
 
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Source</label>
-              <select
-                v-model="formData.source"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
+              <label class="text-sm font-medium text-gray-700">Email</label>
+              <input v-model="formData.email" class="w-full mt-1 p-2 border rounded-md" type="email" placeholder="email@example.com" />
+            </div>
+
+            <div>
+              <label class="text-sm font-medium text-gray-700">Source</label>
+              <select v-model="formData.source" class="w-full mt-1 p-2 border rounded-md">
                 <option value="online">online</option>
                 <option value="walkin">walkin</option>
               </select>
             </div>
 
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Status</label>
-              <select
-                v-model="formData.status"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
+              <label class="text-sm font-medium text-gray-700">Status</label>
+              <select v-model="formData.status" class="w-full mt-1 p-2 border rounded-md">
                 <option value="pending">pending</option>
                 <option value="confirmed">confirmed</option>
                 <option value="approved">approved</option>
@@ -314,74 +378,15 @@
                 <option value="rejected">rejected</option>
               </select>
             </div>
-          </div>
-
-          <!-- Fields -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div v-if="formData.track === 'driving'">
-              <label class="block text-sm text-gray-700 mb-1">Client ID</label>
-              <input
-                v-model="formData.client_id"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="e.g. 12345"
-              />
-            </div>
-
-            <div class="md:col-span-2">
-              <label class="block text-sm text-gray-700 mb-1">Full Name</label>
-              <input
-                v-model="formData.full_name"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="Last, First Middle"
-              />
-            </div>
 
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Birthdate</label>
-              <input
-                v-model="formData.birthdate"
-                type="date"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-1">Sex (M/F)</label>
-              <select
-                v-model="formData.sex"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
-                <option value="">—</option>
-                <option value="M">M</option>
-                <option value="F">F</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-1">
-                {{ formData.track === "tesda" ? "Trainer / Instructor" : "Instructor Name" }}
-              </label>
-              <input
-                v-model="formData.instructor_name"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="Instructor/Trainer"
-              />
-            </div>
-
-            <!-- ✅ Course Picker (BOTH tracks) -->
-            <div class="md:col-span-3">
-              <label class="block text-sm text-gray-700 mb-1">
-                {{ formData.track === "tesda" ? "Course / Qualification (Pick from Courses)" : "Driving Course (Pick DL Type)" }}
-              </label>
+              <label class="text-sm font-medium text-gray-700">Course *</label>
               <select
                 v-model="formData.course_id"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                @change="onCoursePick()"
+                class="w-full mt-1 p-2 border rounded-md"
+                @change="onCoursePick"
               >
-                <option value="">— Select Course —</option>
+                <option value="">— Select course —</option>
                 <option
                   v-for="c in modalCourses"
                   :key="c.id"
@@ -390,147 +395,89 @@
                   {{ c.course_name }} <span v-if="c.course_code">({{ c.course_code }})</span>
                 </option>
               </select>
-
-              <p class="text-[11px] text-gray-500 mt-1">
-                This will send <b>course_id</b> to backend (recommended). No more manual course typing.
-              </p>
             </div>
 
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Course Start</label>
-              <input
-                v-model="formData.course_start"
-                type="date"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
+              <label class="text-sm font-medium text-gray-700">Course Start</label>
+              <input v-model="formData.course_start" class="w-full mt-1 p-2 border rounded-md" type="date" />
             </div>
 
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Course End</label>
+              <label class="text-sm font-medium text-gray-700">Course End</label>
               <input
                 v-model="formData.course_end"
+                class="w-full mt-1 p-2 border rounded-md"
                 type="date"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                :readonly="formData.track === 'tesda'"
               />
-            </div>
-
-            <!-- Driving-only: DL Code (auto derived from chosen course_code like PDC-A) -->
-            <div v-if="formData.track === 'driving'">
-              <label class="block text-sm text-gray-700 mb-1">DL Code</label>
-              <input
-                v-model="formData.dl_code"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="A / B / AB"
-              />
-              <p class="text-[11px] text-gray-500 mt-1">
-                Auto-filled when you pick PDC course (PDC-A => A). You can override if needed.
+              <p v-if="formData.track === 'tesda'" class="text-xs text-gray-500 mt-1">
+                Auto-computed (based on course duration) when start date is set.
               </p>
             </div>
 
-            <!-- TESDA-only: Course Name (optional fallback) -->
-            <div v-else class="md:col-span-2">
-              <label class="block text-sm text-gray-700 mb-1">Course Name (optional fallback)</label>
-              <input
-                v-model="formData.course_name"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="(optional) only if you didn't pick course_id"
-              />
+            <div v-if="formData.track === 'driving'">
+              <label class="text-sm font-medium text-gray-700">DL Code</label>
+              <input v-model="formData.dl_code" class="w-full mt-1 p-2 border rounded-md" type="text" placeholder="A / B / AB" />
             </div>
 
-            <div class="md:col-span-3">
-              <label class="block text-sm text-gray-700 mb-1">Training Purpose</label>
-              <input
-                v-model="formData.training_purpose"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="Purpose"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-1">Email (optional)</label>
-              <input
-                v-model="formData.email"
-                type="email"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="email@domain.com"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-1">Contact No. (optional)</label>
-              <input
-                v-model="formData.contact_no"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="09xx..."
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-1">Address (optional)</label>
-              <input
-                v-model="formData.address"
-                type="text"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="Address"
-              />
+            <div class="md:col-span-2">
+              <label class="text-sm font-medium text-gray-700">Training Purpose</label>
+              <input v-model="formData.training_purpose" class="w-full mt-1 p-2 border rounded-md" type="text" placeholder="e.g., Employment, Skill upgrade..." />
             </div>
           </div>
+        </div>
 
-          <div class="flex justify-end gap-2 mt-6">
-            <button
-              @click="closeModal"
-              class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm"
-            >
-              Cancel
-            </button>
-
-            <button
-              @click="submitStudent"
-              class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 text-sm"
-              :disabled="saving"
-            >
-              {{ saving ? "Saving..." : (isEditing ? "Save Changes" : "Add Student") }}
-            </button>
-          </div>
-
-          <p class="text-[11px] text-gray-500 mt-3">
-            This page writes into <b>users</b> + <b>schedule_reservations</b> so updates reflect in Reports (Detailed).
-          </p>
+        <div class="px-5 py-4 border-t flex items-center justify-end gap-2">
+          <button class="px-4 py-2 rounded-md border hover:bg-gray-50" @click="closeModal">
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 rounded-md text-white"
+            :class="formData.track === 'tesda' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-green-700 hover:bg-green-800'"
+            :disabled="saving"
+            @click="submitStudent"
+          >
+            {{ saving ? "Saving..." : isEditing ? "Update" : "Create" }}
+          </button>
         </div>
       </div>
+    </div>
 
-      <!-- Delete Modal -->
-      <div v-if="showDeleteModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div class="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
-          <h3 class="text-lg font-bold text-gray-800 mb-2">Delete Student</h3>
-          <p class="text-sm text-gray-600">
-            Are you sure you want to delete <b>{{ studentToDelete?.full_name }}</b>?
+    <!-- DELETE MODAL -->
+    <div
+      v-if="showDeleteModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+    >
+      <div class="bg-white w-full max-w-md rounded-xl shadow-xl overflow-hidden">
+        <div class="px-5 py-4 border-b bg-red-50 flex items-center justify-between">
+          <h3 class="font-bold text-gray-800">🗑 Delete Student</h3>
+          <button class="text-gray-500 hover:text-gray-700" @click="closeDeleteModal">
+            ✖
+          </button>
+        </div>
+
+        <div class="p-5 text-sm text-gray-700 space-y-2">
+          <p>
+            Are you sure you want to delete:
+            <span class="font-semibold">{{ studentToDelete?.full_name }}</span>
+            ?
           </p>
-
-          <div class="flex justify-end gap-2 mt-6">
-            <button
-              @click="closeDeleteModal"
-              class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm"
-            >
-              Cancel
-            </button>
-
-            <button
-              @click="confirmDelete"
-              class="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 text-sm"
-              :disabled="saving"
-            >
-              {{ saving ? "Deleting..." : "Delete" }}
-            </button>
-          </div>
-
-          <p class="text-[11px] text-gray-500 mt-3">
-            This cancels the <b>schedule_reservations</b> row. User record remains.
+          <p class="text-xs text-gray-500">
+            This will mark the reservation as <b>CANCELLED</b> (soft delete).
           </p>
+        </div>
+
+        <div class="px-5 py-4 border-t flex items-center justify-end gap-2">
+          <button class="px-4 py-2 rounded-md border hover:bg-gray-50" @click="closeDeleteModal">
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white"
+            :disabled="saving"
+            @click="confirmDelete"
+          >
+            {{ saving ? "Deleting..." : "Delete" }}
+          </button>
         </div>
       </div>
     </div>
@@ -545,23 +492,22 @@ import AdminLayout from "./AdminLayout.vue";
 async function apiJson(url, opts = {}) {
   const res = await fetch(url, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(opts.headers || {}),
-    },
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
     ...opts,
   });
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(text || `Request failed: ${res.status}`);
   }
+
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json();
   return { status: "success", data: null };
 }
 
 export default {
-  name: "AdminStudentsDetailed",
+  name: "AdminStudents",
   components: { AdminLayout },
 
   setup() {
@@ -578,8 +524,8 @@ export default {
     const selectedSource = ref("all");
     const sortBy = ref("full_name");
 
-    // ✅ courses
-    const drivingCourses = ref([]); // [{id, course_name, course_code}]
+    // courses
+    const drivingCourses = ref([]);
     const tesdaCourses = ref([]);
 
     // modals
@@ -607,12 +553,8 @@ export default {
       course_end: "",
       training_purpose: "",
 
-      // ✅ course selection
       course_id: "",
-
-      // fallbacks
       dl_code: "",
-      course_name: "",
 
       email: "",
       contact_no: "",
@@ -634,47 +576,6 @@ export default {
       return `${y}-${m}-${day}`;
     };
 
-    // supports "356 Hours", "15 Days", "2 Weeks", "1 Month"
-    const tesdaEndDateFromStart = (startYmd, durationText) => {
-      if (!startYmd) return "";
-      const start = new Date(startYmd);
-      if (Number.isNaN(start.getTime())) return "";
-
-      const s = String(durationText || "").toLowerCase();
-      const m = s.match(/(\d+)\s*(hour|hours|day|days|week|weeks|month|months)/);
-      if (!m) return toYMD(start);
-
-      const n = Number(m[1]);
-      const unit = m[2];
-
-      // training days (exclude Sundays)
-      let days = 0;
-      if (unit.startsWith("hour")) days = Math.ceil(n / 8);
-      else if (unit.startsWith("day")) days = n;
-      else if (unit.startsWith("week")) days = n * 6;
-      else if (unit.startsWith("month")) days = n * 26;
-
-      if (!days || days <= 1) return toYMD(start);
-
-      let remaining = days - 1; // start day counts as day1
-      const cur = new Date(start);
-
-      while (remaining > 0) {
-        cur.setDate(cur.getDate() + 1);
-        if (cur.getDay() === 0) continue; // skip Sundays
-        remaining--;
-      }
-      return toYMD(cur);
-    };
-
-    const getTesdaEndDate = (row) => {
-      // if backend gives course_end, use it; else compute from duration
-      const start = row?.course_start || row?.schedule_date || "";
-      const dur = row?.duration || row?.course_duration || row?.course_hours || "";
-      const computed = tesdaEndDateFromStart(start, dur);
-      return row?.course_end || computed || "";
-    };
-
     const fmtBirth = (d) => {
       if (!d) return "—";
       const dt = new Date(d);
@@ -693,7 +594,45 @@ export default {
       return "bg-gray-100 text-gray-700";
     }
 
-    // ✅ load courses (needs backend endpoint)
+    // TESDA end date compute (exclude Sundays)
+    const tesdaEndDateFromStart = (startYmd, durationText) => {
+      if (!startYmd) return "";
+      const start = new Date(startYmd);
+      if (Number.isNaN(start.getTime())) return "";
+
+      const s = String(durationText || "").toLowerCase();
+      const m = s.match(/(\d+)\s*(hour|hours|day|days|week|weeks|month|months)/);
+      if (!m) return toYMD(start);
+
+      const n = Number(m[1]);
+      const unit = m[2];
+
+      let days = 0;
+      if (unit.startsWith("hour")) days = Math.ceil(n / 8);
+      else if (unit.startsWith("day")) days = n;
+      else if (unit.startsWith("week")) days = n * 6;
+      else if (unit.startsWith("month")) days = n * 26;
+
+      if (!days || days <= 1) return toYMD(start);
+
+      let remaining = days - 1;
+      const cur = new Date(start);
+      while (remaining > 0) {
+        cur.setDate(cur.getDate() + 1);
+        if (cur.getDay() === 0) continue;
+        remaining--;
+      }
+      return toYMD(cur);
+    };
+
+    const getTesdaEndDate = (row) => {
+      const start = row?.course_start || row?.schedule_date || "";
+      const dur = row?.duration || row?.course_duration || row?.course_hours || "";
+      const computed = tesdaEndDateFromStart(start, dur);
+      return row?.course_end || computed || "";
+    };
+
+    // Load courses (if endpoint exists in your backend; if not, it will just fail silently)
     const fetchCourses = async () => {
       try {
         const d = await apiJson(`/api/admin/courses?track=driving`);
@@ -701,16 +640,13 @@ export default {
         drivingCourses.value = Array.isArray(d.data) ? d.data : [];
         tesdaCourses.value = Array.isArray(t.data) ? t.data : [];
       } catch (e) {
-        // don’t block UI; just keep empty list
         drivingCourses.value = [];
         tesdaCourses.value = [];
         console.warn("fetchCourses failed:", e?.message || e);
       }
     };
 
-    const modalCourses = computed(() => {
-      return formData.track === "tesda" ? tesdaCourses.value : drivingCourses.value;
-    });
+    const modalCourses = computed(() => (formData.track === "tesda" ? tesdaCourses.value : drivingCourses.value));
 
     const findCourseById = (id) => {
       const all = formData.track === "tesda" ? tesdaCourses.value : drivingCourses.value;
@@ -719,7 +655,6 @@ export default {
 
     const deriveDlFromCourseCode = (course_code) => {
       const code = String(course_code || "").toUpperCase();
-      // PDC-A / PDC-B / PDC-AB
       if (code.startsWith("PDC-")) return code.split("-").pop() || "";
       return "";
     };
@@ -732,94 +667,72 @@ export default {
         const dl = deriveDlFromCourseCode(c.course_code);
         if (dl) formData.dl_code = dl;
       } else {
-        // ✅ TESDA: optional fallback mirror (not required)
-        if (!formData.course_name) formData.course_name = c.course_name || "";
-
-        // ✅ TESDA: auto-compute end date kapag may start date
         if (formData.course_start) {
-          formData.course_end = tesdaEndDateFromStart(
-            formData.course_start,
-            c.duration || ""   // duration galing sa tesda_courses.duration
-          );
+          formData.course_end = tesdaEndDateFromStart(formData.course_start, c.duration || "");
         }
       }
     };
 
-    const onTrackChange = () => {
-      // reset course fields when switching track in modal
-      formData.course_id = "";
-      formData.dl_code = "";
-      formData.course_name = "";
-    };
+    // -------------------
+    // Fetch students
+    // -------------------
+    const fetchStudents = async (track) => {
+      const params = new URLSearchParams({
+        q: searchQuery.value || "",
+        source: selectedSource.value || "all",
+        status: selectedStatus.value || "all",
+        sort: sortBy.value || "full_name",
+        page: "1",
+        limit: "200",
+      });
 
-    // -------- API
-const fetchStudents = async (track) => {
-  const params = new URLSearchParams({
-    q: searchQuery.value || "",
-    source: selectedSource.value || "all",
-    status: selectedStatus.value || "all",
-    sort: sortBy.value || "full_name",
-    page: "1",
-    limit: "200",
-  });
+      const url =
+        track === "tesda"
+          ? `/api/admin/tesda/students?${params.toString()}`
+          : `/api/admin/students?${params.toString()}&track=driving`;
 
-  // ✅ IMPORTANT: separate endpoint per tab
-  const url =
-    track === "tesda"
-      ? `/api/admin/tesda/students?${params.toString()}`
-      : `/api/admin/students?${params.toString()}&track=driving`;
+      const json = await apiJson(url);
+      const rows = Array.isArray(json.data) ? json.data : [];
 
-  const json = await apiJson(url);
-  const rows = Array.isArray(json.data) ? json.data : [];
+      if (track === "tesda") {
+        return rows.map((r) => ({
+          ...r,
+          reservation_id: r.reservation_id,
+          student_id: r.student_id || r.id,
+          schedule_id: r.schedule_id,
+          course_id: r.course_id,
+          full_name: r.full_name ?? r.fullname ?? "",
+          birthdate: r.birthdate ?? r.birthday ?? "",
+          sex: r.sex ?? r.gender ?? "",
+          instructor_name: r.instructor_name ?? r.trainer_name ?? "",
+          course_name: r.course_name ?? "",
+          course_code: r.course_code ?? "",
+          course_start: r.course_start ?? r.schedule_date ?? "",
+          course_end: r.course_end ?? "",
+          status: (r.status || r.reservation_status || "").toLowerCase(),
+          source: (r.source || r.reservation_source || "online").toLowerCase(),
+        }));
+      }
 
-    // ✅ normalize mapping PER TRACK
-    if (track === "tesda") {
       return rows.map((r) => ({
         ...r,
         reservation_id: r.reservation_id,
-        student_id: r.student_id || r.id,
+        student_id: r.student_id,
         schedule_id: r.schedule_id,
         course_id: r.course_id,
-
-        // ❌ no client_id for TESDA
-        client_id: "",
-
-        full_name: r.full_name ?? r.fullname ?? r.fullname ?? "",
+        client_id: r.client_id ?? r.lto_client_id ?? "",
+        full_name: r.full_name ?? r.fullname ?? "",
         birthdate: r.birthdate ?? r.birthday ?? "",
         sex: r.sex ?? r.gender ?? "",
-
-        instructor_name: r.instructor_name ?? r.trainer_name ?? "",
+        dl_code: r.dl_code ?? "",
         course_name: r.course_name ?? "",
-        course_code: r.course_code ?? "",
-
-        // TESDA uses schedule_date as start
+        instructor_name: r.instructor_name ?? "",
         course_start: r.course_start ?? r.schedule_date ?? "",
-        course_end: r.course_end ?? "",
-
-        training_purpose: r.training_purpose ?? "",
+        course_end: r.course_end ?? r.schedule_date ?? "",
         status: (r.status || r.reservation_status || "").toLowerCase(),
         source: (r.source || r.reservation_source || "online").toLowerCase(),
       }));
-    }
-
-    // driving mapping (keep yours)
-    return rows.map((r) => ({
-      ...r,
-      reservation_id: r.reservation_id,
-      student_id: r.student_id,
-      schedule_id: r.schedule_id,
-      course_id: r.course_id,
-
-      client_id: r.client_id ?? r.lto_client_id ?? "",
-      full_name: r.full_name ?? r.fullname ?? "",
-      birthdate: r.birthdate ?? r.birthday ?? "",
-      sex: r.sex ?? r.gender ?? "",
-      course_start: r.course_start ?? r.schedule_date ?? "",
-      course_end: r.course_end ?? r.schedule_date ?? "",
-      status: (r.status || r.reservation_status || "").toLowerCase(),
-      source: (r.source || r.reservation_source || "online").toLowerCase(),
-    }));
-  };
+    };
 
     const fetchActiveTabStudents = async () => {
       loading.value = true;
@@ -842,6 +755,7 @@ const fetchStudents = async (track) => {
       }
     };
 
+    // debounce search
     let tmr = null;
     const debouncedFetch = () => {
       clearTimeout(tmr);
@@ -850,6 +764,7 @@ const fetchStudents = async (track) => {
 
     const switchTab = (tab) => {
       activeTab.value = tab;
+      resetActivePage();
       fetchActiveTabStudents();
     };
 
@@ -905,8 +820,55 @@ const fetchStudents = async (track) => {
     const filteredDriving = computed(() => applyLocalFilters(drivingStudents.value));
     const filteredTesda = computed(() => applyLocalFilters(tesdaStudents.value));
 
-    watch(sortBy, () => {});
+    // ------------------------
+    // Pagination (client-side)
+    // ------------------------
+    const pageSize = ref(15);
+    const drivingPage = ref(1);
+    const tesdaPage = ref(1);
 
+    const activePage = computed(() => (activeTab.value === "driving" ? drivingPage.value : tesdaPage.value));
+
+    const setActivePage = (p) => {
+      if (activeTab.value === "driving") drivingPage.value = p;
+      else tesdaPage.value = p;
+    };
+
+    const activeTotal = computed(() =>
+      activeTab.value === "driving" ? filteredDriving.value.length : filteredTesda.value.length
+    );
+
+    const activeTotalPages = computed(() => Math.max(1, Math.ceil(activeTotal.value / pageSize.value)));
+
+    const paginatedDriving = computed(() => {
+      const start = (drivingPage.value - 1) * pageSize.value;
+      return filteredDriving.value.slice(start, start + pageSize.value);
+    });
+
+    const paginatedTesda = computed(() => {
+      const start = (tesdaPage.value - 1) * pageSize.value;
+      return filteredTesda.value.slice(start, start + pageSize.value);
+    });
+
+    const pageRange = computed(() => {
+      const total = activeTotal.value;
+      const page = activePage.value;
+      const start = total === 0 ? 0 : (page - 1) * pageSize.value + 1;
+      const end = Math.min(total, page * pageSize.value);
+      return { start, end };
+    });
+
+    const goPrevPage = () => setActivePage(Math.max(1, activePage.value - 1));
+    const goNextPage = () => setActivePage(Math.min(activeTotalPages.value, activePage.value + 1));
+    const resetActivePage = () => setActivePage(1);
+
+    watch([searchQuery, selectedStatus, selectedSource], () => resetActivePage());
+
+    watch(activeTotalPages, () => {
+      if (activePage.value > activeTotalPages.value) setActivePage(activeTotalPages.value);
+    });
+
+    // auto compute TESDA end date when start/course change
     watch(
       () => [formData.track, formData.course_start, formData.course_id],
       () => {
@@ -918,14 +880,15 @@ const fetchStudents = async (track) => {
       }
     );
 
-    // -------- modals
+    // -------------------------
+    // MODAL / ACTION HANDLERS ✅
+    // -------------------------
     const resetForm = () => {
       formError.value = "";
       formData.reservation_id = null;
       formData.student_id = null;
       formData.schedule_id = null;
 
-      formData.track = activeTab.value;
       formData.source = "online";
       formData.status = "confirmed";
 
@@ -939,9 +902,7 @@ const fetchStudents = async (track) => {
       formData.training_purpose = "";
 
       formData.course_id = "";
-
       formData.dl_code = "";
-      formData.course_name = "";
 
       formData.email = "";
       formData.contact_no = "";
@@ -951,118 +912,107 @@ const fetchStudents = async (track) => {
     const openAddModal = () => {
       isEditing.value = false;
       resetForm();
+      formData.track = activeTab.value;
       showModal.value = true;
     };
 
-    const openEditModal = (s, track) => {
+    const openEditModal = (row, track) => {
       isEditing.value = true;
-      formError.value = "";
+      resetForm();
 
-      formData.reservation_id = s.reservation_id;
-      formData.student_id = s.student_id;
-      formData.schedule_id = s.schedule_id;
+      formData.track = track;
+      formData.reservation_id = row.reservation_id;
+      formData.student_id = row.student_id;
+      formData.schedule_id = row.schedule_id;
 
-      formData.track = track || activeTab.value;
-      formData.source = s.source || "online";
-      formData.status = (s.status || "confirmed").toLowerCase();
+      formData.source = (row.source || "online").toLowerCase();
+      formData.status = (row.status || "confirmed").toLowerCase();
 
-      formData.client_id = s.client_id || "";
-      formData.full_name = s.full_name || "";
-      formData.birthdate = fmtYMD(s.birthdate);
-      formData.sex = s.sex || "";
-      formData.instructor_name = s.instructor_name || "";
-      formData.course_start = fmtYMD(s.course_start);
-      formData.course_end = fmtYMD(s.course_end);
-      formData.training_purpose = s.training_purpose || "";
+      formData.client_id = row.client_id || "";
+      formData.full_name = row.full_name || "";
+      formData.birthdate = fmtYMD(row.birthdate) !== "—" ? fmtYMD(row.birthdate) : "";
+      formData.sex = row.sex || "";
 
-      formData.course_id = s.course_id ? String(s.course_id) : "";
+      formData.instructor_name = row.instructor_name || "";
+      formData.course_start = fmtYMD(row.course_start) !== "—" ? fmtYMD(row.course_start) : "";
+      formData.course_end = fmtYMD(row.course_end) !== "—" ? fmtYMD(row.course_end) : "";
 
-      formData.dl_code = s.dl_code || "";
-      formData.course_name = s.course_name || "";
+      formData.training_purpose = row.training_purpose || "";
+      formData.course_id = row.course_id ? String(row.course_id) : "";
 
-      formData.email = s.email || "";
-      formData.contact_no = s.contact_no || "";
-      formData.address = s.address || "";
+      formData.dl_code = row.dl_code || "";
+
+      formData.email = row.email || "";
+      formData.contact_no = row.contact_no || "";
+      formData.address = row.address || "";
 
       showModal.value = true;
+      onCoursePick();
     };
 
-    const closeModal = () => (showModal.value = false);
+    const closeModal = () => {
+      showModal.value = false;
+    };
 
-    const openDeleteModal = (s) => {
-      studentToDelete.value = s;
+    const openDeleteModal = (row, track) => {
+      studentToDelete.value = { ...row, track };
       showDeleteModal.value = true;
     };
 
     const closeDeleteModal = () => {
-      studentToDelete.value = null;
       showDeleteModal.value = false;
+      studentToDelete.value = null;
     };
 
-    // -------- actions
     const submitStudent = async () => {
-      formError.value = "";
-
-      if (!String(formData.full_name || "").trim()) {
-        formError.value = "Full Name is required.";
-        return;
-      }
-
-      // ✅ course required now
-      if (!String(formData.course_id || "").trim()) {
-        formError.value = "Please select a Course.";
-        return;
-      }
-
-      const payload = {
-        track: formData.track,
-        source: formData.source,
-        status: formData.status,
-
-        full_name: formData.full_name,
-        email: formData.email || null,
-        birthdate: formData.birthdate || null,
-        sex: formData.sex || null,
-
-        client_id: formData.track === "driving" ? (formData.client_id || null) : null,
-        training_purpose: formData.training_purpose || null,
-
-        schedule_id: formData.schedule_id || null,
-
-        // ✅ IMPORTANT: send course_id always
-        course_id: Number(formData.course_id),
-
-        instructor_name: formData.instructor_name || null,
-        course_start: formData.course_start || null,
-        course_end: formData.course_end || null,
-
-        dl_code: formData.track === "driving" ? (formData.dl_code || null) : null,
-        course_name: formData.track === "tesda" ? (formData.course_name || null) : null,
-      };
-
       saving.value = true;
+      formError.value = "";
       try {
         const isTesda = formData.track === "tesda";
+        const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
 
-        const base =
-          isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
+        const payload = {
+          full_name: formData.full_name,
+          birthdate: formData.birthdate || null,
+          sex: formData.sex || null,
+          email: formData.email || null,
+          source: formData.source,
+          status: formData.status,
+          course_id: formData.course_id ? Number(formData.course_id) : null,
+          course_start: formData.course_start || null,
+          course_end: formData.course_end || null,
+          training_purpose: formData.training_purpose || null,
+
+          // driving-only (safe)
+          client_id: formData.client_id || null,
+          dl_code: formData.dl_code || null,
+        };
+
+        if (!payload.full_name) {
+          formError.value = "Full name is required.";
+          return;
+        }
+        if (!payload.course_id) {
+          formError.value = "Course is required.";
+          return;
+        }
 
         if (isEditing.value && formData.reservation_id) {
-          await apiJson(`${base}/${formData.reservation_id}`, {
+          await apiJson(`${baseUrl}/${formData.reservation_id}`, {
             method: "PUT",
             body: JSON.stringify(payload),
           });
         } else {
-          await apiJson(`${base}`, {
+          await apiJson(baseUrl, {
             method: "POST",
             body: JSON.stringify(payload),
           });
         }
 
         closeModal();
-        await fetchAll();
+        await fetchActiveTabStudents();
       } catch (e) {
-        formError.value = e?.message || "Save failed.";
+        formError.value = e?.message || "Failed to save.";
       } finally {
         saving.value = false;
       }
@@ -1070,58 +1020,78 @@ const fetchStudents = async (track) => {
 
     const confirmDelete = async () => {
       if (!studentToDelete.value?.reservation_id) return;
-
       saving.value = true;
       try {
-        const isTesda =
-          (studentToDelete.value?.track || activeTab.value) === "tesda";
+        const isTesda = studentToDelete.value.track === "tesda";
+        const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
 
-        const base = isTesda
-          ? "/api/admin/tesda/students"
-          : "/api/admin/students";
-
-        await apiJson(
-          `${base}/${studentToDelete.value.reservation_id}`,
-          { method: "DELETE" }
-        );
+        await apiJson(`${baseUrl}/${studentToDelete.value.reservation_id}`, {
+          method: "DELETE",
+        });
 
         closeDeleteModal();
-        await fetchAll();
+        await fetchActiveTabStudents();
       } catch (e) {
-        alert(e?.message || "Delete failed.");
+        console.error(e);
       } finally {
         saving.value = false;
       }
     };
 
     onMounted(async () => {
-      await fetchCourses(); // ✅ load courses first
+      await fetchCourses();
       await fetchAll();
     });
 
     return {
+      // state
       activeTab,
       drivingStudents,
       tesdaStudents,
       loading,
       saving,
 
+      // filters
       searchQuery,
       selectedStatus,
       selectedSource,
       sortBy,
 
+      // computed rows
       filteredDriving,
       filteredTesda,
+      paginatedDriving,
+      paginatedTesda,
 
+      // pagination
+      pageSize,
+      activePage,
+      activeTotal,
+      activeTotalPages,
+      pageRange,
+      goPrevPage,
+      goNextPage,
+      resetActivePage,
+
+      // helpers
       fmtYMD,
       fmtBirth,
       statusPill,
+      getTesdaEndDate,
+      tesdaEndDateFromStart,
 
+      // courses
+      drivingCourses,
+      tesdaCourses,
+      modalCourses,
+      onCoursePick,
+
+      // actions
       debouncedFetch,
       switchTab,
       fetchActiveTabStudents,
 
+      // modals
       showModal,
       showDeleteModal,
       isEditing,
@@ -1134,19 +1104,8 @@ const fetchStudents = async (track) => {
       closeModal,
       openDeleteModal,
       closeDeleteModal,
-
       submitStudent,
       confirmDelete,
-
-      // ✅ course picker helpers
-      drivingCourses,
-      tesdaCourses,
-      modalCourses,
-      onCoursePick,
-      onTrackChange,
-
-      tesdaEndDateFromStart,
-      getTesdaEndDate,
     };
   },
 };

@@ -578,8 +578,7 @@ async function generateDrivingPdf({
   return toRelUploadsPath(filename);
 }
 
-/* ----------------------------- PDF: TESDA ----------------------------- */
-
+/* ----------------------------- PDF: TESDA (LANDSCAPE, full width) ----------------------------- */
 async function generateTesdaPdf({
   certificate_code,
   student_name,
@@ -593,100 +592,210 @@ async function generateTesdaPdf({
   const filename = `${certificate_code}.pdf`;
   const absFilepath = path.join(uploadsDir, filename);
 
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  // ✅ LANDSCAPE
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
   const stream = fs.createWriteStream(absFilepath);
   doc.pipe(stream);
 
   const pageW = doc.page.width;
   const pageH = doc.page.height;
 
-  const logoAbs = path.join(process.cwd(), "assets", "logo.png");
+  // assets
+  const tesdaLogoAbs = path.join(process.cwd(), "assets", "tesda-logo.png");
+  const logoAbs = fileExists(tesdaLogoAbs)
+    ? tesdaLogoAbs
+    : path.join(process.cwd(), "assets", "logo.png");
 
-  drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
+  const watermarkAbs = path.join(process.cwd(), "assets", "tesda-watermark.png");
 
-  const top = 55;
+  // ✅ margins inside page (since margin:0)
+  const M = 28;
+  const innerX = M;
+  const innerY = M;
+  const innerW = pageW - M * 2;
+  const innerH = pageH - M * 2;
 
-  if (fileExists(logoAbs))
-    doc.image(logoAbs, 60, top, { width: 60, height: 60 });
-  else doc.save().rect(60, top, 60, 60).stroke("#9ca3af").restore();
+  // border
+  drawBorder(doc, innerX, innerY, innerW, innerH);
 
-  doc
-    .save()
-    .fillColor("#111827")
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .text("TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY", 0, top + 5, {
-      align: "center",
-    })
-    .font("Helvetica")
-    .fontSize(9)
-    .text(
-      "National Institute for Technical Education and Skills Development (NITESD)",
-      { align: "center" },
-    )
-    .text("eTESDA Online Program", { align: "center" })
-    .restore();
+  // watermark (optional)
+  if (fileExists(watermarkAbs)) {
+    const wmW = innerW * 0.55;
+    const wmH = wmW;
+    const wmX = innerX + (innerW - wmW) / 2;
+    const wmY = innerY + (innerH - wmH) / 2;
+    doc.save();
+    doc.opacity(0.08);
+    doc.image(watermarkAbs, wmX, wmY, { width: wmW, height: wmH });
+    doc.opacity(1);
+    doc.restore();
+  }
 
+  // ---------------- HEADER LAYOUT (no overlap) ----------------
+  const headerTop = innerY + 18;
+  const logoSize = 64;
+
+  const logoX = innerX + 18;
+  const logoY = headerTop;
+
+  // right certificate code box
+  const codeBoxW = 210;
+  const codeX = innerX + innerW - 18 - codeBoxW;
+  const codeY = headerTop + 4;
+
+  // center header text area = between logo and code box
+  const headerTextX = logoX + logoSize + 12;
+  const headerTextW = codeX - 12 - headerTextX;
+
+  // logo
+  if (fileExists(logoAbs)) {
+    doc.image(logoAbs, logoX, logoY, { width: logoSize, height: logoSize });
+  } else {
+    doc.save().rect(logoX, logoY, logoSize, logoSize).stroke("#9ca3af").restore();
+  }
+
+  // certificate code (top-right)
   doc
     .save()
     .font("Helvetica")
     .fontSize(8)
     .fillColor("#6b7280")
-    .text("Certificate Code", pageW - 190, top + 5, {
-      width: 130,
-      align: "right",
-    })
+    .text("Certificate Code", codeX, codeY, { width: codeBoxW, align: "right" })
     .font("Courier-Bold")
     .fontSize(10)
     .fillColor("#111827")
-    .text(certificate_code, pageW - 240, top + 20, {
-      width: 180,
-      align: "right",
+    .text(certificate_code, codeX, codeY + 14, { width: codeBoxW, align: "right" })
+    .restore();
+
+  // header lines (centered ONLY inside safe width)
+  doc
+    .save()
+    .fillColor("#111827")
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text(
+      "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY",
+      headerTextX,
+      headerTop + 2,
+      { width: headerTextW, align: "center" },
+    )
+    .font("Helvetica")
+    .fontSize(8.5)
+    .text(
+      "NATIONAL INSTITUTE FOR TECHNICAL EDUCATION AND SKILLS DEVELOPMENT (NITESD)",
+      headerTextX,
+      headerTop + 18,
+      { width: headerTextW, align: "center" },
+    )
+    .fontSize(8)
+    .fillColor("#374151")
+    .text(
+      "EAST SERVICE ROAD, SOUTH LUZON EXPRESSWAY (SLEX), FORT BONIFACIO, TAGUIG CITY",
+      headerTextX,
+      headerTop + 32,
+      { width: headerTextW, align: "center" },
+    )
+    .restore();
+
+  // blue bar (full width inside border)
+  const barY = headerTop + logoSize + 14;
+  doc
+    .save()
+    .fillColor("#1d4ed8")
+    .rect(innerX + 18, barY, innerW - 36, 10)
+    .fill()
+    .restore();
+
+  // ---------------- MAIN BODY (centered, stacked) ----------------
+  const bodyTop = barY + 55;
+
+  doc
+    .save()
+    .font("Helvetica-Bold")
+    .fontSize(30)
+    .fillColor("#111827")
+    .text("CERTIFICATE OF COMPLETION", innerX, bodyTop, {
+      width: innerW,
+      align: "center",
     })
     .restore();
 
-  doc.save().font("Helvetica-Bold").fontSize(24).fillColor("#111827");
-  doc.text("CERTIFICATE OF COMPLETION", 0, 170, { align: "center" });
-  doc.restore();
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(11)
+    .fillColor("#6b7280")
+    .text("THIS IS TO CERTIFY THAT", innerX, bodyTop + 40, {
+      width: innerW,
+      align: "center",
+    })
+    .restore();
 
-  doc.save().font("Helvetica").fontSize(10).fillColor("#6b7280");
-  doc.text("THIS IS TO CERTIFY THAT", 0, 210, { align: "center" });
-  doc.restore();
+  doc
+    .save()
+    .font("Helvetica-Bold")
+    .fontSize(34)
+    .fillColor("#111827")
+    .text(student_name || "—", innerX, bodyTop + 62, {
+      width: innerW,
+      align: "center",
+    })
+    .restore();
 
-  doc.save().font("Helvetica-Bold").fontSize(26).fillColor("#111827");
-  doc.text(student_name || "—", 0, 240, { align: "center" });
-  doc.restore();
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(11)
+    .fillColor("#6b7280")
+    .text("HAS COMPLETED THE COURSE", innerX, bodyTop + 112, {
+      width: innerW,
+      align: "center",
+    })
+    .restore();
 
-  doc.save().font("Helvetica").fontSize(10).fillColor("#6b7280");
-  doc.text("HAS COMPLETED THE COURSE", 0, 285, { align: "center" });
-  doc.restore();
+  doc
+    .save()
+    .font("Helvetica-Bold")
+    .fontSize(20)
+    .fillColor("#111827")
+    .text(course_name || "—", innerX, bodyTop + 136, {
+      width: innerW,
+      align: "center",
+    })
+    .restore();
 
-  doc.save().font("Helvetica-Bold").fontSize(16).fillColor("#111827");
-  doc.text(course_name || "—", 0, 305, { align: "center" });
-  doc.restore();
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(11)
+    .fillColor("#111827")
+    .text(`ON ${fmtDate(done_at || issued_at)}`, innerX, bodyTop + 170, {
+      width: innerW,
+      align: "center",
+    })
+    .restore();
 
-  doc.save().font("Helvetica").fontSize(10).fillColor("#111827");
-  doc.text(`ON ${fmtDate(done_at || issued_at)}`, 0, 340, { align: "center" });
-  doc.restore();
+  // ---------------- FOOTER (no circle badge) ----------------
+  const footY = innerY + innerH - 70;
 
   doc.save().font("Helvetica").fontSize(9).fillColor("#374151");
-  doc.text("This is a computer generated certificate,", 60, pageH - 140);
-  doc.text("it is valid even without a signature.", 60, pageH - 126);
+  doc.text("This is a computer generated certificate,", innerX + 18, footY);
+  doc.text("it is valid even without a signature.", innerX + 18, footY + 14);
 
-  doc.text("For verification purposes, contact:", pageW - 260, pageH - 140, {
-    width: 200,
+  doc.text("For verification purposes, contact:", innerX, footY, {
+    width: innerW - 18,
     align: "right",
   });
-  doc.text("eTESDA Division", pageW - 260, pageH - 126, {
-    width: 200,
+  doc.text("eTESDA Division", innerX, footY + 14, {
+    width: innerW - 18,
     align: "right",
   });
-  doc.text("tesdaonlineprogram@tesda.gov.ph", pageW - 260, pageH - 112, {
-    width: 200,
+  doc.text("tesdaonlineprogram@tesda.gov.ph", innerX, footY + 28, {
+    width: innerW - 18,
     align: "right",
   });
-  doc.text("(02) 8893 - 8297", pageW - 260, pageH - 98, {
-    width: 200,
+  doc.text("(02) 8893 - 8297", innerX, footY + 42, {
+    width: innerW - 18,
     align: "right",
   });
   doc.restore();
@@ -707,6 +816,7 @@ async function generateTesdaPdf({
 exports.listCompletions = async (req, res) => {
   try {
     const [rows] = await pool.execute(`
+      /* ---------------- DRIVING DONE ---------------- */
       SELECT
         r.reservation_id,
         r.schedule_id,
@@ -732,13 +842,56 @@ exports.listCompletions = async (req, res) => {
         cert.status AS certificate_status,
         cert.issued_at,
         cert.pdf_path
+
       FROM schedule_reservations r
       JOIN users u ON u.id = r.student_id
       JOIN courses c ON c.id = r.course_id
-      LEFT JOIN certificates cert ON cert.reservation_id = r.reservation_id
+      LEFT JOIN certificates cert
+        ON cert.reservation_id = r.reservation_id
+       AND cert.certificate_type = 'DRIVING'
       WHERE r.reservation_status = 'DONE'
         AND u.role = 'user'
-      ORDER BY COALESCE(r.done_at, r.updated_at) DESC
+
+      UNION ALL
+
+      /* ---------------- TESDA DONE ---------------- */
+      SELECT
+        tr.reservation_id,
+        tr.schedule_id,
+        tr.student_id,
+        ts.course_id AS course_id,
+        NULL AS lto_client_id,
+        NULL AS picture_2x2,
+        'TESDA' AS reservation_type,
+        tr.reservation_status,
+        tr.updated_at AS done_at,
+        tr.updated_at,
+
+        u2.fullname AS student_name,
+        u2.email AS student_email,
+        u2.birthday AS birthday,
+        u2.gender AS gender,
+
+        tc.course_name,
+        tc.course_code,
+
+        cert2.certificate_id,
+        cert2.certificate_code,
+        cert2.status AS certificate_status,
+        cert2.issued_at,
+        cert2.pdf_path
+
+      FROM tesda_schedule_reservations tr
+      JOIN users u2 ON u2.id = tr.student_id
+      JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
+      JOIN tesda_courses tc ON tc.id = ts.course_id
+      LEFT JOIN certificates cert2
+        ON cert2.reservation_id = tr.reservation_id
+       AND cert2.certificate_type = 'TESDA'
+      WHERE tr.reservation_status = 'DONE'
+        AND u2.role = 'user'
+
+      ORDER BY COALESCE(done_at, updated_at) DESC
     `);
 
     const mapped = rows.map((r) => {
@@ -835,7 +988,10 @@ exports.generateDriving = async (req, res) => {
     }
 
     const [existing] = await pool.execute(
-      `SELECT certificate_id FROM certificates WHERE reservation_id = ? LIMIT 1`,
+      `SELECT certificate_id
+FROM certificates
+WHERE reservation_id = ? AND certificate_type='DRIVING'
+LIMIT 1`,
       [reservation_id],
     );
     if (existing.length) {
@@ -849,8 +1005,9 @@ exports.generateDriving = async (req, res) => {
     const issued_at = new Date();
 
     const [ins] = await pool.execute(
-      `INSERT INTO certificates (reservation_id, certificate_code, issued_at, status)
-       VALUES (?, ?, ?, 'issued')`,
+      `INSERT INTO certificates
+      (reservation_id, certificate_code, certificate_type, issued_at, status)
+      VALUES (?, ?, 'DRIVING', ?, 'issued')`,
       [reservation_id, certificate_code, issued_at],
     );
 
@@ -910,51 +1067,46 @@ exports.generateTesda = async (req, res) => {
     const [rRows] = await pool.execute(
       `
       SELECT
-        r.reservation_id,
-        r.reservation_status,
-        r.done_at,
-        r.reservation_type,
-
+        tr.reservation_id,
+        tr.reservation_status,
+        tr.updated_at AS done_at,
         u.fullname AS student_name,
-        c.course_name
-      FROM schedule_reservations r
-      JOIN users u ON u.id = r.student_id
-      JOIN courses c ON c.id = r.course_id
-      WHERE r.reservation_id = ?
+        tc.course_name
+      FROM tesda_schedule_reservations tr
+      JOIN users u ON u.id = tr.student_id
+      JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
+      JOIN tesda_courses tc ON tc.id = ts.course_id
+      WHERE tr.reservation_id = ?
       LIMIT 1
       `,
       [reservation_id],
     );
 
-    if (!rRows.length)
+    if (!rRows.length) {
       return res
         .status(404)
         .json({ status: "error", message: "Reservation not found" });
+    }
 
     const r = rRows[0];
 
-    const rt = String(r.reservation_type || "").toUpperCase();
-    if (rt !== "TESDA") {
-      return res.status(400).json({
-        status: "error",
-        message: "This reservation is DRIVING. Use DRIVING generate endpoint.",
-      });
-    }
-
+    // ✅ only check DONE
     if (r.reservation_status !== "DONE") {
       return res
         .status(400)
         .json({ status: "error", message: "Student is not DONE yet." });
     }
 
+    // ✅ prevent duplicates PER TYPE
     const [existing] = await pool.execute(
-      `SELECT certificate_id FROM certificates WHERE reservation_id = ? LIMIT 1`,
+      `SELECT certificate_id FROM certificates WHERE reservation_id = ? AND certificate_type='TESDA' LIMIT 1`,
       [reservation_id],
     );
+
     if (existing.length) {
       return res.status(409).json({
         status: "error",
-        message: "Certificate already exists for this reservation.",
+        message: "TESDA certificate already exists for this reservation.",
       });
     }
 
@@ -962,8 +1114,9 @@ exports.generateTesda = async (req, res) => {
     const issued_at = new Date();
 
     const [ins] = await pool.execute(
-      `INSERT INTO certificates (reservation_id, certificate_code, issued_at, status)
-       VALUES (?, ?, ?, 'issued')`,
+      `INSERT INTO certificates
+       (reservation_id, certificate_code, certificate_type, issued_at, status)
+       VALUES (?, ?, 'TESDA', ?, 'issued')`,
       [reservation_id, certificate_code, issued_at],
     );
 

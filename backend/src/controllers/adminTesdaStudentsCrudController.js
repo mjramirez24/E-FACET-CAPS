@@ -8,6 +8,38 @@ function safeStr(v) {
   return typeof v === "string" ? v.trim() : "";
 }
 
+function makeUsername(fullname, email) {
+  // must be non-empty + unique-ish
+  const base =
+    safeStr(email).split("@")[0] ||
+    safeStr(fullname).toLowerCase().replace(/\s+/g, "").slice(0, 12) ||
+    "tesdastudent";
+
+  const suffix =
+    Date.now().toString().slice(-6) + Math.floor(Math.random() * 90 + 10);
+  return `${base}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "");
+}
+
+async function pickAssignedTrainer(conn, courseId) {
+  if (!courseId) return null;
+
+  const [[row]] = await conn.execute(
+    `SELECT trainer_id
+     FROM tesda_course_trainers
+     WHERE course_id = ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [courseId],
+  );
+  if (row?.trainer_id) return row.trainer_id;
+
+  const [[anyTr]] = await conn.execute(
+    `SELECT trainer_id FROM trainers ORDER BY trainer_id ASC LIMIT 1`,
+    [],
+  );
+  return anyTr?.trainer_id || null;
+}
+
 exports.createTesdaStudent = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -21,21 +53,22 @@ exports.createTesdaStudent = async (req, res) => {
         .json({ status: "error", message: "Full name required" });
     }
 
-    // 1) ensure user exists (simple: create a user record for tesda student)
-    // If you already have users creation logic, adapt this part.
     const email = safeStr(req.body.email) || null;
     const birthdate = req.body.birthdate || null;
     const sex = safeStr(req.body.sex) || null;
 
-    // create user
+    // ✅ FIX: username required/unique in your DB
+    const username = makeUsername(full_name, email);
+
+    // 1) create user
     const [uRes] = await conn.execute(
-      `INSERT INTO users (fullname, email, birthday, gender, role, created_at)
-       VALUES (?, ?, ?, ?, 'STUDENT', NOW())`,
-      [full_name, email, birthdate, sex],
+      `INSERT INTO users (fullname, username, email, birthday, gender, role, created_at)
+      VALUES (?, ?, ?, ?, ?, 'USER', NOW())`,
+      [full_name, username, email, birthdate, sex],
     );
     const studentId = uRes.insertId;
 
-    // 2) create TESDA schedule row (because TESDA is schedule-based)
+    // 2) validate course
     const courseId = safeInt(req.body.course_id);
     if (!courseId) {
       await conn.rollback();
@@ -44,23 +77,42 @@ exports.createTesdaStudent = async (req, res) => {
         .json({ status: "error", message: "course_id required" });
     }
 
-    const scheduleDate = req.body.course_start || null;
-    const startTime = req.body.start_time || "08:00:00";
-    const endTime = req.body.end_time || "17:00:00";
+    // 3) schedule (use existing schedule_id OR create)
+    const incomingScheduleId = safeInt(req.body.schedule_id);
+    let scheduleId = incomingScheduleId;
 
-    const [sRes] = await conn.execute(
-      `INSERT INTO tesda_schedules (course_id, trainer_id, schedule_date, start_time, end_time, total_slots, status, created_at)
-       VALUES (?, NULL, ?, ?, ?, 0, 'active', NOW())`,
-      [courseId, scheduleDate, startTime, endTime],
-    );
-    const scheduleId = sRes.insertId;
+    if (!scheduleId) {
+      const scheduleDate = req.body.course_start || null;
+      const startTime = req.body.start_time || "08:00:00";
+      const endTime = req.body.end_time || "17:00:00";
+      const totalSlots = safeInt(req.body.total_slots, 1) ?? 1;
 
-    // 3) create reservation linking user + schedule
+      const trainerId = await pickAssignedTrainer(conn, courseId);
+      if (!trainerId) {
+        await conn.rollback();
+        return res.status(400).json({
+          status: "error",
+          message:
+            "No trainer available for this course. Assign a trainer to the course first.",
+        });
+      }
+
+      const [sRes] = await conn.execute(
+        `INSERT INTO tesda_schedules
+          (course_id, trainer_id, schedule_date, start_time, end_time, total_slots, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
+        [courseId, trainerId, scheduleDate, startTime, endTime, totalSlots],
+      );
+      scheduleId = sRes.insertId;
+    }
+
+    // 4) reservation
     const status = safeStr(req.body.status).toUpperCase() || "CONFIRMED";
     const source = safeStr(req.body.source).toUpperCase() || "ONLINE";
 
     await conn.execute(
-      `INSERT INTO tesda_schedule_reservations (schedule_id, student_id, reservation_status, reservation_source, created_at)
+      `INSERT INTO tesda_schedule_reservations
+        (schedule_id, student_id, reservation_status, reservation_source, created_at)
        VALUES (?, ?, ?, ?, NOW())`,
       [scheduleId, studentId, status, source],
     );
@@ -93,7 +145,6 @@ exports.updateTesdaStudent = async (req, res) => {
         .json({ status: "error", message: "Invalid reservation id" });
     }
 
-    // find reservation
     const [[r]] = await conn.execute(
       `SELECT reservation_id, student_id, schedule_id
        FROM tesda_schedule_reservations
@@ -107,34 +158,43 @@ exports.updateTesdaStudent = async (req, res) => {
         .json({ status: "error", message: "Reservation not found" });
     }
 
-    // update user basic info
+    // user info
     const full_name = safeStr(req.body.full_name);
     const email = safeStr(req.body.email) || null;
     const birthdate = req.body.birthdate || null;
     const sex = safeStr(req.body.sex) || null;
 
-    if (full_name) {
+    if (full_name || email || birthdate || sex) {
       await conn.execute(
-        `UPDATE users SET fullname=?, email=?, birthday=?, gender=? WHERE id=?`,
-        [full_name, email, birthdate, sex, r.student_id],
+        `UPDATE users
+         SET fullname = COALESCE(?, fullname),
+             email = COALESCE(?, email),
+             birthday = COALESCE(?, birthday),
+             gender = COALESCE(?, gender)
+         WHERE id = ?`,
+        [full_name || null, email, birthdate, sex || null, r.student_id],
       );
     }
 
-    // update schedule date/course
+    // schedule update
     const courseId = safeInt(req.body.course_id);
     const scheduleDate = req.body.course_start || null;
 
-    if (courseId || scheduleDate) {
+    let trainerId = null;
+    if (courseId) trainerId = await pickAssignedTrainer(conn, courseId);
+
+    if (courseId || scheduleDate || trainerId) {
       await conn.execute(
         `UPDATE tesda_schedules
          SET course_id = COALESCE(?, course_id),
-             schedule_date = COALESCE(?, schedule_date)
+             schedule_date = COALESCE(?, schedule_date),
+             trainer_id = COALESCE(?, trainer_id)
          WHERE schedule_id = ?`,
-        [courseId || null, scheduleDate || null, r.schedule_id],
+        [courseId || null, scheduleDate, trainerId || null, r.schedule_id],
       );
     }
 
-    // update reservation status/source
+    // reservation update
     const status = safeStr(req.body.status).toUpperCase();
     const source = safeStr(req.body.source).toUpperCase();
 
@@ -171,7 +231,6 @@ exports.deleteTesdaStudent = async (req, res) => {
         .json({ status: "error", message: "Invalid reservation id" });
     }
 
-    // soft delete pattern: mark cancelled (recommended)
     await pool.execute(
       `UPDATE tesda_schedule_reservations
        SET reservation_status = 'CANCELLED', updated_at = NOW()

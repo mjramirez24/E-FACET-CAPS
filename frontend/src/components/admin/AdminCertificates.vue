@@ -579,6 +579,137 @@
       </div>
 
       <!-- TESDA Modal (keep as is, omitted for brevity in this reply) -->
+       <!-- TESDA Modal -->
+      <div
+        v-if="tesdaModalOpen"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        @click.self="closeModals"
+      >
+        <div class="bg-white w-full max-w-6xl rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-gray-900">TESDA Certificate Preview</h3>
+              <p class="text-sm text-gray-600">{{ modalRow?.student_name }} — {{ modalRow?.course_name }}</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                v-if="modalRow && getActiveStatus(modalRow) === 'ready'"
+                @click="generateTesda(modalRow)"
+                class="px-3 py-2 text-sm rounded-md bg-blue-700 text-white hover:bg-blue-800"
+              >
+                ✅ Generate from Preview
+              </button>
+              <button
+                @click="printPreview('tesda')"
+                class="px-3 py-2 text-sm rounded-md bg-gray-800 text-white hover:bg-gray-900"
+              >
+                🖨️ Print
+              </button>
+              <button
+                @click="closeModals"
+                class="px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50"
+              >
+                ✖ Close
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-y-auto">
+            <div class="p-4">
+              <div
+                id="tesda-preview"
+                class="relative w-full border border-gray-200 rounded-xl overflow-hidden bg-white"
+                style="aspect-ratio: 8.5 / 11"
+              >
+                <!-- subtle watermark -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div class="text-[180px] font-black text-gray-100 opacity-70 tracking-widest">TESDA</div>
+                </div>
+
+                <div class="absolute inset-0 p-8">
+                  <!-- Header -->
+                  <div class="flex items-start gap-4">
+                    <div class="w-16 h-16 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center">
+                      <img v-if="logoUrl" :src="logoUrl" class="w-full h-full object-contain" />
+                      <div v-else class="text-[10px] text-gray-500">LOGO</div>
+                    </div>
+
+                    <div class="flex-1">
+                      <div class="text-center leading-tight">
+                        <div class="text-sm font-extrabold text-gray-900">
+                          TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY
+                        </div>
+                        <div class="text-[11px] text-gray-700 font-semibold">
+                          NATIONAL INSTITUTE FOR TECHNICAL EDUCATION AND SKILLS DEVELOPMENT (NITESD)
+                        </div>
+                        <div class="text-[10px] text-gray-600">
+                          EAST SERVICE ROAD, SOUTH LUZON EXPRESSWAY (SLEX), FORT BONIFACIO, TAGUIG CITY
+                        </div>
+                      </div>
+
+                      <div class="mt-3 h-2 bg-blue-700 rounded"></div>
+                    </div>
+                  </div>
+
+                  <!-- Code -->
+                  <div class="mt-4 flex justify-end">
+                    <div class="text-right">
+                      <div class="text-[10px] text-gray-500">Certificate Code</div>
+                      <div class="text-xs font-mono font-bold text-gray-900">
+                        {{ getActiveCertCode(modalRow) || 'TESDA-YYYY-XXXXXX' }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Title -->
+                  <div class="mt-10 text-center">
+                    <div class="text-3xl font-extrabold text-gray-900">CERTIFICATE OF COMPLETION</div>
+                  </div>
+
+                  <div class="mt-6 text-center text-xs text-gray-600 font-semibold tracking-wide">
+                    THIS IS TO CERTIFY THAT
+                  </div>
+
+                  <div class="mt-3 text-center">
+                    <div class="text-4xl font-black text-gray-900">
+                      {{ modalRow?.student_name || '—' }}
+                    </div>
+                  </div>
+
+                  <div class="mt-6 text-center text-xs text-gray-600 font-semibold tracking-wide">
+                    HAS COMPLETED THE COURSE
+                  </div>
+
+                  <div class="mt-3 text-center">
+                    <div class="text-2xl font-bold text-gray-900">
+                      {{ modalRow?.course_name || '—' }}
+                    </div>
+                  </div>
+
+                  <div class="mt-6 text-center text-sm text-gray-800">
+                    ON {{ modalRow?.done_at ? formatDate(modalRow.done_at) : '—' }}
+                  </div>
+
+                  <!-- Footer -->
+                  <div class="absolute left-8 bottom-8 text-[11px] text-gray-700">
+                    <div>This is a computer generated certificate,</div>
+                    <div>it is valid even without a signature.</div>
+                  </div>
+
+                  <div class="absolute right-8 bottom-8 text-[11px] text-gray-700 text-right">
+                    <div class="font-semibold">For verification purposes, contact:</div>
+                    <div>eTESDA Division</div>
+                    <div>tesdaonlineprogram@tesda.gov.ph</div>
+                    <div>(02) 8893 - 8297</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
       <!-- You can keep your existing TESDA modal code unchanged -->
     </div>
   </AdminLayout>

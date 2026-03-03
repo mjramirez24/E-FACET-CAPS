@@ -102,6 +102,11 @@ const studentResCtrl = require("./src/controllers/studentReservationController")
 const { initializeReminderScheduler } = require("./src/jobs/reminderScheduler");
 
 const instructorCertificatesRoutes = require("./src/routes/instructorCertificatesRoutes");
+const trainerCertificatesRoutes = require("./src/routes/trainerCertificatesRoutes");
+
+const settingsRoutes = require("./src/routes/settingsRoutes");
+const trainerTesdaAttendanceRoutes = require("./src/routes/trainerTesdaAttendanceRoutes");
+
 
 // ==============================
 // Auto mark DONE reservations
@@ -141,6 +146,10 @@ app.use("/api/instructor", instructorRoutes);
 app.use("/api/trainer", trainerRoutes);
 app.use("/api/trainer", trainerTesdaSchedulesRoutes);
 app.use("/api/trainer", trainerTesdaStudentsRoutes);
+
+app.use("/api/settings", settingsRoutes);
+
+app.use("/api/trainer", trainerTesdaAttendanceRoutes);
 
 // ==============================
 // ⏰ Initialize Reminder Scheduler
@@ -183,6 +192,7 @@ app.use("/api/messages", require("./src/routes/messageRoutes"));
 app.use("/api/instructor", require("./src/routes/instructorRoutes"));
 app.use("/api", require("./src/routes/instructorApiRoutes"));
 app.use("/api", instructorCertificatesRoutes);
+app.use("/api", trainerCertificatesRoutes);
 
 app.use("/api/debug", require("./src/routes/authDebugRoutes"));
 

@@ -8,8 +8,7 @@ const {
 } = require("../middlewares/authMiddleware");
 
 // ✅ protect everything
-router.use(requireAuth);
-router.use(requireInstructor);
+router.use("/instructor", requireAuth, requireInstructor);
 
 // DRIVING only
 router.get(

@@ -201,6 +201,12 @@
                   <p class="text-xs opacity-90 capitalize">{{ roleLabel(selectedConversation.role) }}</p>
                 </div>
               </div>
+              <button
+                @click="deleteConversation(selectedConversation)"
+                class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors"
+              >
+                Delete
+              </button>
             </div>
 
             <!-- Chat Messages -->
@@ -490,6 +496,17 @@ export default {
         sending.value = false
       }
     }
+            const deleteConversation = (conv) => {
+          if (confirm(`Delete conversation with ${conv.name}?`)) {
+            inbox.value = inbox.value.filter(c => c.id !== conv.id);
+            if (selectedConversation.value?.id === conv.id) {
+              selectedConversation.value = null;
+              messages.value = [];
+            }
+            messageStats.value.totalMessages = inbox.value.length;
+            messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length;
+          }
+        };
 
     // ── Computed ───────────────────────────────────────────────────────────────
     const filteredConversations = computed(() => {
@@ -602,7 +619,7 @@ export default {
       contactsByRole, roleLabel, getInitials, formatTime, getUserBadgeClass,
       getStatusBadgeClass, clearFilters, markAllAsRead, selectConversation,
       sendMessage, startNewMessage, closeNewMessageModal, sendNewMessage,
-      startConversation,
+      startConversation, deleteConversation,
     }
   },
 }

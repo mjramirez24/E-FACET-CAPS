@@ -18,6 +18,8 @@ const adminQrphVerifyController = require("../controllers/adminQrphVerifyControl
 const drivingAssignController = require("../controllers/drivingInstructorAssignController");
 const adminUsersController = require("../controllers/adminUsersController");
 
+const adminDashboardController = require("../controllers/adminDashboardController");
+
 // middlewares
 const { requireAuth, requireAdmin } = require("../middlewares/authMiddleware");
 
@@ -39,19 +41,9 @@ router.use(requireAdmin);
 // ================= DASHBOARD =================
 safe(
   "get",
-  "/dashboard",
-  (req, res) => {
-    res.json({
-      status: "success",
-      message: "Admin dashboard",
-      user: {
-        id: req.session.user_id,
-        fullname: req.session.fullname,
-        role: req.session.role,
-      },
-    });
-  },
-  "inline dashboard handler",
+  "/dashboard/summary",
+  adminDashboardController.getDashboardSummary,
+  "adminDashboardController.getDashboardSummary",
 );
 
 // ================= REPORTS =================

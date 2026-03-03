@@ -1,28 +1,86 @@
 <template>
   <TrainerLayout active-page="certificates">
-    <!-- Header -->
     <template #header-left>
       <input
         type="text"
-        placeholder="Search certificates..."
+        placeholder="Search students/certificates..."
         v-model="searchQuery"
         class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
       />
     </template>
 
     <div>
-      <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-bold text-green-800">🎓 Certificate Management</h2>
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-bold text-green-800">🎓 TESDA Certificate Management</h2>
+
+          <img
+            v-if="logoUrl"
+            :src="logoUrl"
+            alt="Logo"
+            class="h-10 w-auto object-contain"
+            @error="onLogoError"
+          />
+        </div>
+
         <button
-          @click="generateCertificate"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          @click="fetchRows"
+          class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
-          ➕ Generate Certificate
+          🔄 Refresh
         </button>
       </div>
 
-      <!-- Statistics Cards -->
+      <div v-if="error" class="mb-4 p-3 rounded border border-red-200 bg-red-50 text-red-700 text-sm">
+        {{ error }}
+      </div>
+
+      <!-- Filters -->
+      <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
+          <select
+            v-model="selectedCourse"
+            class="w-56 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          >
+            <option value="">All Courses</option>
+            <option v-for="c in courseOptions" :key="c" :value="c">{{ c }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+          <select
+            v-model="selectedStatus"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          >
+            <option value="">All</option>
+            <option value="issued">Issued</option>
+            <option value="ready">Ready</option>
+            <option value="revoked">Revoked</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Done Date</label>
+          <input
+            type="date"
+            v-model="selectedDate"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          />
+        </div>
+
+        <div class="flex items-end gap-2">
+          <button
+            @click="clearFilters"
+            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-green-50 p-5 rounded-lg border border-green-100">
           <div class="flex items-center justify-between">
@@ -39,8 +97,8 @@
         <div class="bg-yellow-50 p-5 rounded-lg border border-yellow-100">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-2xl font-bold text-yellow-800">{{ pendingCount }}</h3>
-              <p class="text-yellow-700 font-medium mt-1">Pending</p>
+              <h3 class="text-2xl font-bold text-yellow-800">{{ readyCount }}</h3>
+              <p class="text-yellow-700 font-medium mt-1">Ready</p>
             </div>
             <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
               <span class="text-xl">⏳</span>
@@ -51,8 +109,8 @@
         <div class="bg-blue-50 p-5 rounded-lg border border-blue-100">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-2xl font-bold text-blue-800">{{ certificates.length }}</h3>
-              <p class="text-blue-700 font-medium mt-1">Total</p>
+              <h3 class="text-2xl font-bold text-blue-800">{{ rowsFiltered.length }}</h3>
+              <p class="text-blue-700 font-medium mt-1">Shown</p>
             </div>
             <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <span class="text-xl">📄</span>
@@ -73,69 +131,19 @@
         </div>
       </div>
 
-      <!-- Filters -->
-      <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
-          <select
-            v-model="selectedCourse"
-            class="w-56 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Courses</option>
-            <option v-for="c in courses" :key="c" :value="c">{{ c }}</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-          <select
-            v-model="selectedStatus"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Status</option>
-            <option value="issued">Issued</option>
-            <option value="pending">Pending</option>
-            <option value="revoked">Revoked</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-          <input
-            type="date"
-            v-model="selectedDate"
-            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          />
-        </div>
-
-        <div class="flex items-end gap-2">
-          <button
-            @click="clearFilters"
-            class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-          >
-            Clear
-          </button>
-          <button
-            @click="exportCertificates"
-            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-          >
-            Export
-          </button>
-        </div>
-      </div>
-
       <!-- Loading -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-green-700"></div>
-        <p class="mt-3 text-gray-600">Loading certificates...</p>
+        <p class="mt-3 text-gray-600">Loading...</p>
       </div>
 
       <!-- Table -->
       <div v-else class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200 flex justify-between items-center">
           <div class="text-sm text-gray-600">
-            Showing {{ filteredCertificates.length }} of {{ certificates.length }} certificates
+            Showing {{ rowsFiltered.length }} of {{ rowsBase.length }} (TESDA)
           </div>
+
           <div class="flex items-center gap-2">
             <span class="text-sm text-gray-600">Sort by:</span>
             <select v-model="sortBy" class="text-sm border rounded px-2 py-1">
@@ -153,8 +161,8 @@
             <tr>
               <th class="py-3 px-4 text-left font-medium">Student</th>
               <th class="py-3 px-4 text-left font-medium">Course</th>
-              <th class="py-3 px-4 text-left font-medium">Date Issued</th>
-              <th class="py-3 px-4 text-left font-medium">Certificate ID</th>
+              <th class="py-3 px-4 text-left font-medium">Done Date</th>
+              <th class="py-3 px-4 text-left font-medium">TESDA Cert Code</th>
               <th class="py-3 px-4 text-left font-medium">Status</th>
               <th class="py-3 px-4 text-left font-medium">Actions</th>
             </tr>
@@ -162,128 +170,84 @@
 
           <tbody>
             <tr
-              v-for="certificate in filteredCertificates"
-              :key="certificate.id"
+              v-for="row in rowsFiltered"
+              :key="row.reservation_id"
               class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <td class="py-3 px-4">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm">
-                    {{ getInitials(certificate.studentName) }}
+                    {{ getInitials(row.student_name) }}
                   </div>
                   <div>
-                    <p class="font-medium">{{ certificate.studentName }}</p>
-                    <p class="text-xs text-gray-500">{{ certificate.studentEmail }}</p>
+                    <p class="font-medium">{{ row.student_name }}</p>
+                    <p class="text-xs text-gray-500">{{ row.student_email }}</p>
                   </div>
                 </div>
               </td>
 
               <td class="py-3 px-4">
-                <span class="font-medium">{{ certificate.course }}</span>
+                <span class="font-medium">{{ row.course_name }}</span>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  code: <span class="font-mono">{{ row.course_code || "—" }}</span>
+                </p>
               </td>
 
               <td class="py-3 px-4 text-gray-600">
-                {{ certificate.dateIssued ? formatDate(certificate.dateIssued) : "—" }}
+                {{ row.done_at ? formatDate(row.done_at) : "—" }}
               </td>
 
               <td class="py-3 px-4">
                 <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
-                  {{ certificate.certificateId }}
+                  {{ row.certificate_code || "—" }}
                 </code>
               </td>
 
               <td class="py-3 px-4">
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-medium"
-                  :class="getStatusClass(certificate.status)"
-                >
-                  {{ formatStatus(certificate.status) }}
+                <span class="px-2 py-1 rounded-full text-xs font-medium" :class="getStatusClass(row.ui_status)">
+                  {{ formatStatus(row.ui_status) }}
                 </span>
               </td>
 
               <td class="py-3 px-4">
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
                   <button
-                    @click="viewCertificate(certificate)"
+                    v-if="row.ui_status === 'ready'"
+                    @click="generateTesda(row)"
+                    class="text-green-700 hover:text-green-900 text-sm font-medium px-2 py-1 hover:bg-green-50 rounded"
+                  >
+                    ➕ Generate
+                  </button>
+
+                  <button
+                    v-if="row.certificate_id"
+                    @click="viewCertificate(row)"
                     class="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 hover:bg-blue-50 rounded"
                   >
                     View
                   </button>
 
                   <button
-                    @click="printCertificate(certificate)"
-                    class="text-green-600 hover:text-green-800 text-sm font-medium px-2 py-1 hover:bg-green-50 rounded"
-                  >
-                    Print
-                  </button>
-
-                  <button
-                    v-if="certificate.status === 'pending'"
-                    @click="approveCertificate(certificate)"
-                    class="text-yellow-600 hover:text-yellow-800 text-sm font-medium px-2 py-1 hover:bg-yellow-50 rounded"
-                  >
-                    Approve
-                  </button>
-
-                  <button
-                    @click="downloadCertificate(certificate)"
+                    v-if="row.certificate_id"
+                    @click="downloadCertificate(row)"
                     class="text-purple-600 hover:text-purple-800 text-sm font-medium px-2 py-1 hover:bg-purple-50 rounded"
                   >
                     Download
-                  </button>
-
-                  <button
-                    v-if="certificate.status !== 'revoked'"
-                    @click="revokeCertificate(certificate)"
-                    class="text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 hover:bg-red-50 rounded"
-                  >
-                    Revoke
                   </button>
                 </div>
               </td>
             </tr>
 
-            <tr v-if="filteredCertificates.length === 0">
+            <tr v-if="rowsFiltered.length === 0">
               <td colspan="6" class="py-8 text-center text-gray-500">
                 <div class="text-gray-400">
                   <span class="text-3xl mb-2 block">🎓</span>
-                  <p class="text-gray-500">No certificates found</p>
-                  <p class="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
+                  <p class="text-gray-500">No results</p>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <!-- Pagination -->
-      <div v-if="filteredCertificates.length > 0" class="mt-6 flex justify-between items-center">
-        <div class="text-sm text-gray-600">
-          Page 1 of 1 • {{ filteredCertificates.length }} items
-        </div>
-        <div class="flex gap-1">
-          <button class="px-3 py-1 border rounded text-sm hover:bg-gray-50">← Previous</button>
-          <button class="px-3 py-1 bg-green-700 text-white rounded text-sm">1</button>
-          <button class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Next →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Generate Certificate Modal -->
-    <div v-if="showGenerateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-green-800">Generate Certificate</h3>
-            <button @click="closeGenerateModal" class="text-gray-400 hover:text-gray-600 text-xl">
-              ✕
-            </button>
-          </div>
-
-          <div class="text-center py-8 text-gray-500">
-            Certificate generation form would appear here
-          </div>
-        </div>
       </div>
     </div>
   </TrainerLayout>
@@ -291,61 +255,73 @@
 
 <script>
 import { ref, computed, onMounted } from "vue";
+import axios from "axios";
 import TrainerLayout from "./TrainerLayout.vue";
 
 export default {
   name: "TrainerCertificates",
   components: { TrainerLayout },
   setup() {
-    const certificates = ref([]);
+    const API_BASE = "http://localhost:3000";
+
+    const logoUrl = ref(`${API_BASE}/assets/logo.png`);
+    const onLogoError = () => (logoUrl.value = "");
+
+    const ENDPOINTS = {
+      list: `${API_BASE}/api/trainer/certificates/tesda/completions`,
+      generate: `${API_BASE}/api/trainer/certificates/tesda/generate`,
+      view: (id) => `${API_BASE}/api/trainer/certificates/tesda/${id}/view`,
+      download: (id) => `${API_BASE}/api/trainer/certificates/tesda/${id}/download`,
+    };
+
+    const rows = ref([]);
     const loading = ref(true);
+    const error = ref("");
 
     const searchQuery = ref("");
     const selectedCourse = ref("");
     const selectedStatus = ref("");
     const selectedDate = ref("");
     const sortBy = ref("dateDesc");
-    const showGenerateModal = ref(false);
 
-    // Courses list (auto-derive from certificates later; for now keep fixed)
-    const courses = ref([
-      "Driving NC II",
-      "Bread & Pastry NC II",
-      "Cookery NC II",
-      "Automotive NC I",
-      "Electrical Installation NC II",
-    ]);
+    const rowsBase = computed(() => rows.value);
 
-    const filteredCertificates = computed(() => {
-      let result = [...certificates.value];
+    const courseOptions = computed(() => {
+      const set = new Set(rowsBase.value.map((r) => r.course_name).filter(Boolean));
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    });
 
-      if (searchQuery.value) {
+    const rowsFiltered = computed(() => {
+      let result = [...rowsBase.value];
+
+      if (searchQuery.value.trim()) {
         const q = searchQuery.value.toLowerCase();
-        result = result.filter(
-          (cert) =>
-            cert.studentName.toLowerCase().includes(q) ||
-            cert.studentEmail.toLowerCase().includes(q) ||
-            cert.course.toLowerCase().includes(q) ||
-            cert.certificateId.toLowerCase().includes(q),
-        );
+        result = result.filter((r) => {
+          const name = (r.student_name || "").toLowerCase();
+          const email = (r.student_email || "").toLowerCase();
+          const course = (r.course_name || "").toLowerCase();
+          const code = (r.certificate_code || "").toLowerCase();
+          const courseCode = (r.course_code || "").toLowerCase();
+          return name.includes(q) || email.includes(q) || course.includes(q) || code.includes(q) || courseCode.includes(q);
+        });
       }
 
-      if (selectedCourse.value) result = result.filter((cert) => cert.course === selectedCourse.value);
-      if (selectedStatus.value) result = result.filter((cert) => cert.status === selectedStatus.value);
-      if (selectedDate.value) result = result.filter((cert) => cert.dateIssued === selectedDate.value);
+      if (selectedCourse.value) result = result.filter((r) => r.course_name === selectedCourse.value);
+      if (selectedStatus.value) result = result.filter((r) => (r.ui_status || "") === selectedStatus.value);
+      if (selectedDate.value) result = result.filter((r) => (r.done_at || "").slice(0, 10) === selectedDate.value);
 
       result.sort((a, b) => {
         switch (sortBy.value) {
           case "dateDesc":
-            return new Date(b.dateIssued || "1970-01-01") - new Date(a.dateIssued || "1970-01-01");
+            return new Date(b.done_at || 0) - new Date(a.done_at || 0);
           case "dateAsc":
-            return new Date(a.dateIssued || "1970-01-01") - new Date(b.dateIssued || "1970-01-01");
+            return new Date(a.done_at || 0) - new Date(b.done_at || 0);
           case "name":
-            return a.studentName.localeCompare(b.studentName);
+            return (a.student_name || "").localeCompare(b.student_name || "");
           case "course":
-            return a.course.localeCompare(b.course);
+            return (a.course_name || "").localeCompare(b.course_name || "");
           case "status":
-            return a.status.localeCompare(b.status);
+            return (a.ui_status || "").localeCompare(b.ui_status || "");
           default:
             return 0;
         }
@@ -354,22 +330,23 @@ export default {
       return result;
     });
 
-    const issuedCount = computed(() => certificates.value.filter((c) => c.status === "issued").length);
-    const pendingCount = computed(() => certificates.value.filter((c) => c.status === "pending").length);
-    const revokedCount = computed(() => certificates.value.filter((c) => c.status === "revoked").length);
+    const issuedCount = computed(() => rowsBase.value.filter((r) => r.ui_status === "issued").length);
+    const revokedCount = computed(() => rowsBase.value.filter((r) => r.ui_status === "revoked").length);
+    const readyCount = computed(() => rowsBase.value.filter((r) => r.ui_status === "ready").length);
 
-    const getInitials = (name) =>
-      String(name || "")
-        .split(" ")
-        .filter(Boolean)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2);
+    const getInitials = (name) => {
+      const safe = String(name || "").trim();
+      if (!safe) return "??";
+      const parts = safe.split(/\s+/).filter(Boolean);
+      const first = parts[0]?.[0] || "";
+      const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
+      return (first + last).toUpperCase() || "??";
+    };
 
     const formatDate = (dateString) => {
       if (!dateString) return "—";
       const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return "—";
       return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
@@ -377,7 +354,7 @@ export default {
       switch (status) {
         case "issued":
           return "bg-green-100 text-green-800";
-        case "pending":
+        case "ready":
           return "bg-yellow-100 text-yellow-800";
         case "revoked":
           return "bg-red-100 text-red-800";
@@ -386,7 +363,10 @@ export default {
       }
     };
 
-    const formatStatus = (status) => (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
+    const formatStatus = (status) => {
+      if (status === "ready") return "Ready";
+      return String(status || "").charAt(0).toUpperCase() + String(status || "").slice(1);
+    };
 
     const clearFilters = () => {
       searchQuery.value = "";
@@ -395,106 +375,72 @@ export default {
       selectedDate.value = "";
     };
 
-    const exportCertificates = () => alert("Exporting certificates...");
-    const generateCertificate = () => (showGenerateModal.value = true);
-    const closeGenerateModal = () => (showGenerateModal.value = false);
-
-    const viewCertificate = (c) => alert(`View certificate: ${c.certificateId} for ${c.studentName}`);
-    const printCertificate = (c) => alert(`Printing certificate: ${c.certificateId}`);
-    const downloadCertificate = (c) => alert(`Downloading certificate: ${c.certificateId}`);
-
-    const approveCertificate = (certificate) => {
-      if (confirm(`Approve certificate for ${certificate.studentName}?`)) {
-        certificate.status = "issued";
-        certificate.dateIssued = new Date().toISOString().split("T")[0];
-      }
-    };
-
-    const revokeCertificate = (certificate) => {
-      if (confirm(`Revoke certificate ${certificate.certificateId}?`)) {
-        certificate.status = "revoked";
-      }
-    };
-
-    const fetchCertificates = () => {
-      // MOCK DATA (replace later with API)
-      setTimeout(() => {
-        certificates.value = [
-          {
-            id: 1,
-            studentName: "Juan Dela Cruz",
-            studentEmail: "juan@example.com",
-            course: "Driving NC II",
-            dateIssued: "2025-11-01",
-            certificateId: "CERT-2025-001",
-            status: "issued",
-          },
-          {
-            id: 2,
-            studentName: "Maria Santos",
-            studentEmail: "maria@example.com",
-            course: "Bread & Pastry NC II",
-            dateIssued: "2025-10-20",
-            certificateId: "CERT-2025-002",
-            status: "issued",
-          },
-          {
-            id: 3,
-            studentName: "Carlos Reyes",
-            studentEmail: "carlos@example.com",
-            course: "Cookery NC II",
-            dateIssued: null,
-            certificateId: "CERT-2025-003",
-            status: "pending",
-          },
-          {
-            id: 4,
-            studentName: "Anna Lim",
-            studentEmail: "anna@example.com",
-            course: "Automotive NC I",
-            dateIssued: "2025-10-15",
-            certificateId: "CERT-2025-004",
-            status: "issued",
-          },
-          {
-            id: 5,
-            studentName: "Robert Tan",
-            studentEmail: "robert@example.com",
-            course: "Electrical Installation NC II",
-            dateIssued: "2025-10-10",
-            certificateId: "CERT-2025-005",
-            status: "revoked",
-          },
-          {
-            id: 6,
-            studentName: "Sarah Chen",
-            studentEmail: "sarah@example.com",
-            course: "Driving NC II",
-            dateIssued: null,
-            certificateId: "CERT-2025-006",
-            status: "pending",
-          },
-        ];
+    const fetchRows = async () => {
+      loading.value = true;
+      error.value = "";
+      try {
+        const res = await axios.get(ENDPOINTS.list, { withCredentials: true });
+        const data = res?.data?.data || [];
+        rows.value = data.map((r) => ({
+          ...r,
+          ui_status: r.ui_status || (r.certificate_id ? "issued" : "ready"),
+        }));
+} catch (e) {
+  console.log("CERT ERR:", e?.response?.status, e?.response?.data);
+  error.value =
+    (e?.response?.data && JSON.stringify(e.response.data)) ||
+    e.message ||
+    "Failed to load.";
+} finally {
         loading.value = false;
-      }, 500);
+      }
     };
 
-    onMounted(fetchCertificates);
+    const generateTesda = async (row) => {
+      error.value = "";
+      try {
+        const ok = confirm(`Generate TESDA certificate for ${row.student_name} (${row.course_name})?`);
+        if (!ok) return;
+
+        await axios.post(ENDPOINTS.generate, { reservation_id: row.reservation_id }, { withCredentials: true });
+        await fetchRows();
+      } catch (e) {
+        error.value = e?.response?.data?.message || e.message || "Failed to generate TESDA certificate.";
+      }
+    };
+
+    const viewCertificate = (row) => {
+      if (!row?.certificate_id) return;
+      window.open(ENDPOINTS.view(row.certificate_id), "_blank");
+    };
+
+    const downloadCertificate = (row) => {
+      if (!row?.certificate_id) return;
+      window.open(ENDPOINTS.download(row.certificate_id), "_blank");
+    };
+
+    onMounted(fetchRows);
 
     return {
-      certificates,
+      logoUrl,
+      onLogoError,
+
+      rows,
       loading,
+      error,
+
       searchQuery,
       selectedCourse,
       selectedStatus,
       selectedDate,
       sortBy,
-      showGenerateModal,
-      courses,
 
-      filteredCertificates,
+      rowsBase,
+      rowsFiltered,
+      courseOptions,
+
       issuedCount,
-      pendingCount,
+      readyCount,
       revokedCount,
 
       getInitials,
@@ -503,15 +449,10 @@ export default {
       formatStatus,
 
       clearFilters,
-      exportCertificates,
-      generateCertificate,
-      closeGenerateModal,
-
+      fetchRows,
+      generateTesda,
       viewCertificate,
-      printCertificate,
       downloadCertificate,
-      approveCertificate,
-      revokeCertificate,
     };
   },
 };

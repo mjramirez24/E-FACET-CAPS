@@ -54,7 +54,6 @@
               : 'hover:bg-gray-200'
           ]"
         >
-        
           <span class="ml-2">🎓 Certificates</span>
         </router-link>
 
@@ -112,6 +111,12 @@
 
 <script>
 import { useRouter } from 'vue-router'
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
 
 export default {
   name: 'InstructorSidebar',
@@ -121,7 +126,11 @@ export default {
   },
   data() {
     return {
-      user: {}
+      user: {
+        fullname: '',
+        username: '',
+        email: ''
+      }
     }
   },
   computed: {
@@ -130,24 +139,52 @@ export default {
       return 'I'
     }
   },
-  mounted() {
-    const userData = localStorage.getItem('user')
-    if (userData) this.user = JSON.parse(userData)
-  },
   methods: {
+    async fetchUserData() {
+      try {
+        const response = await api.get("/settings/profile");
+        if (response.data?.status === "success" && response.data?.profile) {
+          this.user = {
+            fullname: response.data.profile.fullname || '',
+            username: response.data.profile.username || '',
+            email: response.data.profile.email || ''
+          };
+        }
+      } catch (err) {
+        console.error("Fetch user data error:", err);
+        // If unauthorized, redirect to login
+        if (err.response?.status === 401) {
+          this.router.push("/login");
+        }
+      }
+    },
+
+    handleUserUpdate(event) {
+      this.user = event.detail;
+    },
+
     async logout() {
       try {
-        const response = await fetch('/api/auth/logout', { credentials: 'include' })
-        const data = await response.json()
+        const response = await fetch('/api/auth/logout', { 
+          credentials: 'include' 
+        });
+        const data = await response.json();
 
-        localStorage.removeItem('user')
-        this.router.push('/login')
+        if (data.status === 'success') {
+          this.router.push('/login');
+        }
       } catch (error) {
-        console.error('Logout error:', error)
-        localStorage.removeItem('user')
-        this.router.push('/login')
+        console.error('Logout error:', error);
+        this.router.push('/login');
       }
     }
+  },
+  async mounted() {
+    await this.fetchUserData();
+    window.addEventListener('user-updated', this.handleUserUpdate);
+  },
+  beforeUnmount() {
+    window.removeEventListener('user-updated', this.handleUserUpdate);
   }
 }
 </script>

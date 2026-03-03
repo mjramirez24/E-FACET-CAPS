@@ -16,9 +16,11 @@
         <h2 class="text-lg font-bold text-green-800">⚙️ Settings</h2>
         <button 
           @click="saveAllSettings"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          :disabled="saving"
+          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          💾 Save All Changes
+          <span v-if="saving" class="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+          {{ saving ? 'Saving...' : '💾 Save All Changes' }}
         </button>
       </div>
 
@@ -53,7 +55,8 @@
             <h3 class="text-lg font-bold text-green-800">👤 Profile Information</h3>
             <button 
               @click="saveProfile"
-              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium"
+              :disabled="saving"
+              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium disabled:opacity-50"
             >
               Save Profile
             </button>
@@ -62,14 +65,22 @@
           <div class="space-y-4">
             <div class="flex items-center gap-4 mb-6">
               <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-2xl font-bold text-green-800">
-                {{ getInitials(profile.name) }}
+                {{ getInitials(profile.fullname) }}
               </div>
               <div>
-                <button 
-                  @click="uploadPhoto"
-                  class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+                <input 
+                  type="file" 
+                  ref="fileInput"
+                  accept="image/jpeg,image/png"
+                  class="hidden"
+                  @change="handleFileUpload"
                 >
-                  Change Photo
+                <button 
+                  @click="triggerFileUpload"
+                  :disabled="uploading"
+                  class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
+                >
+                  {{ uploading ? 'Uploading...' : 'Change Photo' }}
                 </button>
                 <p class="text-xs text-gray-500 mt-1">JPG, PNG up to 5MB</p>
               </div>
@@ -80,7 +91,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <input 
                   type="text" 
-                  v-model="profile.name"
+                  v-model="profile.fullname"
                   class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
               </div>
@@ -93,10 +104,18 @@
                 >
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input 
+                  type="text" 
+                  v-model="profile.username"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
                 <input 
                   type="tel" 
-                  v-model="profile.phone"
+                  v-model="profile.contact"
                   class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                   placeholder="+63 123 456 7890"
                 >
@@ -110,6 +129,47 @@
                   placeholder="Enter your address"
                 >
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                <select 
+                  v-model="profile.gender"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                <input 
+                  type="date" 
+                  v-model="profile.birthday"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Civil Status</label>
+                <select 
+                  v-model="profile.civil_status"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  <option value="">Select Status</option>
+                  <option value="single">Single</option>
+                  <option value="married">Married</option>
+                  <option value="widowed">Widowed</option>
+                  <option value="separated">Separated</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                <input 
+                  type="text" 
+                  v-model="profile.nationality"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                  placeholder="Enter nationality"
+                >
+              </div>
             </div>
           </div>
         </div>
@@ -120,7 +180,8 @@
             <h3 class="text-lg font-bold text-green-800">🔒 Account Security</h3>
             <button 
               @click="updatePassword"
-              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium"
+              :disabled="saving"
+              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium disabled:opacity-50"
             >
               Update Password
             </button>
@@ -160,36 +221,6 @@
                 </div>
               </div>
             </div>
-
-            <div class="mt-6 pt-6 border-t border-gray-200">
-              <h4 class="text-md font-medium text-gray-800 mb-3">Security Options</h4>
-              <div class="space-y-3">
-                <label class="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    v-model="security.twoFactorAuth"
-                    class="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  >
-                  <span class="text-sm text-gray-700">Two-factor authentication</span>
-                </label>
-                <label class="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    v-model="security.loginAlerts"
-                    class="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  >
-                  <span class="text-sm text-gray-700">Email alerts for new logins</span>
-                </label>
-                <label class="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    v-model="security.sessionTimeout"
-                    class="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  >
-                  <span class="text-sm text-gray-700">Auto logout after 30 minutes of inactivity</span>
-                </label>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -199,7 +230,8 @@
             <h3 class="text-lg font-bold text-green-800">🎨 System Preferences</h3>
             <button 
               @click="savePreferences"
-              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium"
+              :disabled="saving"
+              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium disabled:opacity-50"
             >
               Save Preferences
             </button>
@@ -230,7 +262,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Notification Sound</label>
               <select 
-                v-model="preferences.sound"
+                v-model="preferences.notification_sound"
                 class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
               >
                 <option value="default">Default</option>
@@ -256,7 +288,7 @@
               <label class="flex items-center">
                 <input 
                   type="checkbox" 
-                  v-model="preferences.showAvatars"
+                  v-model="preferences.show_avatars"
                   class="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 >
                 <span class="text-sm text-gray-700">Show user avatars</span>
@@ -264,7 +296,7 @@
               <label class="flex items-center">
                 <input 
                   type="checkbox" 
-                  v-model="preferences.showNotificationsBadge"
+                  v-model="preferences.show_notifications_badge"
                   class="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 >
                 <span class="text-sm text-gray-700">Show notifications badge</span>
@@ -272,7 +304,7 @@
               <label class="flex items-center">
                 <input 
                   type="checkbox" 
-                  v-model="preferences.autoSaveProgress"
+                  v-model="preferences.auto_save_progress"
                   class="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 >
                 <span class="text-sm text-gray-700">Auto-save exam progress</span>
@@ -287,7 +319,8 @@
             <h3 class="text-lg font-bold text-green-800">🔔 Notifications</h3>
             <button 
               @click="saveNotifications"
-              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium"
+              :disabled="saving"
+              class="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium disabled:opacity-50"
             >
               Save Notifications
             </button>
@@ -301,7 +334,7 @@
                   <span class="text-sm text-gray-700">Course update notifications</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.email.courseUpdates"
+                    v-model="preferences.email_course_updates"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -309,7 +342,7 @@
                   <span class="text-sm text-gray-700">Exam schedule alerts</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.email.examSchedules"
+                    v-model="preferences.email_exam_schedules"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -317,7 +350,7 @@
                   <span class="text-sm text-gray-700">Grade release notifications</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.email.gradeReleases"
+                    v-model="preferences.email_grade_releases"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -325,7 +358,7 @@
                   <span class="text-sm text-gray-700">Certificate completion alerts</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.email.certificateCompletion"
+                    v-model="preferences.email_certificate_completion"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -339,7 +372,7 @@
                   <span class="text-sm text-gray-700">New messages from instructors</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.inApp.newMessages"
+                    v-model="preferences.inapp_new_messages"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -347,7 +380,7 @@
                   <span class="text-sm text-gray-700">Assignment deadlines</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.inApp.assignmentDeadlines"
+                    v-model="preferences.inapp_assignment_deadlines"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -355,7 +388,7 @@
                   <span class="text-sm text-gray-700">System announcements</span>
                   <input 
                     type="checkbox" 
-                    v-model="notifications.inApp.announcements"
+                    v-model="preferences.inapp_announcements"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   >
                 </label>
@@ -365,194 +398,377 @@
         </div>
       </div>
     </div>
+
+    <!-- Success/Error Modal (using same pattern as StudentSchedule) -->
+    <div
+      v-if="messageOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      @click.self="closeMessage"
+    >
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div class="p-4 border-b border-gray-200 flex items-start justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">{{ messageIcon }}</span>
+            <h3 class="text-lg font-semibold text-gray-800">
+              {{ messageTitle }}
+            </h3>
+          </div>
+          <button
+            @click="closeMessage"
+            class="px-3 py-1 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="p-6 text-center">
+          <p class="text-gray-600">{{ messageText }}</p>
+        </div>
+        <div class="p-4 border-t border-gray-200 flex justify-end">
+          <button
+            @click="closeMessage"
+            class="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 text-sm"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
   </StudentLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted, reactive } from 'vue'
-import StudentLayout from './StudentLayout.vue'
+import StudentLayout from "./StudentLayout.vue";
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
 
 export default {
-  name: 'StudentSettings',
-  components: {
-    StudentLayout
-  },
-  setup() {
-    // State
-    const searchQuery = ref('')
-    const loading = ref(true)
-    const activeTab = ref('profile')
-    
-    // Tabs
-    const tabs = [
-      { id: 'profile', label: '👤 Profile' },
-      { id: 'preferences', label: '🎨 Preferences' },
-      { id: 'security', label: '🔒 Security' },
-      { id: 'notifications', label: '🔔 Notifications' }
-    ]
-    
-    // Profile data - This should come from your actual user data source
-    // For now using placeholder, but you should connect this to your auth/user store
-    const profile = reactive({
-      name: 'John Doe',
-      email: 'johndoe@gmail.com',
-      phone: '',
-      address: ''
-    })
-    
-    // Preferences data
-    const preferences = reactive({
-      theme: 'light',
-      layout: 'compact',
-      sound: 'default',
-      language: 'en',
-      showAvatars: true,
-      showNotificationsBadge: true,
-      autoSaveProgress: true
-    })
-    
-    // Security data
-    const security = reactive({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      twoFactorAuth: false,
-      loginAlerts: true,
-      sessionTimeout: true
-    })
-    
-    // Notifications data
-    const notifications = reactive({
-      email: {
-        courseUpdates: true,
-        examSchedules: true,
-        gradeReleases: true,
-        certificateCompletion: true
-      },
-      inApp: {
-        newMessages: true,
-        assignmentDeadlines: true,
-        announcements: true
-      }
-    })
-    
-    // Computed properties
-    const passwordStrength = computed(() => {
-      if (!security.newPassword) return 'None'
-      const length = security.newPassword.length
-      const hasUpper = /[A-Z]/.test(security.newPassword)
-      const hasLower = /[a-z]/.test(security.newPassword)
-      const hasNumber = /\d/.test(security.newPassword)
-      const hasSpecial = /[^A-Za-z0-9]/.test(security.newPassword)
-      
-      let score = 0
-      if (length >= 8) score++
-      if (length >= 12) score++
-      if (hasUpper && hasLower) score++
-      if (hasNumber) score++
-      if (hasSpecial) score++
-      
-      if (score >= 4) return 'Strong'
-      if (score >= 3) return 'Good'
-      if (score >= 2) return 'Fair'
-      return 'Weak'
-    })
-    
-    const passwordStrengthClass = computed(() => {
-      switch(passwordStrength.value) {
-        case 'Strong': return 'text-green-600 font-semibold'
-        case 'Good': return 'text-blue-600 font-semibold'
-        case 'Fair': return 'text-yellow-600 font-semibold'
-        case 'Weak': return 'text-red-600 font-semibold'
-        default: return 'text-gray-600'
-      }
-    })
-    
-    // Methods
-    const getInitials = (name) => {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
-    }
-    
-    const saveProfile = () => {
-      alert('Profile settings saved successfully')
-      // In real app, this would call an API
-    }
-    
-    const savePreferences = () => {
-      alert('Preferences saved successfully')
-      // In real app, this would call an API
-    }
-    
-    const updatePassword = () => {
-      if (!security.currentPassword) {
-        alert('Please enter your current password')
-        return
-      }
-      if (security.newPassword !== security.confirmPassword) {
-        alert('New passwords do not match')
-        return
-      }
-      if (security.newPassword.length < 8) {
-        alert('Password must be at least 8 characters long')
-        return
-      }
-      
-      alert('Password updated successfully')
-      security.currentPassword = ''
-      security.newPassword = ''
-      security.confirmPassword = ''
-    }
-    
-    const saveNotifications = () => {
-      alert('Notification settings saved successfully')
-      // In real app, this would call an API
-    }
-    
-    const saveAllSettings = () => {
-      alert('All settings saved successfully')
-      // In real app, this would call an API
-    }
-    
-    const uploadPhoto = () => {
-      alert('Photo upload feature')
-      // In real app, this would open a file picker
-    }
-    
-    // Fetch initial data
-    const fetchSettings = () => {
-      setTimeout(() => {
-        loading.value = false
-      }, 500)
-    }
-    
-    onMounted(() => {
-      fetchSettings()
-    })
-    
+  name: "StudentSettings",
+  components: { StudentLayout },
+
+  data() {
     return {
-      // State
-      searchQuery,
-      loading,
-      activeTab,
-      tabs,
-      profile,
-      preferences,
-      security,
-      notifications,
+      searchQuery: "",
+      loading: false,
+      saving: false,
+      uploading: false,
+      activeTab: "profile",
       
-      // Computed
-      passwordStrength,
-      passwordStrengthClass,
+      // Message modal
+      messageOpen: false,
+      messageTitle: "",
+      messageText: "",
+      messageIcon: "",
       
-      // Methods
-      getInitials,
-      saveProfile,
-      savePreferences,
-      updatePassword,
-      saveNotifications,
-      saveAllSettings,
-      uploadPhoto
+      // Profile data
+      profile: {
+        fullname: "",
+        username: "",
+        email: "",
+        contact: "",
+        address: "",
+        gender: "",
+        birthday: "",
+        civil_status: "",
+        nationality: ""
+      },
+      
+      // Security data
+      security: {
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      },
+
+      // Preferences data
+      preferences: {
+        theme: 'light',
+        layout: 'compact',
+        notification_sound: 'default',
+        language: 'en',
+        show_avatars: true,
+        show_notifications_badge: true,
+        auto_save_progress: true,
+        email_course_updates: true,
+        email_exam_schedules: true,
+        email_grade_releases: true,
+        email_certificate_completion: true,
+        inapp_new_messages: true,
+        inapp_assignment_deadlines: true,
+        inapp_announcements: true
+      },
+      
+      // Tabs
+      tabs: [
+        { id: "profile", label: "👤 Profile" },
+        { id: "security", label: "🔒 Security" },
+        { id: "preferences", label: "🎨 Preferences" },
+        { id: "notifications", label: "🔔 Notifications" }
+      ],
+      
+      fileInput: null
+    };
+  },
+
+  computed: {
+    passwordStrength() {
+      if (!this.security.newPassword) return "None";
+      const pwd = this.security.newPassword;
+      const length = pwd.length;
+      const hasUpper = /[A-Z]/.test(pwd);
+      const hasLower = /[a-z]/.test(pwd);
+      const hasNumber = /\d/.test(pwd);
+      const hasSpecial = /[^A-Za-z0-9]/.test(pwd);
+      
+      let score = 0;
+      if (length >= 8) score++;
+      if (length >= 12) score++;
+      if (hasUpper && hasLower) score++;
+      if (hasNumber) score++;
+      if (hasSpecial) score++;
+      
+      if (score >= 4) return "Strong";
+      if (score >= 3) return "Good";
+      if (score >= 2) return "Fair";
+      return "Weak";
+    },
+
+    passwordStrengthClass() {
+      const strength = this.passwordStrength;
+      return {
+        "Strong": "text-green-600 font-semibold",
+        "Good": "text-blue-600 font-semibold",
+        "Fair": "text-yellow-600 font-semibold",
+        "Weak": "text-red-600 font-semibold",
+        "None": "text-gray-600"
+      }[strength] || "text-gray-600";
     }
+  },
+
+  methods: {
+    getInitials(name) {
+      if (!name) return "??";
+      return name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2);
+    },
+
+    // Message modal methods
+    showMessage(title, text, icon = "ℹ️") {
+      this.messageTitle = title;
+      this.messageText = text;
+      this.messageIcon = icon;
+      this.messageOpen = true;
+    },
+
+    closeMessage() {
+      this.messageOpen = false;
+    },
+
+    async fetchProfile() {
+      try {
+        this.loading = true;
+        const response = await api.get("/settings/profile");
+        if (response.data?.status === "success" && response.data?.profile) {
+          Object.assign(this.profile, response.data.profile);
+          
+          // Dispatch event for sidebar update
+          const event = new CustomEvent('user-updated', { 
+            detail: {
+              fullname: response.data.profile.fullname,
+              username: response.data.profile.username,
+              email: response.data.profile.email
+            }
+          });
+          window.dispatchEvent(event);
+        }
+      } catch (err) {
+        console.error("Fetch profile error:", err);
+        this.showMessage(
+          "Error", 
+          err.response?.data?.message || "Failed to load profile", 
+          "❌"
+        );
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchPreferences() {
+      try {
+        const response = await api.get("/settings/preferences");
+        if (response.data?.status === "success" && response.data?.preferences) {
+          Object.assign(this.preferences, response.data.preferences);
+        }
+      } catch (err) {
+        console.error("Fetch preferences error:", err);
+      }
+    },
+
+    async saveProfile() {
+      if (!this.profile.fullname || !this.profile.email) {
+        this.showMessage("Validation Error", "Name and email are required", "⚠️");
+        return;
+      }
+
+      this.saving = true;
+      try {
+        const response = await api.put("/settings/profile", this.profile);
+        if (response.data?.status === "success") {
+          // Dispatch custom event with updated user data
+          const event = new CustomEvent('user-updated', { 
+            detail: {
+              fullname: this.profile.fullname,
+              username: this.profile.username,
+              email: this.profile.email
+            }
+          });
+          window.dispatchEvent(event);
+          
+          this.showMessage("Success", "Profile updated successfully", "✅");
+        }
+      } catch (err) {
+        console.error("Save profile error:", err);
+        this.showMessage(
+          "Error", 
+          err.response?.data?.message || "Failed to update profile", 
+          "❌"
+        );
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    async savePreferences() {
+      this.saving = true;
+      try {
+        const response = await api.put("/settings/preferences", this.preferences);
+        if (response.data?.status === "success") {
+          this.showMessage("Success", "Preferences saved successfully", "✅");
+        }
+      } catch (err) {
+        console.error("Save preferences error:", err);
+        this.showMessage(
+          "Error", 
+          err.response?.data?.message || "Failed to save preferences", 
+          "❌"
+        );
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    // Alias for savePreferences to use in notifications tab
+    saveNotifications() {
+      return this.savePreferences();
+    },
+
+    async updatePassword() {
+      if (!this.security.currentPassword) {
+        this.showMessage("Validation Error", "Current password is required", "⚠️");
+        return;
+      }
+      if (!this.security.newPassword) {
+        this.showMessage("Validation Error", "New password is required", "⚠️");
+        return;
+      }
+      if (this.security.newPassword.length < 8) {
+        this.showMessage("Validation Error", "Password must be at least 8 characters", "⚠️");
+        return;
+      }
+      if (this.security.newPassword !== this.security.confirmPassword) {
+        this.showMessage("Validation Error", "Passwords do not match", "⚠️");
+        return;
+      }
+
+      this.saving = true;
+      try {
+        const response = await api.post("/settings/change-password", {
+          currentPassword: this.security.currentPassword,
+          newPassword: this.security.newPassword
+        });
+        
+        if (response.data?.status === "success") {
+          this.showMessage("Success", "Password updated successfully", "✅");
+          this.security.currentPassword = "";
+          this.security.newPassword = "";
+          this.security.confirmPassword = "";
+        }
+      } catch (err) {
+        console.error("Update password error:", err);
+        this.showMessage(
+          "Error", 
+          err.response?.data?.message || "Failed to update password", 
+          "❌"
+        );
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    async saveAllSettings() {
+      this.saving = true;
+      try {
+        await this.saveProfile();
+        await this.savePreferences();
+        this.showMessage("Success", "All settings saved successfully", "✅");
+      } catch (err) {
+        console.error("Save all error:", err);
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    triggerFileUpload() {
+      this.$refs.fileInput?.click();
+    },
+
+    async handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (file.size > 5 * 1024 * 1024) {
+        this.showMessage("Error", "File size must be less than 5MB", "❌");
+        return;
+      }
+      
+      if (!file.type.match(/image\/(jpeg|png)/)) {
+        this.showMessage("Error", "Only JPG and PNG files are allowed", "❌");
+        return;
+      }
+      
+      this.uploading = true;
+      const formData = new FormData();
+      formData.append("avatar", file);
+      
+      try {
+        const response = await api.post("/settings/avatar", formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        
+        if (response.data?.status === "success") {
+          this.showMessage("Success", "Photo uploaded successfully", "✅");
+        }
+      } catch (err) {
+        console.error("Upload error:", err);
+        this.showMessage("Error", err.response?.data?.message || "Failed to upload photo", "❌");
+      } finally {
+        this.uploading = false;
+        event.target.value = "";
+      }
+    }
+  },
+
+  async mounted() {
+    await this.fetchProfile();
+    await this.fetchPreferences();
   }
-}
+};
 </script>
+
+<style scoped>
+.transition-colors {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+</style>

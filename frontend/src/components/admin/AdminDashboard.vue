@@ -1,137 +1,377 @@
 <template>
   <AdminLayout active-page="dashboard">
-    <!-- Header Slot -->
     <template #header-left>
-      <input 
-        type="text" 
-        v-model="searchQuery"
-        placeholder="Search..." 
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-        @input="handleSearch"
-      >
+      <div class="flex items-center gap-3 w-full">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Search recent activity..."
+          class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
+        />
+
+        <button
+          @click="fetchDashboard"
+          class="px-4 py-2 rounded-md text-sm font-semibold shadow-sm border bg-green-700 text-white border-green-700 hover:bg-green-800"
+          title="Refresh dashboard"
+        >
+          ↻ Refresh
+        </button>
+      </div>
     </template>
-    
-    <!-- Main Content -->
+
     <div>
-      <h2 class="text-lg font-bold text-green-800 mb-6">📊 Dashboard Overview</h2>
+      <div class="flex items-start justify-between gap-4 mb-2">
+        <div>
+          <h2 class="text-lg font-bold text-green-800">📊 Admin Dashboard</h2>
+          <p class="text-xs text-gray-500 mt-1">
+            Real-time totals from your database (Driving + TESDA)
+          </p>
+        </div>
+
+        <div v-if="loading" class="text-xs text-gray-500 mt-1">Loading…</div>
+        <div v-else-if="error" class="text-xs text-red-600 mt-1">{{ error }}</div>
+      </div>
 
       <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-green-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-3xl font-bold text-green-800">{{ dashboardStats.totalStudents }}</h3>
+              <h3 class="text-3xl font-bold text-green-800">{{ stats.totalStudents }}</h3>
               <p class="text-green-700 font-medium mt-1">Total Students</p>
-              <p class="text-sm text-green-600 mt-1">↑ 12% from last month</p>
+              <p class="text-xs text-green-700 mt-1">
+                Users: {{ stats.totalUsers }} • Instructors: {{ stats.totalInstructors }} • Trainers: {{ stats.totalTrainers }}
+              </p>
             </div>
             <div class="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center">
               <span class="text-2xl">👨‍🎓</span>
             </div>
           </div>
         </div>
-        
+
         <div class="bg-blue-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-3xl font-bold text-blue-800">{{ dashboardStats.activeCourses }}</h3>
+              <h3 class="text-3xl font-bold text-blue-800">{{ stats.activeCoursesTotal }}</h3>
               <p class="text-blue-700 font-medium mt-1">Active Courses</p>
-              <p class="text-sm text-blue-600 mt-1">3 new this quarter</p>
+              <p class="text-xs text-blue-700 mt-1">
+                Driving: {{ stats.activeDrivingCourses }} • TESDA: {{ stats.activeTesdaCourses }}
+              </p>
             </div>
             <div class="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center">
               <span class="text-2xl">📚</span>
             </div>
           </div>
         </div>
-        
+
         <div class="bg-yellow-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-3xl font-bold text-yellow-800">{{ dashboardStats.pendingEnrollments }}</h3>
-              <p class="text-yellow-700 font-medium mt-1">Pending Enrollments</p>
-              <p class="text-sm text-yellow-600 mt-1">Needs attention</p>
+              <h3 class="text-3xl font-bold text-yellow-800">{{ stats.pendingReservationsTotal }}</h3>
+              <p class="text-yellow-700 font-medium mt-1">Pending Reservations</p>
+              <p class="text-xs text-yellow-700 mt-1">
+                Driving: {{ stats.pendingDriving }} • TESDA: {{ stats.pendingTesda }}
+              </p>
             </div>
             <div class="w-12 h-12 bg-yellow-200 rounded-full flex items-center justify-center">
               <span class="text-2xl">⏳</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Recent Enrollments Table -->
-      <div class="overflow-x-auto mb-10">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-md font-semibold text-green-800">Recent Enrollments</h3>
-          <button @click="viewAllEnrollments" class="text-green-700 hover:text-green-800 font-medium text-sm">
-            View All →
-          </button>
+        <div class="bg-purple-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-3xl font-bold text-purple-800">{{ stats.paymentsForVerification }}</h3>
+              <p class="text-purple-700 font-medium mt-1">Payments to Verify</p>
+              <p class="text-xs text-purple-700 mt-1">
+                Paid: {{ stats.paidCount }} • Total Paid: ₱{{ formatMoney(stats.paidAmountPeso) }}
+              </p>
+            </div>
+            <div class="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
+              <span class="text-2xl">💳</span>
+            </div>
+          </div>
         </div>
-        <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-          <thead class="bg-green-800 text-white">
-            <tr>
-              <th class="py-3 px-4 text-left font-medium">Student</th>
-              <th class="py-3 px-4 text-left font-medium">Course</th>
-              <th class="py-3 px-4 text-left font-medium">Date</th>
-              <th class="py-3 px-4 text-left font-medium">Status</th>
-              <th class="py-3 px-4 text-left font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="enrollment in filteredEnrollments" :key="enrollment.id" 
-                class="border-b hover:bg-gray-50 transition-colors">
-              <td class="py-3 px-4 flex items-center gap-2">
-                <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm">
-                  {{ getInitials(enrollment.student) }}
-                </div>
-                {{ enrollment.student }}
-              </td>
-              <td class="py-3 px-4">{{ enrollment.course }}</td>
-              <td class="py-3 px-4">{{ formatDate(enrollment.date) }}</td>
-              <td class="py-3 px-4">
-                <span :class="statusClass(enrollment.status)">
-                  {{ enrollment.status }}
-                </span>
-              </td>
-              <td class="py-3 px-4">
-                <button @click="viewEnrollment(enrollment)" 
-                        class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-3">
-                  View
-                </button>
-                <button v-if="enrollment.status === 'Pending'" 
-                        @click="approveEnrollment(enrollment)"
-                        class="text-green-600 hover:text-green-800 text-sm font-medium">
-                  Approve
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
 
-      <!-- Charts Section -->
+      <!-- Quick Links -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <button @click="goReservations" class="text-left bg-white p-4 rounded-xl shadow-sm border hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-green-800">Reservations</div>
+              <div class="text-xs text-gray-500">Approve / manage</div>
+            </div>
+            <div class="text-2xl">🧾</div>
+          </div>
+        </button>
+
+        <button @click="goCourses" class="text-left bg-white p-4 rounded-xl shadow-sm border hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-green-800">Courses</div>
+              <div class="text-xs text-gray-500">Driving + TESDA</div>
+            </div>
+            <div class="text-2xl">📚</div>
+          </div>
+        </button>
+
+        <button @click="goUsers" class="text-left bg-white p-4 rounded-xl shadow-sm border hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-green-800">Users</div>
+              <div class="text-xs text-gray-500">Manage accounts</div>
+            </div>
+            <div class="text-2xl">👥</div>
+          </div>
+        </button>
+
+        <button @click="goReports" class="text-left bg-white p-4 rounded-xl shadow-sm border hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-green-800">Reports</div>
+              <div class="text-xs text-gray-500">Exports + analytics</div>
+            </div>
+            <div class="text-2xl">📈</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Upcoming schedules -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-indigo-100 p-5 rounded-lg shadow-sm border">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-3xl font-bold text-indigo-800">{{ upcomingSchedules.total }}</div>
+              <div class="text-sm font-medium text-indigo-700 mt-1">Upcoming Schedules (Total)</div>
+            </div>
+            <div class="text-2xl">📅</div>
+          </div>
+        </div>
+
+        <div class="bg-green-100 p-5 rounded-lg shadow-sm border">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-3xl font-bold text-green-800">{{ upcomingSchedules.driving }}</div>
+              <div class="text-sm font-medium text-green-700 mt-1">Upcoming Driving</div>
+            </div>
+            <div class="text-2xl">🚗</div>
+          </div>
+        </div>
+
+        <div class="bg-blue-100 p-5 rounded-lg shadow-sm border">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-3xl font-bold text-blue-800">{{ upcomingSchedules.tesda }}</div>
+              <div class="text-sm font-medium text-blue-700 mt-1">Upcoming TESDA</div>
+            </div>
+            <div class="text-2xl">🛠️</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Courses this month -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-10">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-green-800 font-semibold">Top Courses this Month</h3>
+            <p class="text-xs text-gray-500">
+              Based on reservations from {{ topCourses.month_start }} to {{ topCourses.next_month_start }}
+            </p>
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              @click="activeTopTab='driving'"
+              class="px-3 py-2 rounded-md text-sm font-semibold border"
+              :class="activeTopTab==='driving' ? 'bg-green-700 text-white border-green-700' : 'bg-white text-green-800'"
+            >
+              🚗 Driving
+            </button>
+            <button
+              @click="activeTopTab='tesda'"
+              class="px-3 py-2 rounded-md text-sm font-semibold border"
+              :class="activeTopTab==='tesda' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white text-blue-800'"
+            >
+              🛠️ TESDA
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="py-3 px-4 text-left font-medium">#</th>
+                <th class="py-3 px-4 text-left font-medium">Course</th>
+                <th class="py-3 px-4 text-left font-medium">Reservations</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(c, idx) in topCoursesRows"
+                :key="`${activeTopTab}-${c.course_id}`"
+                class="border-b hover:bg-gray-50"
+              >
+                <td class="py-3 px-4">{{ idx + 1 }}</td>
+                <td class="py-3 px-4">{{ c.course_name }}</td>
+                <td class="py-3 px-4 font-semibold">{{ c.reservations }}</td>
+              </tr>
+
+              <tr v-if="!loading && topCoursesRows.length === 0">
+                <td colspan="3" class="py-6 px-4 text-center text-gray-500">No data this month.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Charts -->
       <div class="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-green-800 font-semibold">Monthly Enrollment Trends</h3>
-            <select v-model="chartYear" @change="updateBarChart" class="text-sm border rounded px-2 py-1">
-              <option v-for="year in [2024, 2025, 2026]" :key="year" :value="year">
-                {{ year }}
-              </option>
-            </select>
+            <h3 class="text-green-800 font-semibold">Monthly Enrollments (last 12 months)</h3>
           </div>
           <div class="h-64">
             <canvas ref="barChartCanvas"></canvas>
           </div>
         </div>
-        
+
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-green-800 font-semibold">Enrollment Status Distribution</h3>
-            <button @click="refreshChart" class="text-sm text-green-700 hover:text-green-800">
-              ↻ Refresh
-            </button>
+            <h3 class="text-green-800 font-semibold">Reservation Status (combined)</h3>
           </div>
           <div class="h-64">
             <canvas ref="pieChartCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Table (PAGINATED) -->
+      <div class="overflow-x-auto mb-10 mt-10">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-md font-semibold text-green-800">Recent Reservations</h3>
+            <span class="text-xs text-gray-500">
+              Showing {{ pageRangeText }}
+            </span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 text-xs text-gray-600">
+              Rows:
+              <select
+                v-model.number="pageSize"
+                class="border rounded-md px-2 py-1 text-sm"
+              >
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+              </select>
+            </div>
+
+            <button
+              @click="goReservations"
+              class="text-green-700 hover:text-green-800 font-medium text-sm"
+            >
+              Manage Reservations →
+            </button>
+          </div>
+        </div>
+
+        <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+          <thead class="bg-green-800 text-white">
+            <tr>
+              <th class="py-3 px-4 text-left font-medium">Track</th>
+              <th class="py-3 px-4 text-left font-medium">Student</th>
+              <th class="py-3 px-4 text-left font-medium">Course</th>
+              <th class="py-3 px-4 text-left font-medium">Schedule</th>
+              <th class="py-3 px-4 text-left font-medium">Status</th>
+              <th class="py-3 px-4 text-left font-medium">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in paginatedRecent"
+              :key="`${row.track}-${row.id}`"
+              class="border-b hover:bg-gray-50 transition-colors"
+            >
+              <td class="py-3 px-4">
+                <span
+                  class="px-2 py-1 rounded-full text-xs font-semibold"
+                  :class="row.track === 'TESDA' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'"
+                >
+                  {{ row.track }}
+                </span>
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm">
+                    {{ getInitials(row.student_name || '—') }}
+                  </div>
+                  <span class="truncate max-w-[220px]">{{ row.student_name || '—' }}</span>
+                </div>
+              </td>
+              <td class="py-3 px-4">
+                <span class="truncate max-w-[280px] inline-block">{{ row.course_name || '—' }}</span>
+              </td>
+              <td class="py-3 px-4">
+                <div class="text-xs text-gray-700">
+                  <div>{{ row.schedule_date ? formatDate(row.schedule_date) : '—' }}</div>
+                  <div class="text-gray-500" v-if="row.start_time && row.end_time">
+                    {{ row.start_time }} - {{ row.end_time }}
+                  </div>
+                </div>
+              </td>
+              <td class="py-3 px-4">
+                <span :class="statusPill(row.status)">{{ row.status || '—' }}</span>
+              </td>
+              <td class="py-3 px-4">{{ row.created_at ? formatDateTime(row.created_at) : '—' }}</td>
+            </tr>
+
+            <tr v-if="!loading && filteredRecent.length === 0">
+              <td colspan="6" class="py-6 px-4 text-center text-gray-500">
+                No recent reservations found.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination controls (same vibe) -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-4">
+          <div class="text-xs text-gray-500">
+            Page {{ page }} of {{ pageCount }}
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              @click="pagePrev"
+              :disabled="page <= 1"
+              class="px-3 py-1.5 rounded-md border text-sm font-semibold"
+              :class="page <= 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-50'"
+            >
+              Prev
+            </button>
+
+            <button
+              v-for="p in pageButtons"
+              :key="p"
+              @click="page = p"
+              class="px-3 py-1.5 rounded-md border text-sm font-semibold"
+              :class="p === page ? 'bg-green-700 text-white border-green-700' : 'bg-white hover:bg-gray-50'"
+            >
+              {{ p }}
+            </button>
+
+            <button
+              @click="pageNext"
+              :disabled="page >= pageCount"
+              class="px-3 py-1.5 rounded-md border text-sm font-semibold"
+              :class="page >= pageCount ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-50'"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
@@ -140,212 +380,336 @@
 </template>
 
 <script>
-import AdminLayout from './AdminLayout.vue';
-import Chart from 'chart.js/auto';
+import AdminLayout from "./AdminLayout.vue";
+import Chart from "chart.js/auto";
 
 export default {
-  name: 'AdminDashboard',
-  components: {
-    AdminLayout
-  },
+  name: "AdminDashboard",
+  components: { AdminLayout },
   data() {
     return {
-      searchQuery: '',
-      chartYear: 2025,
-      dashboardStats: {
-        totalStudents: 230,
-        activeCourses: 15,
-        pendingEnrollments: 8
+      searchQuery: "",
+      loading: false,
+      error: "",
+
+      // new
+      activeTopTab: "driving",
+      topCourses: { month_start: "", next_month_start: "", driving: [], tesda: [] },
+      upcomingSchedules: { total: 0, driving: 0, tesda: 0 },
+
+      // pagination
+      page: 1,
+      pageSize: 10,
+
+      stats: {
+        totalUsers: 0,
+        totalStudents: 0,
+        totalInstructors: 0,
+        totalTrainers: 0,
+        activeDrivingCourses: 0,
+        activeTesdaCourses: 0,
+        activeCoursesTotal: 0,
+        pendingDriving: 0,
+        pendingTesda: 0,
+        pendingReservationsTotal: 0,
+        paymentsForVerification: 0,
+        paidCount: 0,
+        paidAmountPeso: 0,
       },
-      enrollments: [
-        { id: 1, student: 'John Doe', course: 'Driving NC II', date: '2025-11-01', status: 'Approved' },
-        { id: 2, student: 'Jane Smith', course: 'ATDC NC I', date: '2025-10-29', status: 'Pending' },
-        { id: 3, student: 'Michael Reyes', course: 'Driving NC II', date: '2025-10-27', status: 'Approved' },
-        { id: 4, student: 'Sarah Johnson', course: 'Cookery NC II', date: '2025-10-25', status: 'Pending' },
-        { id: 5, student: 'Robert Chen', course: 'Bread & Pastry', date: '2025-10-23', status: 'Rejected' },
-        { id: 6, student: 'Lisa Wang', course: 'Driving NC II', date: '2025-10-20', status: 'Approved' }
-      ],
+      recent: [],
+      trends: { labels: [], driving: [], tesda: [] },
+      buckets: { ENROLLED: 0, PENDING: 0, REJECTED: 0, CANCELLED: 0, OTHER: 0 },
       barChart: null,
-      pieChart: null
-    }
+      pieChart: null,
+    };
   },
   computed: {
-    filteredEnrollments() {
-      if (!this.searchQuery) return this.enrollments;
-      
-      const query = this.searchQuery.toLowerCase();
-      return this.enrollments.filter(enrollment => 
-        enrollment.student.toLowerCase().includes(query) ||
-        enrollment.course.toLowerCase().includes(query) ||
-        enrollment.status.toLowerCase().includes(query)
-      );
-    }
+    filteredRecent() {
+      const base = Array.isArray(this.recent) ? this.recent : [];
+      if (!this.searchQuery) return base;
+
+      const q = this.searchQuery.toLowerCase();
+      return base.filter((r) => {
+        return (
+          String(r.track || "").toLowerCase().includes(q) ||
+          String(r.student_name || "").toLowerCase().includes(q) ||
+          String(r.course_name || "").toLowerCase().includes(q) ||
+          String(r.status || "").toLowerCase().includes(q)
+        );
+      });
+    },
+
+    // pagination derived
+    pageCount() {
+      const total = this.filteredRecent.length;
+      return Math.max(1, Math.ceil(total / this.pageSize));
+    },
+    paginatedRecent() {
+      const start = (this.page - 1) * this.pageSize;
+      return this.filteredRecent.slice(start, start + this.pageSize);
+    },
+    pageRangeText() {
+      const total = this.filteredRecent.length;
+      if (total === 0) return "0 of 0";
+
+      const start = (this.page - 1) * this.pageSize + 1;
+      const end = Math.min(this.page * this.pageSize, total);
+      return `${start}-${end} of ${total}`;
+    },
+    pageButtons() {
+      // show up to 5 buttons, centered
+      const total = this.pageCount;
+      const cur = this.page;
+
+      const maxBtns = 5;
+      let start = Math.max(1, cur - 2);
+      let end = Math.min(total, start + maxBtns - 1);
+      start = Math.max(1, end - maxBtns + 1);
+
+      const out = [];
+      for (let i = start; i <= end; i++) out.push(i);
+      return out;
+    },
+
+    // top courses
+    topCoursesRows() {
+      return this.activeTopTab === "tesda" ? (this.topCourses.tesda || []) : (this.topCourses.driving || []);
+    },
+  },
+  watch: {
+    // reset page when search/page size changes to avoid blank page
+    searchQuery() {
+      this.page = 1;
+    },
+    pageSize() {
+      this.page = 1;
+    },
+    // clamp page if dataset shrinks
+    pageCount() {
+      if (this.page > this.pageCount) this.page = this.pageCount;
+      if (this.page < 1) this.page = 1;
+    },
   },
   mounted() {
-    this.initializeCharts();
     this.checkAuth();
+    this.fetchDashboard();
   },
   beforeUnmount() {
     if (this.barChart) this.barChart.destroy();
     if (this.pieChart) this.pieChart.destroy();
   },
   methods: {
+    pagePrev() {
+      if (this.page > 1) this.page--;
+    },
+    pageNext() {
+      if (this.page < this.pageCount) this.page++;
+    },
+
     async checkAuth() {
       try {
-        const response = await fetch('/api/auth/check', {
-          credentials: 'include'
-        });
+        const response = await fetch("/api/auth/check", { credentials: "include" });
         const data = await response.json();
-        
-        if (data.status !== 'success' || !data.authenticated) {
-          window.location.href = '/login.html';
-        } else if (data.user.role !== 'admin') {
-          window.location.href = '/student-dashboard.html';
+        if (data.status !== "success" || !data.authenticated) {
+          window.location.href = "/login.html";
+        } else if (String(data.user.role || "").toLowerCase() !== "admin") {
+          window.location.href = "/student-dashboard.html";
         }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        window.location.href = '/login.html';
+      } catch (e) {
+        window.location.href = "/login.html";
       }
     },
-    
-    initializeCharts() {
-      // Bar Chart
-      const barCtx = this.$refs.barChartCanvas.getContext('2d');
-      this.barChart = new Chart(barCtx, {
-        type: 'bar',
-        data: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-          datasets: [{
-            label: 'Enrollments',
-            data: [15, 20, 25, 30, 40, 35, 50, 60, 55, 70, 65, 45],
-            backgroundColor: '#16a34a',
-            borderRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: { 
-            y: { 
-              beginAtZero: true,
-              grid: { display: true },
-              ticks: { stepSize: 10 }
-            },
-            x: { 
-              grid: { display: false }
-            }
-          },
-          plugins: { 
-            legend: { display: false },
-            tooltip: { mode: 'index', intersect: false }
-          }
-        }
-      });
 
-      // Pie Chart
-      const pieCtx = this.$refs.pieChartCanvas.getContext('2d');
-      this.pieChart = new Chart(pieCtx, {
-        type: 'pie',
-        data: {
-          labels: ['Approved', 'Pending', 'Rejected'],
-          datasets: [{
-            data: [120, 35, 10],
-            backgroundColor: ['#22c55e', '#facc15', '#ef4444'],
-            borderWidth: 2,
-            borderColor: '#ffffff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { padding: 20 }
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = Math.round((value / total) * 100);
-                  return `${label}: ${value} (${percentage}%)`;
-                }
-              }
-            }
-          }
+    async fetchDashboard() {
+      this.loading = true;
+      this.error = "";
+      try {
+        const resp = await fetch("/api/admin/dashboard/summary", { credentials: "include" });
+        const json = await resp.json();
+        if (!resp.ok || json.status !== "success") {
+          throw new Error(json.message || "Failed to load dashboard");
         }
-      });
-    },
-    
-    updateBarChart() {
-      // Update bar chart data based on selected year
-      const dataMap = {
-        2024: [10, 15, 20, 25, 30, 25, 40, 45, 40, 50, 45, 35],
-        2025: [15, 20, 25, 30, 40, 35, 50, 60, 55, 70, 65, 45],
-        2026: [20, 25, 30, 35, 45, 40, 55, 65, 60, 75, 70, 50]
-      };
-      
-      this.barChart.data.datasets[0].data = dataMap[this.chartYear];
-      this.barChart.update();
-    },
-    
-    refreshChart() {
-      // Refresh pie chart with updated data
-      const approved = Math.floor(Math.random() * 50) + 100;
-      const pending = Math.floor(Math.random() * 20) + 20;
-      const rejected = Math.floor(Math.random() * 10) + 5;
-      
-      this.pieChart.data.datasets[0].data = [approved, pending, rejected];
-      this.pieChart.update();
-    },
-    
-    getInitials(name) {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-    },
-    
-    formatDate(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-    },
-    
-    statusClass(status) {
-      return {
-        'text-green-600 font-semibold': status === 'Approved',
-        'text-yellow-600 font-semibold': status === 'Pending',
-        'text-red-600 font-semibold': status === 'Rejected'
-      };
-    },
-    
-    handleSearch() {
-      // Search logic handled by computed property
-    },
-    
-    viewAllEnrollments() {
-      window.location.href = '/admin-students.html';
-    },
-    
-    viewEnrollment(enrollment) {
-      alert(`Viewing enrollment for ${enrollment.student}`);
-      // Implement detailed view
-    },
-    
-    approveEnrollment(enrollment) {
-      if (confirm(`Approve enrollment for ${enrollment.student}?`)) {
-        enrollment.status = 'Approved';
-        this.dashboardStats.pendingEnrollments -= 1;
-        this.refreshChart();
+
+        const d = json.data;
+
+        this.stats.totalUsers = d.users?.total || 0;
+        this.stats.totalStudents = d.users?.students || 0;
+        this.stats.totalInstructors = d.users?.instructors || 0;
+        this.stats.totalTrainers = d.users?.trainers || 0;
+
+        this.stats.activeDrivingCourses = d.courses?.driving?.active || 0;
+        this.stats.activeTesdaCourses = d.courses?.tesda?.active || 0;
+        this.stats.activeCoursesTotal = this.stats.activeDrivingCourses + this.stats.activeTesdaCourses;
+
+        this.stats.pendingDriving = d.reservations?.pending_driving || 0;
+        this.stats.pendingTesda = d.reservations?.pending_tesda || 0;
+        this.stats.pendingReservationsTotal = d.reservations?.pending_total || 0;
+
+        this.stats.paymentsForVerification = d.payments?.for_verification || 0;
+        this.stats.paidCount = d.payments?.paid_count || 0;
+        this.stats.paidAmountPeso = d.payments?.paid_amount_peso || 0;
+
+        this.recent = Array.isArray(d.recent) ? d.recent : [];
+        this.trends = d.trends || { labels: [], driving: [], tesda: [] };
+        this.buckets = d.reservations?.buckets || this.buckets;
+
+        // new blocks
+        this.upcomingSchedules = d.upcoming_schedules || { total: 0, driving: 0, tesda: 0 };
+        this.topCourses = d.top_courses || { month_start: "", next_month_start: "", driving: [], tesda: [] };
+
+        // reset page after fetch
+        this.page = 1;
+
+        this.renderCharts();
+      } catch (err) {
+        console.error(err);
+        this.error = err.message || "Dashboard error";
+      } finally {
+        this.loading = false;
       }
-    }
-  }
-}
+    },
+
+    renderCharts() {
+      if (this.barChart) {
+        this.barChart.destroy();
+        this.barChart = null;
+      }
+      if (this.pieChart) {
+        this.pieChart.destroy();
+        this.pieChart = null;
+      }
+
+      const barCtx = this.$refs.barChartCanvas?.getContext("2d");
+      if (barCtx) {
+        this.barChart = new Chart(barCtx, {
+          type: "bar",
+          data: {
+            labels: this.trends.labels || [],
+            datasets: [
+              { label: "Driving", data: this.trends.driving || [], backgroundColor: "#16a34a", borderRadius: 4 },
+              { label: "TESDA", data: this.trends.tesda || [], backgroundColor: "#1d4ed8", borderRadius: 4 },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 5 } },
+              x: { grid: { display: false } },
+            },
+            plugins: { legend: { position: "bottom" }, tooltip: { mode: "index", intersect: false } },
+          },
+        });
+      }
+
+      const pieCtx = this.$refs.pieChartCanvas?.getContext("2d");
+      if (pieCtx) {
+        const labels = ["Enrolled", "Pending", "Rejected", "Cancelled", "Other"];
+        const values = [
+          this.buckets.ENROLLED || 0,
+          this.buckets.PENDING || 0,
+          this.buckets.REJECTED || 0,
+          this.buckets.CANCELLED || 0,
+          this.buckets.OTHER || 0,
+        ];
+
+        this.pieChart = new Chart(pieCtx, {
+          type: "pie",
+          data: {
+            labels,
+            datasets: [
+              {
+                data: values,
+                backgroundColor: ["#22c55e", "#facc15", "#ef4444", "#64748b", "#a855f7"],
+                borderWidth: 2,
+                borderColor: "#ffffff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom" },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.label || "";
+                    const value = context.raw || 0;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const pct = total ? Math.round((value / total) * 100) : 0;
+                    return `${label}: ${value} (${pct}%)`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+    },
+
+    // routes (adjust if your paths differ)
+    goReservations() {
+      this.$router.push("/admin-reservations");
+    },
+    goUsers() {
+      this.$router.push("/admin-users");
+    },
+    goCourses() {
+      this.$router.push("/admin-courses");
+    },
+    goReports() {
+      this.$router.push("/admin-reports");
+    },
+
+    getInitials(name) {
+      const safe = String(name || "").trim();
+      if (!safe) return "—";
+      return safe
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase();
+    },
+
+    formatDate(dateLike) {
+      const d = new Date(dateLike);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    },
+
+    formatDateTime(dateLike) {
+      const d = new Date(dateLike);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    },
+
+    formatMoney(n) {
+      const v = Number(n) || 0;
+      return v.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+
+    statusPill(status) {
+      const st = String(status || "").toUpperCase();
+      if (["DONE", "COMPLETED", "FINISHED"].includes(st)) return "px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700";
+      if (["CONFIRMED", "APPROVED", "ACTIVE"].includes(st)) return "px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700";
+      if (st === "PENDING") return "px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800";
+      if (st === "REJECTED") return "px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700";
+      if (st === "CANCELLED" || st === "CANCELED") return "px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700";
+      return "px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700";
+    },
+  },
+};
 </script>
 
 <style scoped>
-/* Add any custom styles here */
+/* no extra */
 </style>

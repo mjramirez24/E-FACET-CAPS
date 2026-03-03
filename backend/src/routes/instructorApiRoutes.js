@@ -6,6 +6,9 @@ const {
   requireInstructor,
 } = require("../middlewares/authMiddleware");
 
+// ✅ protect everything
+router.use("/instructor", requireAuth, requireInstructor);
+
 const instructorStudentsController = require("../controllers/instructorStudentsController");
 const {
   getDrivingInstructorClasses,
@@ -15,10 +18,6 @@ const { getTesdaClasses } = require("../controllers/tesdaClassesController");
 const {
   getInstructorSchedulesList,
 } = require("../controllers/instructorScheduleController");
-
-// ✅ protect everything
-router.use(requireAuth);
-router.use(requireInstructor);
 
 // ✅ debug route para sure ka na gumagana ang mount
 router.get("/instructor/ping", (req, res) => {

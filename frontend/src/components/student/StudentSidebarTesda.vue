@@ -75,6 +75,12 @@
 
 <script>
 import { useRouter } from "vue-router";
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
 
 export default {
   name: "StudentSidebarTesda",
@@ -83,7 +89,13 @@ export default {
     return { router };
   },
   data() {
-    return { user: {} };
+    return { 
+      user: {
+        fullname: "",
+        username: "",
+        email: ""
+      }
+    };
   },
   computed: {
     userInitial() {
@@ -91,10 +103,6 @@ export default {
       if (this.user.username) return this.user.username.charAt(0).toUpperCase();
       return "S";
     },
-  },
-  mounted() {
-    const userData = localStorage.getItem("user");
-    if (userData) this.user = JSON.parse(userData);
   },
   methods: {
     linkClass(routeName) {
@@ -105,20 +113,54 @@ export default {
           : "hover:bg-gray-200",
       ];
     },
+
+    async fetchUserData() {
+      try {
+        const response = await api.get("/settings/profile");
+        if (response.data?.status === "success" && response.data?.profile) {
+          this.user = {
+            fullname: response.data.profile.fullname || "",
+            username: response.data.profile.username || "",
+            email: response.data.profile.email || ""
+          };
+        }
+      } catch (err) {
+        console.error("Fetch user data error:", err);
+        // If unauthorized, redirect to login
+        if (err.response?.status === 401) {
+          this.router.push("/login");
+        }
+      }
+    },
+
+    handleUserUpdate(event) {
+      this.user = event.detail;
+    },
+
     async logout() {
       try {
-        const response = await fetch("/api/auth/logout", { credentials: "include" });
+        const response = await fetch("/api/auth/logout", { 
+          credentials: "include" 
+        });
         const data = await response.json();
         if (data.status === "success") {
-          localStorage.removeItem("user");
           this.router.push("/login");
         }
       } catch (err) {
-        localStorage.removeItem("user");
+        console.error("Logout error:", err);
         this.router.push("/login");
       }
     },
   },
+
+  async mounted() {
+    await this.fetchUserData();
+    window.addEventListener('user-updated', this.handleUserUpdate);
+  },
+
+  beforeUnmount() {
+    window.removeEventListener('user-updated', this.handleUserUpdate);
+  }
 };
 </script>
 

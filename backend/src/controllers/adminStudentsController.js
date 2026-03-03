@@ -35,14 +35,7 @@ function normalizeGender(v) {
   if (!s) return null;
   if (s === "m" || s === "male" || s === "lalaki") return "male";
   if (s === "f" || s === "female" || s === "babae") return "female";
-  // fallback: keep original string (but trimmed)
   return safeStr(v) || null;
-}
-function truthy(v) {
-  const s = String(v ?? "")
-    .toLowerCase()
-    .trim();
-  return v === true || s === "true" || s === "1" || s === "yes" || s === "y";
 }
 
 async function getTableColumns(tableName) {
@@ -93,6 +86,35 @@ async function resolveInstructorIdOrDefault(instructor_name) {
   if (any?.[0]?.instructor_id) return Number(any[0].instructor_id);
 
   throw new Error("No instructors found. Add at least 1 instructor first.");
+}
+
+// ------------------------
+// INTERNAL: get course fee (peso) from courses table
+// ------------------------
+async function getCourseFeePeso(courseId) {
+  const cols = await getTableColumns("courses");
+
+  // your schema shows course_fee, but keep fallback options just in case
+  const feeCol = cols.has("course_fee")
+    ? "course_fee"
+    : cols.has("fee")
+      ? "fee"
+      : cols.has("amount")
+        ? "amount"
+        : null;
+
+  if (!feeCol) return 0;
+
+  const [rows] = await pool.execute(
+    `SELECT ${feeCol} AS fee FROM courses WHERE id = ? LIMIT 1`,
+    [courseId],
+  );
+
+  const raw = rows?.[0]?.fee;
+
+  // handle: number, string, "0.00"
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
 }
 
 // ------------------------
@@ -231,12 +253,10 @@ async function generateUniqueUsername(preferred) {
     basePref ||
     `walkin_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
 
-  // avoid empty string which caused duplicate '' earlier
   if (!safeStr(base)) {
     base = `walkin_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
   }
 
-  // if base already taken, add suffix until unique
   for (let i = 0; i < 10; i++) {
     const candidate =
       i === 0 ? base : `${base}_${Math.floor(Math.random() * 9000 + 1000)}`;
@@ -247,7 +267,6 @@ async function generateUniqueUsername(preferred) {
     if (!rows?.length) return candidate;
   }
 
-  // last resort
   return `walkin_${Date.now()}_${Math.floor(Math.random() * 900000 + 100000)}`;
 }
 
@@ -263,18 +282,18 @@ async function applyPaidIfRequested({
   studentId,
   courseId,
   payment_method,
-  paid_amount_peso,
+  paid_amount_peso, // <-- NOW should come from courses.course_fee (unless overridden)
 }) {
-  // TESDA: usually no payment. Driving: user wants "matik bayad".
-  // Rule:
-  // - driving => default paid unless explicitly paid=false
-  // - tesda => only paid if explicitly paid=true
   const payMethod = safeStr(payment_method).toUpperCase() || "CASH";
   const now = new Date();
 
-  const shouldPaid = track === "driving" ? true : false; // default behavior requested by user
-
+  // ✅ your rule: driving = auto paid, tesda = no auto paid by default
+  const shouldPaid = track === "driving";
   if (!shouldPaid) return;
+
+  // amount default from course_fee
+  const peso = Number(paid_amount_peso || 0);
+  const centavos = Number.isFinite(peso) ? Math.round(peso * 100) : 0;
 
   // 1) update schedule_reservations columns if present
   const sets = [];
@@ -297,6 +316,18 @@ async function applyPaidIfRequested({
     params.push(now);
   }
 
+  // optional: if your sr table has an amount column, fill it too
+  if (srCols.has("amount_centavos")) {
+    sets.push("amount_centavos = ?");
+    params.push(centavos);
+  } else if (srCols.has("amount")) {
+    sets.push("amount = ?");
+    params.push(peso);
+  } else if (srCols.has("paid_amount")) {
+    sets.push("paid_amount = ?");
+    params.push(peso);
+  }
+
   if (sets.length) {
     params.push(reservationId);
     await pool.execute(
@@ -312,7 +343,7 @@ async function applyPaidIfRequested({
   const insertVals = [];
   const p = [];
 
-  // required-ish composite keys
+  // keys
   if (spsCols.has("schedule_id")) {
     insertCols.push("schedule_id");
     insertVals.push("?");
@@ -355,21 +386,32 @@ async function applyPaidIfRequested({
     p.push(now);
   }
 
-  // amount
+  // amount fields
   if (spsCols.has("amount_centavos")) {
-    const peso = Number(paid_amount_peso || 0);
-    const centavos = Number.isFinite(peso) ? Math.round(peso * 100) : 0;
     insertCols.push("amount_centavos");
     insertVals.push("?");
     p.push(centavos);
+  } else if (spsCols.has("amount")) {
+    insertCols.push("amount");
+    insertVals.push("?");
+    p.push(peso);
+  } else if (spsCols.has("paid_amount")) {
+    insertCols.push("paid_amount");
+    insertVals.push("?");
+    p.push(peso);
   }
+
   if (spsCols.has("currency")) {
     insertCols.push("currency");
     insertVals.push("?");
     p.push("PHP");
   }
+  if (spsCols.has("payment_method")) {
+    insertCols.push("payment_method");
+    insertVals.push("?");
+    p.push(payMethod);
+  }
 
-  // only insert if we have at least schedule/student/course
   const hasKeys =
     insertCols.includes("schedule_id") &&
     insertCols.includes("student_id") &&
@@ -460,7 +502,6 @@ exports.listStudents = async (req, res) => {
     );
     const total = parseInt(countRows?.[0]?.total ?? 0, 10) || 0;
 
-    // ✅ SAFE: if training_purpose column doesn't exist, return NULL
     const trainingPurposeSelect = srCols.has("training_purpose")
       ? `sr.training_purpose AS training_purpose`
       : `NULL AS training_purpose`;
@@ -538,8 +579,8 @@ exports.listStudents = async (req, res) => {
 
 // ------------------------
 // POST /api/admin/students
-// - IMPORTANT: For DRIVING, when admin adds here => auto PAID + DONE (as requested).
-// - For TESDA, no auto payment by default.
+// - DRIVING: auto PAID + DONE (walk-in)
+// - TESDA: no auto payment by default
 // ------------------------
 exports.createStudent = async (req, res) => {
   const body = req.body || {};
@@ -621,7 +662,7 @@ exports.createStudent = async (req, res) => {
       );
       studentId = Number(uIns.insertId);
     } else {
-      // if user exists, allow updating gender/birthdate/fullname if provided (manual admin fix)
+      // if user exists, allow updating gender/birthdate/fullname if provided
       const uSets = [];
       const uParams = [];
 
@@ -687,20 +728,13 @@ exports.createStudent = async (req, res) => {
       srParams.push(body.source || "walkin");
     }
 
-    // default status:
-    // - driving: will be auto "DONE" below (paid)
-    // - tesda: default CONFIRMED (or provided)
     if (srCols.has("reservation_status")) {
-      const initial =
-        track === "tesda"
-          ? String(body.status || "CONFIRMED").toUpperCase()
-          : String(body.status || "CONFIRMED").toUpperCase();
+      const initial = String(body.status || "CONFIRMED").toUpperCase();
       srInsertCols.push("reservation_status");
       srInsertVals.push("?");
       srParams.push(initial);
     }
 
-    // manual training_purpose stored in schedule_reservations if column exists
     if (srCols.has("training_purpose")) {
       srInsertCols.push("training_purpose");
       srInsertVals.push("?");
@@ -727,7 +761,14 @@ exports.createStudent = async (req, res) => {
 
     const reservationId = Number(srIns.insertId);
 
-    // ✅ AUTO PAID for DRIVING as requested (and safe if payment tables/cols exist)
+    // ✅ AUTO PAID for DRIVING using courses.course_fee (not 0)
+    // if request body provides paid_amount_peso, it can override; otherwise pull from course_fee
+    const feePeso = await getCourseFeePeso(courseId);
+    const paidPeso =
+      body.paid_amount_peso !== undefined && body.paid_amount_peso !== null
+        ? Number(body.paid_amount_peso)
+        : feePeso;
+
     let spsCols = null;
     try {
       spsCols = await getTableColumns("student_payment_submissions");
@@ -744,7 +785,7 @@ exports.createStudent = async (req, res) => {
       studentId,
       courseId,
       payment_method: body.payment_method,
-      paid_amount_peso: body.paid_amount_peso, // optional: if you pass it
+      paid_amount_peso: paidPeso,
     });
 
     return res.json({
@@ -755,6 +796,7 @@ exports.createStudent = async (req, res) => {
         student_id: studentId,
         schedule_id: scheduleId,
         course_id: courseId,
+        paid_amount_peso: track === "driving" ? paidPeso : 0,
       },
     });
   } catch (err) {
@@ -886,7 +928,6 @@ exports.updateStudent = async (req, res) => {
       srParams.push(safeStr(body.training_purpose) || null);
     }
 
-    // optional: allow setting payment_method manually
     if (srCols.has("payment_method") && body.payment_method !== undefined) {
       srSets.push("payment_method = ?");
       srParams.push(safeStr(body.payment_method).toUpperCase() || null);
@@ -920,7 +961,6 @@ exports.deleteStudent = async (req, res) => {
   try {
     if (!reservationId) throw new Error("Invalid reservation_id");
 
-    // load keys
     const [curRows] = await pool.execute(
       `SELECT reservation_id, schedule_id, student_id, course_id FROM schedule_reservations WHERE reservation_id = ? LIMIT 1`,
       [reservationId],
@@ -933,7 +973,6 @@ exports.deleteStudent = async (req, res) => {
       });
     }
 
-    // delete payment submissions if exist
     try {
       const spsCols = await getTableColumns("student_payment_submissions");
       const hasKeys =

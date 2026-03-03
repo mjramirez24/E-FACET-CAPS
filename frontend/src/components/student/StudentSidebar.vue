@@ -7,7 +7,7 @@
         <h1 class="font-bold text-green-900 text-lg">E-FACET Student</h1>
       </div>
 
-      <!-- Navigation - Updated to use router-link -->
+      <!-- Navigation -->
       <nav class="mt-4 space-y-1">
         <router-link 
           to="/student-dashboard" 
@@ -33,7 +33,6 @@
           <span class="ml-2">🗓️ Schedule</span>
         </router-link>
       
-        
         <router-link 
           to="/student-quiz" 
           :class="['flex items-center px-5 py-2 rounded-r-full', 
@@ -92,15 +91,18 @@
 
 <script>
 import { useRouter } from 'vue-router'
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
 
 export default {
   name: 'StudentSidebar',
   setup() {
     const router = useRouter()
-    
-    return {
-      router
-    }
+    return { router }
   },
   data() {
     return {
@@ -117,39 +119,54 @@ export default {
       return 'S';
     }
   },
-  mounted() {
-    // Load user data from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      this.user = JSON.parse(userData);
-    }
-  },
   methods: {
+    async fetchUserData() {
+      try {
+        const response = await api.get("/settings/profile");
+        if (response.data?.status === "success" && response.data?.profile) {
+          this.user = {
+            fullname: response.data.profile.fullname,
+            username: response.data.profile.username,
+            email: response.data.profile.email
+          };
+        }
+      } catch (err) {
+        console.error("Fetch user data error:", err);
+      }
+    },
+
     async logout() {
       try {
-        // Call your logout API if needed
         const response = await fetch('/api/auth/logout', {
           credentials: 'include'
         });
         const data = await response.json();
         
         if (data.status === 'success') {
-          localStorage.removeItem('user');
           this.router.push('/login');
         }
       } catch (error) {
         console.error('Logout error:', error);
-        // Still clear local storage and redirect
-        localStorage.removeItem('user');
         this.router.push('/login');
       }
+    },
+
+    handleUserUpdate(event) {
+      this.user = event.detail;
     }
+  },
+  async mounted() {
+    await this.fetchUserData();
+    window.addEventListener('user-updated', this.handleUserUpdate);
+  },
+  beforeUnmount() {
+    window.removeEventListener('user-updated', this.handleUserUpdate);
   }
 }
 </script>
 
 <style scoped>
-/* Sidebar specific styles - exact same as AdminSidebar */
+/* Sidebar specific styles */
 aside {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e0 transparent;
