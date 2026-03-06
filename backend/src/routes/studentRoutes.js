@@ -14,6 +14,7 @@ const enrollmentAppController = require("../controllers/enrollmentApplicationCon
 const studentScheduleController = require("../controllers/studentScheduleController");
 const studentReservationController = require("../controllers/studentReservationController");
 const studentMyScheduleController = require("../controllers/studentMyScheduleController");
+const mockExamCtrl = require('../controllers/studentMockExamController');
 
 // legacy gcash checkout (optional)
 const studentPaymentsController = require("../controllers/studentPaymentsController");
@@ -233,5 +234,47 @@ router.post(
   uploadSingleProof.single("proof"),
   (req, res) => studentQrphPaymentsController.uploadQrphProof(req, res),
 );
+
+
+router.get('/mock-exam/questions', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.getQuestions(req, res);
+});
+
+// Save a completed attempt
+router.post('/mock-exam/attempts', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.saveAttempt(req, res);
+});
+
+// Get all attempts + mastery map
+router.get('/mock-exam/attempts', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.getAttempts(req, res);
+});
+
+// Delete results for one quiz   e.g. DELETE /api/student/mock-exam/attempts/quiz-3
+router.delete('/mock-exam/attempts/:examId', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.deleteAttemptsByExam(req, res);
+});
+
+// Clear ALL results
+router.delete('/mock-exam/attempts', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.clearAllAttempts(req, res);
+});
+
+// Language preference
+router.get('/mock-exam/language', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.getLanguage(req, res);
+});
+
+router.put('/mock-exam/language', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.updateLanguage(req, res);
+});
+
 
 module.exports = router;

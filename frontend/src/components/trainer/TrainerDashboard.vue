@@ -10,7 +10,7 @@
         />
         <button
           @click="fetchDashboard"
-          class="px-4 py-2 rounded-md text-sm font-semibold shadow-sm border bg-green-700 text-white border-green-700 hover:bg-green-800"
+          class="px-4 py-2 rounded-md text-sm font-semibold shadow-sm border bg-blue-900 text-white border-blue-700 hover:bg-blue-800"
           title="Refresh dashboard"
         >
           ↻ Refresh
@@ -161,17 +161,17 @@
       <!-- Upcoming Schedules Table (with Pagination) -->
       <div class="overflow-x-auto mb-10">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-md font-semibold text-green-800">Upcoming Schedules</h3>
+          <h3 class="text-md font-semibold text-blue-800">Upcoming Schedules</h3>
           <button
             @click="$router.push('/trainer-courses')"
-            class="text-green-700 hover:text-green-800 font-medium text-sm"
+            class="text-blue-700 hover:text-blue-800 font-medium text-sm"
           >
             View All →</button
           >
         </div>
 
         <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-          <thead class="bg-green-800 text-white">
+          <thead class="bg-blue-800 text-white">
             <tr>
               <th class="py-3 px-4 text-left font-medium">Course</th>
               <th class="py-3 px-4 text-left font-medium">Date</th>
@@ -242,11 +242,11 @@
       <!-- Recent TESDA Reservations (optional) -->
       <div class="overflow-x-auto mb-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-md font-semibold text-green-800">Recent Reservations</h3>
+          <h3 class="text-md font-semibold text-blue-800">Recent Reservations</h3>
         </div>
 
         <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-          <thead class="bg-green-800 text-white">
+          <thead class="bg-blue-800 text-white">
             <tr>
               <th class="py-3 px-4 text-left font-medium">Student</th>
               <th class="py-3 px-4 text-left font-medium">Course</th>

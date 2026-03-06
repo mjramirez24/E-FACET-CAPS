@@ -12,7 +12,7 @@
     <div>
       <div class="flex justify-between items-center mb-6">
         <div class="flex items-center gap-3">
-          <h2 class="text-lg font-bold text-green-800">🎓 TESDA Certificate Management</h2>
+          <h2 class="text-lg font-bold text-blue-800">🎓 TESDA Certificate Management</h2>
 
           <img
             v-if="logoUrl"
@@ -41,7 +41,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
           <select
             v-model="selectedCourse"
-            class="w-56 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            class="w-56 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">All Courses</option>
             <option v-for="c in courseOptions" :key="c" :value="c">{{ c }}</option>
@@ -52,7 +52,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
           <select
             v-model="selectedStatus"
-            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">All</option>
             <option value="issued">Issued</option>
@@ -66,7 +66,7 @@
           <input
             type="date"
             v-model="selectedDate"
-            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -82,13 +82,13 @@
 
       <!-- Stats -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-green-50 p-5 rounded-lg border border-green-100">
+        <div class="bg-blue-50 p-5 rounded-lg border border-blue-100">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-2xl font-bold text-green-800">{{ issuedCount }}</h3>
-              <p class="text-green-700 font-medium mt-1">Issued</p>
+              <h3 class="text-2xl font-bold text-blue-800">{{ issuedCount }}</h3>
+              <p class="text-blue-700 font-medium mt-1">Issued</p>
             </div>
-            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <span class="text-xl">✅</span>
             </div>
           </div>
@@ -133,7 +133,7 @@
 
       <!-- Loading -->
       <div v-if="loading" class="text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-green-700"></div>
+        <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700"></div>
         <p class="mt-3 text-gray-600">Loading...</p>
       </div>
 
@@ -157,7 +157,7 @@
         </div>
 
         <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-          <thead class="bg-green-800 text-white">
+          <thead class="bg-blue-800 text-white">
             <tr>
               <th class="py-3 px-4 text-left font-medium">Student</th>
               <th class="py-3 px-4 text-left font-medium">Course</th>
@@ -214,7 +214,7 @@
                   <button
                     v-if="row.ui_status === 'ready'"
                     @click="generateTesda(row)"
-                    class="text-green-700 hover:text-green-900 text-sm font-medium px-2 py-1 hover:bg-green-50 rounded"
+                    class="text-blue-700 hover:text-blue-900 text-sm font-medium px-2 py-1 hover:bg-blue-50 rounded"
                   >
                     ➕ Generate
                   </button>
@@ -353,7 +353,7 @@ export default {
     const getStatusClass = (status) => {
       switch (status) {
         case "issued":
-          return "bg-green-100 text-green-800";
+          return "bg-blue-100 text-blue-800";
         case "ready":
           return "bg-yellow-100 text-yellow-800";
         case "revoked":

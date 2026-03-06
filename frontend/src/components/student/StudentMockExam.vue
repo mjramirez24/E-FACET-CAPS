@@ -18,9 +18,9 @@
     </template>
 
     <div class="space-y-6">
-      <!-- TOP ROW: Welcome + Weakness Analysis — equal height panels -->
+      <!-- TOP ROW: Welcome + Weakness Analysis -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- ── Welcome Section ── -->
+        <!-- Welcome Section -->
         <section class="bg-white rounded-xl shadow p-6 border border-green-200 flex flex-col" style="height: fit-content; min-height: 350px;">
           <div class="flex justify-between items-start">
             <div class="flex-1">
@@ -49,10 +49,8 @@
             </button>
           </div>
 
-          <!-- Spacer - ito ang magpu-push sa stats pababa -->
           <div class="flex-1"></div>
 
-          <!-- Stats -->
           <div v-if="hasTakenExams" class="pt-4 border-t border-green-100">
             <div class="grid grid-cols-3 gap-3 text-center">
               <div class="bg-green-50 p-3 rounded-xl">
@@ -74,9 +72,8 @@
           </div>
         </section>
 
-        <!-- ── Weakness Analysis Panel with Scrollbar ── -->
+        <!-- Weakness Analysis Panel -->
         <section class="bg-white rounded-xl shadow border border-orange-200 flex flex-col overflow-hidden" style="height: 350px;">
-          <!-- Header (fixed) -->
           <div class="bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-4 border-b border-orange-100 shrink-0">
             <div class="flex items-center justify-between">
               <div>
@@ -90,7 +87,6 @@
             </div>
           </div>
 
-          <!-- No exams taken -->
           <div v-if="!hasTakenExams" class="flex-1 flex items-center justify-center p-8">
             <div class="text-center text-gray-400">
               <div class="text-5xl mb-3">📝</div>
@@ -99,7 +95,6 @@
             </div>
           </div>
 
-          <!-- All correct -->
           <div v-else-if="allWeaknessGroups.length === 0" class="flex-1 flex items-center justify-center p-8">
             <div class="text-center">
               <div class="text-5xl mb-3">🎉</div>
@@ -108,57 +103,37 @@
             </div>
           </div>
 
-          <!-- Scrollable weakness groups with custom scrollbar -->
           <div v-else class="overflow-y-auto flex-1 px-4 py-3 space-y-3 weakness-scrollbar">
-            <div
-              v-for="group in allWeaknessGroups"
-              :key="group.quizId"
-              class="rounded-xl border border-orange-100 overflow-hidden shadow-sm"
-            >
-              <!-- Main category = quiz title -->
+            <div v-for="group in allWeaknessGroups" :key="group.quizId" class="rounded-xl border border-orange-100 overflow-hidden shadow-sm">
               <div class="bg-orange-50 px-4 py-2.5 flex items-center justify-between">
                 <div class="flex items-center gap-2 min-w-0">
                   <span class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
                   <span class="font-bold text-orange-800 text-sm truncate">{{ group.quizTitle }}</span>
                 </div>
-                <span class="shrink-0 ml-2 text-xs font-bold text-white bg-red-400 rounded-full px-2.5 py-0.5">
-                  {{ group.totalWrong }}
-                </span>
+                <span class="shrink-0 ml-2 text-xs font-bold text-white bg-red-400 rounded-full px-2.5 py-0.5">{{ group.totalWrong }}</span>
               </div>
-
-              <!-- Subcategory rows -->
               <div class="divide-y divide-gray-100 bg-white">
-                <div
-                  v-for="sub in group.subcategories"
-                  :key="sub.name"
-                  class="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50 transition-colors"
-                >
+                <div v-for="sub in group.subcategories" :key="sub.name" class="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50 transition-colors">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5">
                       <span class="text-xs font-semibold text-gray-700 truncate">{{ sub.name }}</span>
-                      <span class="shrink-0 text-xs bg-red-50 text-red-500 border border-red-200 rounded-full px-1.5 leading-5 font-bold">
-                        {{ sub.questions.length }}
-                      </span>
+                      <span class="shrink-0 text-xs bg-red-50 text-red-500 border border-red-200 rounded-full px-1.5 leading-5 font-bold">{{ sub.questions.length }}</span>
                     </div>
                     <div class="w-full bg-gray-100 rounded-full h-1 mt-1.5">
                       <div class="bg-gradient-to-r from-red-400 to-orange-400 h-1 rounded-full transition-all duration-500"
-                        :style="{ width: Math.min((sub.questions.length / group.totalWrong) * 100, 100) + '%' }">
-                      </div>
+                        :style="{ width: Math.min((sub.questions.length / group.totalWrong) * 100, 100) + '%' }"></div>
                     </div>
                   </div>
-                  <button
-                    @click="retakeSubcategory(sub.questions, sub.name, group.quizId, group.quizTitle)"
+                  <button @click="retakeSubcategory(sub.questions, sub.name, group.quizId, group.quizTitle)"
                     class="shrink-0 text-xs bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-3 py-1.5 rounded-lg font-semibold transition"
-                    :disabled="loading"
-                  >
+                    :disabled="loading">
                     🔁 Retake
                   </button>
                 </div>
               </div>
             </div>
           </div>
-          
-          <!-- Scroll indicator (optional) -->
+
           <div v-if="allWeaknessGroups.length > 2" class="text-[9px] text-gray-400 text-center pb-1 border-t border-orange-100">
             ⬇️ scroll for more
           </div>
@@ -245,12 +220,12 @@
         </div>
       </section>
 
-      <!-- Results Table with Delete Buttons -->
+      <!-- Results Table -->
       <section class="bg-white rounded-xl shadow p-6 border border-green-200">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-bold text-green-800">Recent Quiz Results</h2>
           <div class="flex items-center gap-3">
-            <button v-if="examResults.length > 0" @click="confirmClearAllResults" 
+            <button v-if="examResults.length > 0" @click="confirmClearAllResults"
               class="text-red-600 hover:text-red-800 text-sm font-semibold border border-red-200 px-3 py-1 rounded-lg flex items-center gap-1">
               🗑️ Clear All
             </button>
@@ -278,11 +253,8 @@
                 <td class="py-3 px-4 border-t border-green-700">{{ getRemarks(result.bestScore) }}</td>
                 <td class="py-3 px-4 border-t border-green-700">
                   <div class="flex items-center gap-2">
-                    <button @click="reviewExam(result.latestAttempt)" 
-                      class="text-blue-600 hover:text-blue-800 font-semibold hover:underline text-xs">
-                      View
-                    </button>
-                    <button @click="confirmDeleteQuizResults(result.exam_id, result.exam_title)" 
+                    <button @click="reviewExam(result.latestAttempt)" class="text-blue-600 hover:text-blue-800 font-semibold hover:underline text-xs">View</button>
+                    <button @click="confirmDeleteQuizResults(result.exam_id, result.exam_title)"
                       class="text-red-500 hover:text-red-700 font-semibold text-xs border-l border-gray-300 pl-2">
                       🗑️ Delete
                     </button>
@@ -295,8 +267,6 @@
             </tbody>
           </table>
         </div>
-        
-        <!-- Show total attempts count -->
         <div v-if="examResults.length > 0" class="mt-2 text-xs text-gray-400 text-right">
           Total attempts: {{ examResults.length }}
         </div>
@@ -312,14 +282,8 @@
         <div class="p-4">
           <p class="text-sm text-gray-700 mb-3">{{ deleteMessage }}</p>
           <div class="flex justify-end gap-2">
-            <button @click="showDeleteModal = false" 
-              class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs font-semibold">
-              Cancel
-            </button>
-            <button @click="executeDelete" 
-              class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold">
-              Delete
-            </button>
+            <button @click="showDeleteModal = false" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs font-semibold">Cancel</button>
+            <button @click="executeDelete" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold">Delete</button>
           </div>
         </div>
       </div>
@@ -352,7 +316,6 @@
     <!-- Exam Modal -->
     <div v-if="showExamModal" class="fixed inset-0 flex items-center justify-center backdrop z-50">
       <div class="bg-white w-4/5 max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-        <!-- Modal header bar -->
         <div class="bg-green-700 text-white px-6 py-4 flex items-center justify-between shrink-0">
           <div class="min-w-0">
             <h3 class="font-bold text-base leading-tight truncate">{{ currentExam?.title }}</h3>
@@ -361,12 +324,10 @@
             </span>
           </div>
           <div class="flex items-center gap-4 shrink-0 ml-4">
-            <!-- Timer -->
             <div class="flex items-center gap-1.5 bg-white/10 rounded-lg px-3 py-1.5">
               <span class="text-xs text-white/70">⏱</span>
               <span class="font-mono font-bold text-sm" :class="timeRemaining < 300 ? 'text-red-300' : 'text-white'">{{ formattedTime }}</span>
             </div>
-            <!-- Exit button -->
             <button @click="closeExamModal"
               class="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
               ✕ Exit
@@ -374,7 +335,6 @@
           </div>
         </div>
 
-        <!-- Progress bar -->
         <div class="bg-gray-100 shrink-0">
           <div class="flex justify-between items-center px-6 py-2 text-xs text-gray-500">
             <span>Question {{ currentQuestionIndex + 1 }} of {{ currentQuestions.length }}</span>
@@ -385,39 +345,30 @@
           </div>
         </div>
 
-        <!-- Question area (scrollable) -->
         <div class="flex-1 overflow-y-auto px-6 py-5">
           <div v-if="currentQuestion" class="fade-in">
-            <!-- Symbol -->
             <div v-if="currentQuestion.symbol" class="mb-5 flex justify-center">
               <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl px-10 py-5 text-6xl shadow-inner select-none">
                 {{ currentQuestion.symbol }}
               </div>
             </div>
-
             <p class="text-gray-800 font-semibold text-base mb-5 leading-relaxed">
               {{ currentQuestionIndex + 1 }}. {{ getLocalizedText(currentQuestion.stem) }}
             </p>
-
             <div class="space-y-2.5">
-              <label
-                v-for="choice in currentQuestion.choices"
-                :key="choice.key"
+              <label v-for="choice in currentQuestion.choices" :key="choice.key"
                 :for="`opt-${currentQuestionIndex}-${choice.key}`"
                 class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all"
                 :class="userAnswers[currentQuestionIndex] === choice.key.toUpperCase()
                   ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/40'"
-              >
-                <input
-                  type="radio"
+                  : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/40'">
+                <input type="radio"
                   :id="`opt-${currentQuestionIndex}-${choice.key}`"
                   :name="`ans-${currentQuestionIndex}`"
                   :value="choice.key.toUpperCase()"
                   :checked="userAnswers[currentQuestionIndex] === choice.key.toUpperCase()"
                   @change="selectAnswer(currentQuestionIndex, choice.key.toUpperCase())"
-                  class="mt-0.5 h-4 w-4 text-green-600 border-gray-300 shrink-0"
-                >
+                  class="mt-0.5 h-4 w-4 text-green-600 border-gray-300 shrink-0">
                 <span class="text-sm text-gray-700 leading-relaxed">
                   <span class="font-bold text-gray-800">{{ choice.key.toUpperCase() }}.</span>
                   {{ getLocalizedText(choice) }}
@@ -427,68 +378,44 @@
           </div>
         </div>
 
-        <!-- Footer nav -->
         <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center shrink-0">
           <button @click="previousQuestion" :disabled="currentQuestionIndex === 0"
             class="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
             ← Previous
           </button>
-          
           <div class="flex items-center gap-3">
-            <!-- Question counter -->
             <span class="text-xs text-gray-500">
               Question {{ currentQuestionIndex + 1 }} of {{ currentQuestions.length }}
-              <span v-if="skippedQuestions.length > 0" class="ml-2 text-orange-500">
-                ({{ skippedQuestions.length }} skipped)
-              </span>
+              <span v-if="skippedQuestions.length > 0" class="ml-2 text-orange-500">({{ skippedQuestions.length }} skipped)</span>
             </span>
-            
-            <!-- Question dots -->
             <div class="hidden sm:flex items-center gap-1 ml-2">
-              <div
-                v-for="(_, i) in Math.min(currentQuestions.length, 10)"
-                :key="i"
+              <div v-for="(_, i) in Math.min(currentQuestions.length, 10)" :key="i"
                 class="w-2 h-2 rounded-full transition-all"
                 :class="i === currentQuestionIndex ? 'bg-green-600 w-3'
-                  : userAnswers[i] ? 'bg-green-400' 
-                  : skippedIndices.has(i) ? 'bg-orange-400' 
-                  : 'bg-gray-300'"
-              ></div>
+                  : userAnswers[i] ? 'bg-green-400'
+                  : skippedIndices.has(i) ? 'bg-orange-400'
+                  : 'bg-gray-300'"></div>
               <span v-if="currentQuestions.length > 10" class="text-xs text-gray-400 ml-1">…</span>
             </div>
           </div>
-          
-            <div class="flex gap-2">
-              <!-- Skip button (visible kapag walang sagot) -->
-              <button v-if="!userAnswers[currentQuestionIndex]" @click="skipQuestion"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition">
-                ⏭️ Skip
-              </button>
-              
-              <!-- Next button (visible kapag may sagot at hindi huling tanong) -->
-              <button v-else-if="currentQuestionIndex < currentQuestions.length - 1" @click="nextQuestion"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition">
-                Next →
-              </button>
-              
-              <!-- Submit button (lalabas sa huling tanong at kapag WALA nang skipped questions) -->
-              <button v-else-if="currentQuestionIndex === currentQuestions.length - 1 && skippedQuestions.length === 0" @click="submitExam"
-                class="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition">
-                ✅ Submit
-              </button>
-              
-              <!-- Kung nasa huling tanong pero may skipped pa, Next button para bumalik sa skipped -->
-              <button v-else-if="currentQuestionIndex === currentQuestions.length - 1 && skippedQuestions.length > 0" @click="nextQuestion"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition">
-                Next →
-              </button>
-              
-              <!-- Kung wala nang skipped questions pero hindi huling tanong, Next button -->
-              <button v-else-if="skippedQuestions.length === 0 && currentQuestionIndex < currentQuestions.length - 1" @click="nextQuestion"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition">
-                Next →
-              </button>
-            </div>
+          <div class="flex gap-2">
+            <button v-if="!userAnswers[currentQuestionIndex]" @click="skipQuestion"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition">
+              ⏭️ Skip
+            </button>
+            <button v-else-if="currentQuestionIndex < currentQuestions.length - 1" @click="nextQuestion"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition">
+              Next →
+            </button>
+            <button v-else-if="currentQuestionIndex === currentQuestions.length - 1 && skippedQuestions.length === 0" @click="submitExam"
+              class="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition">
+              ✅ Submit
+            </button>
+            <button v-else-if="currentQuestionIndex === currentQuestions.length - 1 && skippedQuestions.length > 0" @click="nextQuestion"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition">
+              Next →
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -498,16 +425,12 @@
       <div class="bg-white w-full max-w-xl mx-4 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
         <div class="bg-gradient-to-r from-green-700 to-green-600 px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h3 class="text-white font-bold text-base">
-              {{ retakeLabel ? '🔁 Retake Results' : '📊 Exam Results' }}
-            </h3>
+            <h3 class="text-white font-bold text-base">{{ retakeLabel ? '🔁 Retake Results' : '📊 Exam Results' }}</h3>
             <p v-if="retakeLabel" class="text-green-200 text-xs mt-0.5">{{ retakeLabel }}</p>
           </div>
           <button @click="showResultsModal = false" class="text-white/70 hover:text-white text-2xl leading-none">&times;</button>
         </div>
-
         <div class="overflow-y-auto flex-1 p-6">
-          <!-- Score ring -->
           <div class="text-center mb-6">
             <div class="inline-flex items-center justify-center w-28 h-28 rounded-full border-8 mb-3"
               :class="currentScore >= 80 ? 'border-green-400 bg-green-50' : currentScore >= 60 ? 'border-yellow-400 bg-yellow-50' : 'border-red-400 bg-red-50'">
@@ -520,8 +443,6 @@
               {{ currentQuestions.length }} questions retaken from <em>{{ retakeLabel }}</em>
             </p>
           </div>
-
-          <!-- Topic breakdown -->
           <div class="mb-5">
             <h4 class="font-bold text-gray-700 mb-3 text-sm">Performance by Topic</h4>
             <div class="space-y-2.5">
@@ -539,18 +460,13 @@
               </div>
             </div>
           </div>
-
-          <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
-            <h4 class="font-bold text-blue-800 text-sm mb-1">💡 Recommendation</h4>
+          <div v-if="currentRecommendation" class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+            <h4 class="font-bold text-blue-800 mb-1 text-sm">💡 Recommendation</h4>
             <p class="text-sm text-gray-700">{{ currentRecommendation }}</p>
           </div>
         </div>
-
         <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end rounded-b-2xl shrink-0">
-          <button @click="showResultsModal = false"
-            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition text-sm">
-            Close
-          </button>
+          <button @click="showResultsModal = false" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition text-sm">Close</button>
         </div>
       </div>
     </div>
@@ -567,13 +483,10 @@
           </div>
           <button @click="showReviewModal = false" class="text-white/70 hover:text-white text-2xl leading-none ml-4 shrink-0">&times;</button>
         </div>
-
         <div class="overflow-y-auto flex-1 p-5 space-y-4">
           <div v-for="(question, index) in currentQuestions" :key="question.id || index"
             class="rounded-xl border-2 overflow-hidden"
             :class="isReviewCorrect(index) ? 'border-green-300' : 'border-red-300'">
-
-            <!-- Question header -->
             <div class="flex items-center justify-between px-4 py-2.5"
               :class="isReviewCorrect(index) ? 'bg-green-50' : 'bg-red-50'">
               <span class="font-bold text-sm text-gray-700">Q{{ index + 1 }}</span>
@@ -582,18 +495,11 @@
                 {{ isReviewCorrect(index) ? '✓ Correct' : '✗ Incorrect' }}
               </span>
             </div>
-
             <div class="p-4 bg-white">
-              <!-- Symbol -->
               <div v-if="question.symbol" class="mb-3 flex justify-center">
-                <div class="bg-gray-50 border border-gray-200 rounded-xl px-6 py-3 text-4xl shadow-sm">
-                  {{ question.symbol }}
-                </div>
+                <div class="bg-gray-50 border border-gray-200 rounded-xl px-6 py-3 text-4xl shadow-sm">{{ question.symbol }}</div>
               </div>
-
               <p class="text-gray-800 text-sm font-medium mb-3 leading-relaxed">{{ getLocalizedText(question.stem) }}</p>
-
-              <!-- Choices -->
               <div class="space-y-1.5 mb-3">
                 <div v-for="opt in ['A','B','C']" :key="opt"
                   class="flex items-start gap-2.5 p-2.5 rounded-lg border text-sm"
@@ -603,8 +509,6 @@
                   <span v-if="opt.toLowerCase() === question.correct_key?.toLowerCase()" class="text-green-600 shrink-0 font-bold">✓</span>
                 </div>
               </div>
-
-              <!-- Answer summary -->
               <div class="text-xs pt-2.5 border-t border-gray-100 space-y-1">
                 <div class="flex gap-2">
                   <span class="font-semibold text-gray-500 w-28 shrink-0">Your answer:</span>
@@ -624,12 +528,8 @@
             </div>
           </div>
         </div>
-
         <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end rounded-b-2xl shrink-0">
-          <button @click="showReviewModal = false"
-            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition text-sm">
-            Close
-          </button>
+          <button @click="showReviewModal = false" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition text-sm">Close</button>
         </div>
       </div>
     </div>
@@ -639,8 +539,8 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import StudentLayout from './StudentLayout.vue'
+import axios from 'axios'
 
-// Topic → friendly label
 const TOPIC_LABEL = {
   traffic_rules:'Traffic Rules',traffic_signs:'Traffic Signs',road_signs:'Traffic Signs',
   traffic_lights:'Traffic Lights',road_markings:'Road Markings',lane_lines:'Road Markings',
@@ -712,53 +612,57 @@ export default {
   components: { StudentLayout },
 
   setup() {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+    const api = axios.create({
+      baseURL: 'http://localhost:3000/api',
+      withCredentials: true,
+    })
 
-    const user = ref({ id: null, name: '', email: '', preferred_language: 'en' })
-    const currentLanguage = ref('en')
-    const availableQuizzes = ref([])
-    const comprehensiveExam = ref(null)
-    const examResults = ref([])
-    const searchQuery = ref('')
+    // ── State ────────────────────────────────────────────────
+    const user               = ref({ id: null, name: '', email: '', preferred_language: 'en' })
+    const currentLanguage    = ref('en')
+    const allQuestions       = ref([])   // All questions loaded from DB
+    const availableQuizzes   = ref([])
+    const comprehensiveExam  = ref(null)
+    const examResults        = ref([])   // All attempts from DB
+    const masteryMap         = ref({})   // { exam_id: { question_id: { answer, correct } } }
+    const searchQuery        = ref('')
 
-    const loading = ref(false)
-    const showTutorialModal = ref(false)
-    const showExamModal = ref(false)
-    const showResultsModal = ref(false)
-    const showReviewModal = ref(false)
-    const showDeleteModal = ref(false)
-    
-    // Skip feature variables
-    const skippedQuestions = ref([]) // Store indices of skipped questions
-    const skippedIndices = computed(() => new Set(skippedQuestions.value))
-    const isReviewingSkipped = ref(false) // Track if we're reviewing skipped questions
-    
-    // Delete state
-    const deleteMode = ref('') // 'single' or 'all'
-    const deleteQuizId = ref(null)
-    const deleteMessage = ref('')
+    const loading            = ref(false)
+    const showTutorialModal  = ref(false)
+    const showExamModal      = ref(false)
+    const showResultsModal   = ref(false)
+    const showReviewModal    = ref(false)
+    const showDeleteModal    = ref(false)
 
-    const weaknessAnalysis = ref([])
-    const aiRecommendations = ref([])
-    const aiSummary = ref('')
+    const skippedQuestions   = ref([])
+    const isReviewingSkipped = ref(false)
+    const skippedIndices     = computed(() => new Set(skippedQuestions.value))
 
-    const currentExam = ref(null)
-    const currentQuestions = ref([])
-    const currentQuestionIndex = ref(0)
-    const userAnswers = ref([])
-    const timeRemaining = ref(0)
-    const timerInterval = ref(null)
+    const deleteMode         = ref('')
+    const deleteQuizId       = ref(null)
+    const deleteMessage      = ref('')
 
-    const currentScore = ref(0)
+    const weaknessAnalysis   = ref([])
+    const aiRecommendations  = ref([])
+    const aiSummary          = ref('')
+
+    const currentExam             = ref(null)
+    const currentQuestions        = ref([])
+    const currentQuestionIndex    = ref(0)
+    const userAnswers             = ref([])
+    const timeRemaining           = ref(0)
+    const timerInterval           = ref(null)
+
+    const currentScore            = ref(0)
     const currentWeaknessAnalysis = ref([])
-    const currentRecommendation = ref('')
+    const currentRecommendation   = ref('')
 
-    const currentReviewAttempt = ref(null)
-    const currentReviewAnswers = ref([])
-    const retakeLabel = ref('')
-    const retakeParentQuizId = ref(null)
+    const currentReviewAttempt    = ref(null)
+    const currentReviewAnswers    = ref([])
+    const retakeLabel             = ref('')
+    const retakeParentQuizId      = ref(null)
 
-    // ── Helpers ────────────────────────────────────────────────────────────
+    // ── Helpers ──────────────────────────────────────────────
     const getLocalizedText = obj => !obj ? '' : (obj[currentLanguage.value] || obj.en || '')
     const getOptionText = (question, optionKey) => {
       if (!question?.choices) return ''
@@ -766,85 +670,101 @@ export default {
       return opt ? getLocalizedText(opt) : ''
     }
 
-    // ── Delete Functions ─────────────────────────────────────────
-    const confirmDeleteQuizResults = (quizId, quizTitle) => {
-      deleteMode.value = 'single'
-      deleteQuizId.value = quizId
-      deleteMessage.value = `Delete all results for "${quizTitle}"? This cannot be undone.`
-      showDeleteModal.value = true
-    }
-
-    const confirmClearAllResults = () => {
-      deleteMode.value = 'all'
-      deleteQuizId.value = null
-      deleteMessage.value = `Delete all exam results? This cannot be undone.`
-      showDeleteModal.value = true
-    }
-
-    const executeDelete = () => {
-      if (deleteMode.value === 'single' && deleteQuizId.value) {
-        examResults.value = examResults.value.filter(r => r.exam_id !== deleteQuizId.value)
-      } else if (deleteMode.value === 'all') {
-        examResults.value = []
+    // ── API call helper ──────────────────────────────────────
+    async function apiCall(endpoint, method = 'GET', data = null) {
+      try {
+        const config = { method, url: endpoint }
+        if (data) config.data = data
+        const res = await api(config)
+        return res.data
+      } catch (err) {
+        if (err.response?.status === 401) {
+          localStorage.removeItem('user')
+          window.location.href = '/login'
+          return null
+        }
+        throw err
       }
-      
-      localStorage.setItem('examResults', JSON.stringify(examResults.value))
-      
-      if (examResults.value.length === 0) {
-        weaknessAnalysis.value = []
-        aiRecommendations.value = []
-        aiSummary.value = ''
-      } else {
-        loadAIRecommendations()
-      }
-      
-      showDeleteModal.value = false
-      deleteMode.value = ''
-      deleteQuizId.value = null
     }
 
-    // ── Build master answer map per quiz from ALL attempts ─────────────────
-    const getMasterAnswersForQuiz = (quizId, quizQuestions) => {
-      if (!quizQuestions?.length) return {}
-      const attempts = examResults.value
-        .filter(r => r.exam_id === quizId)
-        .sort((a, b) => new Date(a.completed_at) - new Date(b.completed_at))
-      if (!attempts.length) return {}
+    // ── Load questions from DB ───────────────────────────────
+    const loadQuestions = async () => {
+      const res = await apiCall('/student/mock-exam/questions')
+      return res?.data || []
+    }
 
-      const qMap = {}
-      quizQuestions.forEach(q => { qMap[q.id] = q })
-      const masterMap = {}
+    // ── Build topic quizzes from question array ──────────────
+    const createTopicQuizzes = (questions) => {
+      const topicCategories = {
+        'Traffic Rules & Signs':  ['traffic_rules','traffic_signs','road_signs','traffic_lights','road_markings','lane_lines','yellow_lines','signals','regulatory','prohibitory','warning','lane_use_signs'],
+        'Safe Driving':           ['defensive_driving','safe_driving_rules','road_safety','hazard_awareness','driver_attitude','road_discipline'],
+        'Licensing & Documents':  ['licensing','driver_classification','professional_driver','requirements','age','renewal','validity','dl_codes','authorized_vehicles','lending_license'],
+        'Violations & Penalties': ['violations','penalties','settlement_period','lto_process','temporary_operator_permit','suspension','confiscation','adjudication'],
+        'Vehicle Operations':     ['parking','overtaking','lane_change','turning','hand_signals','backing_up','vehicle_control','braking'],
+        'Emergency & Accidents':  ['road_emergency','road_crash','first_aid','breakdown','ewd','tire_blowout','emergency_vehicles'],
+        'Special Vehicles':       ['motorcycle','motorcycle_safety','public_utility_vehicle','bike_lane','cyclists'],
+        'Driver Wellness':        ['driver_fatigue','drowsy_driving','stress_management','road_rage'],
+        'Child Safety':           ['child_safety','child_restraint','children'],
+        'Vehicle Maintenance':    ['vehicle_maintenance','inspection','roadworthiness'],
+        'Weather & Conditions':   ['weather_driving','heavy_rain','night_driving','visibility','headlights'],
+        'Right of Way':           ['right_of_way','yield_sign','stop_sign','uncontrolled_intersection','pedestrians','crosswalk'],
+      }
+      const groups = {}
+      Object.keys(topicCategories).forEach(c => { groups[c] = [] })
+      groups['Other Topics'] = []
 
-      attempts.forEach(attempt => {
-        const isFullAttempt = !attempt.retake_question_ids
-        if (isFullAttempt) {
-          quizQuestions.forEach((q, i) => {
-            const ans = attempt.answers?.[i] || null
-            masterMap[q.id] = { answer: ans, correct: !!ans && ans.toLowerCase() === q.correct_key?.toLowerCase() }
-          })
-        } else {
-          attempt.retake_question_ids.forEach((qId, i) => {
-            const q = qMap[qId]
-            if (!q) return
-            const ans = attempt.answers?.[i] || null
-            masterMap[qId] = { answer: ans, correct: !!ans && ans.toLowerCase() === q.correct_key?.toLowerCase() }
-          })
+      questions.forEach(q => {
+        let assigned = false
+        if (q.topic && Array.isArray(q.topic)) {
+          for (const t of q.topic) {
+            for (const [cat, topics] of Object.entries(topicCategories)) {
+              if (topics.includes(t)) { groups[cat].push(q); assigned = true; break }
+            }
+            if (assigned) break
+          }
+        }
+        if (!assigned) groups['Other Topics'].push(q)
+      })
+
+      const quizzes = []
+      let idx = 1
+      Object.entries(groups).forEach(([cat, qs]) => {
+        const unique = Array.from(new Map(qs.map(q => [q.id, q])).values())
+        if (unique.length > 0) {
+          quizzes.push({ id: `quiz-${idx}`, title: cat, course_name: 'Driving Theory', questions: unique, time_limit: unique.length * 60 })
+          idx++
         }
       })
-      return masterMap
+      return quizzes
     }
 
-    // ── Get cumulative score for a quiz ────────────────────────────────────
+    // ── Build master answer map per quiz from masteryMap ─────
+    // Uses masteryMap (DB-backed) instead of scanning all attempts
+    const getMasterAnswersForQuiz = (quizId, quizQuestions) => {
+      if (!quizQuestions?.length) return {}
+      const quizMastery = masteryMap.value[quizId] || {}
+      const result = {}
+      quizQuestions.forEach(q => {
+        const entry = quizMastery[q.id]
+        if (entry) {
+          result[q.id] = { answer: entry.answer, correct: entry.correct }
+        }
+      })
+      return result
+    }
+
+    // ── Cumulative score for a quiz ──────────────────────────
     const getCumulativeScoreForQuiz = (quizId) => {
-      const quiz = quizId === 'quiz-0' ? comprehensiveExam.value : availableQuizzes.value.find(q => q.id === quizId)
-      if (!quiz?.questions) return 0
-      
+      const quiz = quizId === 'quiz-0'
+        ? comprehensiveExam.value
+        : availableQuizzes.value.find(q => q.id === quizId)
+      if (!quiz?.questions?.length) return 0
       const masterMap = getMasterAnswersForQuiz(quizId, quiz.questions)
       const totalCorrect = Object.values(masterMap).filter(v => v.correct).length
-      return quiz.questions.length > 0 ? Math.round((totalCorrect / quiz.questions.length) * 100) : 0
+      return Math.round((totalCorrect / quiz.questions.length) * 100)
     }
 
-    // ── Weakness groups: uses master answer map ────────────────────────────
+    // ── Weakness groups ──────────────────────────────────────
     const allWeaknessGroups = computed(() => {
       if (!hasTakenExams.value) return []
 
@@ -852,12 +772,9 @@ export default {
       const groups = []
 
       quizIds.forEach(qid => {
-        let quiz = null
-        if (qid === 'quiz-0') {
-          quiz = comprehensiveExam.value
-        } else {
-          quiz = availableQuizzes.value.find(q => q.id === qid)
-        }
+        const quiz = qid === 'quiz-0'
+          ? comprehensiveExam.value
+          : availableQuizzes.value.find(q => q.id === qid)
         if (!quiz?.questions) return
 
         const quizTitle = examResults.value.find(r => r.exam_id === qid)?.exam_title || quiz.title
@@ -865,10 +782,9 @@ export default {
 
         const wrongItems = quiz.questions.filter(q => {
           const entry = masterMap[q.id]
-          if (!entry) return true
+          if (!entry) return true   // never answered = still weak
           return !entry.correct
         })
-
         if (wrongItems.length === 0) return
 
         const subMap = {}
@@ -884,7 +800,7 @@ export default {
           totalWrong: wrongItems.length,
           subcategories: Object.entries(subMap)
             .map(([name, questions]) => ({ name, questions }))
-            .sort((a, b) => b.questions.length - a.questions.length)
+            .sort((a, b) => b.questions.length - a.questions.length),
         })
       })
 
@@ -893,25 +809,16 @@ export default {
 
     const totalWeakCount = computed(() => allWeaknessGroups.value.reduce((s, g) => s + g.totalWrong, 0))
 
-    // ── Deduped results (one row per quiz) ─────────────────────────────────
+    // ── Latest result per quiz (for the results table) ───────
     const latestResultsPerQuiz = computed(() => {
       const map = {}
       examResults.value.forEach(r => {
+        const cumScore = getCumulativeScoreForQuiz(r.exam_id)
         if (!map[r.exam_id]) {
-          map[r.exam_id] = { 
-            exam_id: r.exam_id, 
-            exam_title: r.exam_title, 
-            bestScore: getCumulativeScoreForQuiz(r.exam_id),
-            attempts: 1, 
-            completed_at: r.completed_at, 
-            latestAttempt: r 
-          }
+          map[r.exam_id] = { exam_id: r.exam_id, exam_title: r.exam_title, bestScore: cumScore, attempts: 1, completed_at: r.completed_at, latestAttempt: r }
         } else {
           map[r.exam_id].attempts++
-          const cumulativeScore = getCumulativeScoreForQuiz(r.exam_id)
-          if (cumulativeScore > map[r.exam_id].bestScore) {
-            map[r.exam_id].bestScore = cumulativeScore
-          }
+          map[r.exam_id].bestScore = cumScore
           if (new Date(r.completed_at) > new Date(map[r.exam_id].completed_at)) {
             map[r.exam_id].completed_at = r.completed_at
             map[r.exam_id].latestAttempt = r
@@ -922,178 +829,104 @@ export default {
     })
 
     const uniqueExamsTaken = computed(() => new Set(examResults.value.map(r => r.exam_id)).size)
-    const overallAvgScore = computed(() => {
+    const overallAvgScore  = computed(() => {
       if (!latestResultsPerQuiz.value.length) return 0
       return Math.round(latestResultsPerQuiz.value.reduce((s, r) => s + r.bestScore, 0) / latestResultsPerQuiz.value.length)
     })
 
-    // ── Question bank ──────────────────────────────────────────────────────
-    const loadQuestionBank = async () => {
-      try {
-        const r = await fetch('/question_bank.json')
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return await r.json()
-      } catch (e) { 
-        console.error('Error loading QB:', e); 
-        return { questions: [] } 
-      }
-    }
-
-    const createTopicQuizzes = (questions) => {
-      const topicCategories = {
-        'Traffic Rules & Signs':['traffic_rules','traffic_signs','road_signs','traffic_lights','road_markings','lane_lines','yellow_lines','signals','regulatory','prohibitory','warning','lane_use_signs'],
-        'Safe Driving':['defensive_driving','safe_driving_rules','road_safety','hazard_awareness','driver_attitude','road_discipline'],
-        'Licensing & Documents':['licensing','driver_classification','professional_driver','requirements','age','renewal','validity','dl_codes','authorized_vehicles','lending_license'],
-        'Violations & Penalties':['violations','penalties','settlement_period','lto_process','temporary_operator_permit','suspension','confiscation','adjudication'],
-        'Vehicle Operations':['parking','overtaking','lane_change','turning','hand_signals','backing_up','vehicle_control','braking'],
-        'Emergency & Accidents':['road_emergency','road_crash','first_aid','breakdown','ewd','tire_blowout','emergency_vehicles'],
-        'Special Vehicles':['motorcycle','motorcycle_safety','public_utility_vehicle','bike_lane','cyclists'],
-        'Driver Wellness':['driver_fatigue','drowsy_driving','stress_management','road_rage'],
-        'Child Safety':['child_safety','child_restraint','children'],
-        'Vehicle Maintenance':['vehicle_maintenance','inspection','roadworthiness'],
-        'Weather & Conditions':['weather_driving','heavy_rain','night_driving','visibility','headlights'],
-        'Right of Way':['right_of_way','yield_sign','stop_sign','uncontrolled_intersection','pedestrians','crosswalk']
-      }
-      const groups = {}
-      Object.keys(topicCategories).forEach(c => { groups[c] = [] })
-      groups['Other Topics'] = []
-      
-      questions.forEach(q => {
-        let assigned = false
-        if (q.topic && Array.isArray(q.topic)) {
-          for (const t of q.topic) {
-            for (const [cat, topics] of Object.entries(topicCategories)) {
-              if (topics.includes(t)) { 
-                groups[cat].push(q); 
-                assigned = true; 
-                break 
-              }
-            }
-            if (assigned) break
-          }
-        }
-        if (!assigned) groups['Other Topics'].push(q)
-      })
-      
-      const quizzes = []
-      let idx = 1
-      Object.entries(groups).forEach(([cat, qs]) => {
-        const unique = Array.from(new Map(qs.map(q => [q.id, q])).values())
-        if (unique.length > 0) {
-          quizzes.push({ 
-            id: `quiz-${idx}`, 
-            title: cat, 
-            course_name: 'Driving Theory', 
-            questions: unique, 
-            time_limit: unique.length * 60 
-          })
-          idx++
-        }
-      })
-      return quizzes
-    }
-
-    const initializeData = async () => {
-      const bankData = await loadQuestionBank()
-      const questions = bankData.questions || []
-      const allUnique = Array.from(new Map(questions.map(q => [q.id, q])).values())
-      comprehensiveExam.value = { 
-        id: 'quiz-0', 
-        title: 'Comprehensive Assessment', 
-        course_name: 'Full Exam', 
-        questions: allUnique, 
-        time_limit: Math.min(allUnique.length * 60, 7200) 
-      }
-      availableQuizzes.value = createTopicQuizzes(questions)
-    }
-
-    // ── Computed ────────────────────────────────────────────────────────────
-    const hasTakenExams = computed(() => examResults.value.length > 0)
-    
-    const filteredQuizzes = computed(() => {
+    // ── Computed ─────────────────────────────────────────────
+    const hasTakenExams    = computed(() => examResults.value.length > 0)
+    const filteredQuizzes  = computed(() => {
       if (!searchQuery.value.trim()) return availableQuizzes.value
       const q = searchQuery.value.toLowerCase()
-      return availableQuizzes.value.filter(quiz => 
-        quiz.title.toLowerCase().includes(q) || 
-        quiz.course_name?.toLowerCase().includes(q)
-      )
+      return availableQuizzes.value.filter(quiz => quiz.title.toLowerCase().includes(q) || quiz.course_name?.toLowerCase().includes(q))
     })
-    
-    const currentQuestion = computed(() => currentQuestions.value[currentQuestionIndex.value])
-    const answeredCount = computed(() => userAnswers.value.filter(a => a !== null).length)
-    
-    const formattedTime = computed(() => {
+    const currentQuestion  = computed(() => currentQuestions.value[currentQuestionIndex.value])
+    const answeredCount    = computed(() => userAnswers.value.filter(a => a !== null).length)
+    const formattedTime    = computed(() => {
       const m = Math.floor(timeRemaining.value / 60)
       const s = timeRemaining.value % 60
       return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
     })
-    
-    const progressWidth = computed(() => `${((currentQuestionIndex.value + 1) / currentQuestions.value.length) * 100}%`)
+    const progressWidth    = computed(() => `${((currentQuestionIndex.value + 1) / currentQuestions.value.length) * 100}%`)
 
-    // ── API ────────────────────────────────────────────────────────────────
-    async function apiCall(endpoint, method = 'GET', data = null) {
-      const token = localStorage.getItem('token')
-      const opts = { 
-        method, 
-        headers: { 
-          'Content-Type': 'application/json', 
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}) 
-        }, 
-        credentials: 'include' 
-      }
-      if (data) opts.body = JSON.stringify(data)
+    // ── Load initial data ────────────────────────────────────
+    const loadInitialData = async () => {
+      loading.value = true
       try {
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, opts)
-        if (res.status === 401) { 
-          localStorage.removeItem('token'); 
-          localStorage.removeItem('user'); 
-          window.location.href = '/login'; 
-          return null 
+        // 1. Load questions from DB
+        allQuestions.value = await loadQuestions()
+
+        // 2. Build quizzes from those questions
+        const unique = Array.from(new Map(allQuestions.value.map(q => [q.id, q])).values())
+        comprehensiveExam.value = {
+          id: 'quiz-0',
+          title: 'Comprehensive Assessment',
+          course_name: 'Full Exam',
+          questions: unique,
+          time_limit: Math.min(unique.length * 60, 7200),
         }
-        if (!res.ok) throw new Error(`API ${res.status}`)
-        return await res.json()
-      } catch (e) { throw e }
-    }
+        availableQuizzes.value = createTopicQuizzes(allQuestions.value)
 
-    async function fetchUserData() {
-      try {
-        const ud = localStorage.getItem('user')
-        if (ud) return JSON.parse(ud)
-        const res = await apiCall('/auth/me')
-        if (res?.user) { 
-          localStorage.setItem('user', JSON.stringify(res.user)); 
-          return res.user 
-        }
-        return { id: null, name: 'Student', email: '', preferred_language: 'en' }
-      } catch { 
-        return user.value 
+        // 3. Load user info
+        const userData = localStorage.getItem('user')
+        if (userData) user.value = JSON.parse(userData)
+
+        // 4. Load language preference from DB
+        const langRes = await apiCall('/student/mock-exam/language')
+        if (langRes?.data?.language) currentLanguage.value = langRes.data.language
+
+        // 5. Load all attempts + mastery from DB
+        await fetchAttemptsFromDB()
+
+      } catch (e) {
+        console.error('loadInitialData error:', e)
+      } finally {
+        loading.value = false
       }
     }
 
-    async function submitExamAttemptToAPI(data) {
-      try { 
-        const r = await apiCall('/student/exam-attempts', 'POST', data); 
-        return r?.data || r?.attempt || data 
-      } catch { 
-        return data 
+    const fetchAttemptsFromDB = async () => {
+      const res = await apiCall('/student/mock-exam/attempts')
+      if (res?.data) {
+        examResults.value = res.data.attempts || []
+        masteryMap.value  = res.data.mastery  || {}
       }
     }
 
-    async function analyzePerformanceWithAI(questions, answers) {
-      try { 
-        const r = await apiCall('/ai/analyze-performance', 'POST', { questions, user_answers: answers }); 
-        return r?.data || r?.analysis 
-      } catch { 
-        return performLocalAnalysis(questions, answers) 
-      }
+    // ── Score / status helpers ───────────────────────────────
+    const getScoreColorClass = s => s >= 80 ? 'text-green-600' : s >= 60 ? 'text-yellow-600' : 'text-red-600'
+    const getStatusClass     = id => examResults.value.some(r => r.exam_id === id) ? 'text-green-600' : 'text-yellow-600'
+    const getButtonClass     = id => examResults.value.some(r => r.exam_id === id) ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
+    const getButtonText      = id => examResults.value.some(r => r.exam_id === id) ? 'Retake' : 'Take Quiz'
+    const getExamStatus      = id => examResults.value.some(r => r.exam_id === id) ? 'Completed' : 'Not Taken'
+    const formatDate         = d => !d ? 'N/A' : new Date(d).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })
+    const getRemarks         = s => s >= 80 ? 'Excellent' : s >= 70 ? 'Good' : s >= 60 ? 'Fair' : 'Needs Improvement'
+    const getResultMessage   = s => s >= 80 ? 'Excellent! You passed with flying colors.' : s >= 70 ? 'Good job! You passed.' : 'Keep practicing — you can do it!'
+
+    // ── Review helpers ───────────────────────────────────────
+    const isReviewCorrect = (index) => {
+      const ua = currentReviewAnswers.value[index]?.toLowerCase()
+      const ck = currentQuestions.value[index]?.correct_key?.toLowerCase()
+      return ua === ck
+    }
+    const getOptionReviewClass = (question, index, option) => {
+      const u = currentReviewAnswers.value[index]?.toLowerCase()
+      const c = question.correct_key?.toLowerCase()
+      const o = option.toLowerCase()
+      if (u === o && o === c) return 'bg-green-100 border-green-400'
+      if (u === o && o !== c) return 'bg-red-100 border-red-400'
+      if (o === c)            return 'bg-green-50 border-green-300'
+      return 'bg-white border-gray-200'
     }
 
+    // ── Local performance analysis ───────────────────────────
     function performLocalAnalysis(questions, answers) {
       const cats = {}
       let correct = 0
       questions.forEach((q, i) => {
         const ans = answers[i]
-        const ok = ans?.toLowerCase() === q.correct_key?.toLowerCase()
+        const ok  = ans?.toLowerCase() === q.correct_key?.toLowerCase()
         if (ok) correct++
         const topics = q.topic && Array.isArray(q.topic) ? q.topic : ['general']
         topics.forEach(t => {
@@ -1109,378 +942,285 @@ export default {
         return { category: label, score, correct_answers: d.correct, total_questions: d.total }
       }).sort((a, b) => a.score - b.score)
       const total = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0
-      return { 
-        overall_score: total, 
-        weakness_analysis: wa, 
-        total_questions: questions.length, 
-        correct_answers: correct, 
-        recommendation: generateRecommendation(wa) 
-      }
+      return { overall_score: total, weakness_analysis: wa, recommendation: generateRecommendation(wa) }
     }
 
     function generateRecommendation(wa) {
-      if (!wa.length) return "Complete more exams to get better recommendations."
+      if (!wa.length) return 'Complete more exams to get better recommendations.'
       const w = wa[0]
-      if (w.score >= 80) return "Excellent performance! You're well-prepared."
-      if (w.score >= 70) return "Good performance. Focus on consistency."
+      if (w.score >= 80) return 'Excellent performance! You\'re well-prepared.'
+      if (w.score >= 70) return 'Good performance. Focus on consistency.'
       if (w.score >= 50) return `You need practice in ${w.category}. Review fundamentals and try again.`
       return `You need significant practice in ${w.category}. Study basics thoroughly before retaking.`
     }
 
-    // ── Score/status helpers ───────────────────────────────────────────────
-    const getScoreColorClass = s => s >= 80 ? 'text-green-600' : s >= 60 ? 'text-yellow-600' : 'text-red-600'
-    
-    const getStatusClass = id => examResults.value.some(r => r.exam_id === id) ? 'text-green-600' : 'text-yellow-600'
-    
-    const getButtonClass = id => examResults.value.some(r => r.exam_id === id) ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-    
-    const getButtonText = id => examResults.value.some(r => r.exam_id === id) ? 'Retake' : 'Take Quiz'
-    
-    const getExamStatus = id => examResults.value.some(r => r.exam_id === id) ? 'Completed' : 'Not Taken'
-    
-    const formatDate = d => !d ? 'N/A' : new Date(d).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })
-    
-    const getRemarks = s => s >= 80 ? 'Excellent' : s >= 70 ? 'Good' : s >= 60 ? 'Fair' : 'Needs Improvement'
-    
-    const getResultMessage = s => s >= 80 ? 'Excellent! You passed with flying colors.' : s >= 70 ? 'Good job! You passed.' : 'Keep practicing — you can do it!'
-
-    // ── Review helpers ─────────────────────────────────────────────────────
-    const isReviewCorrect = (index) => {
-      const ua = currentReviewAnswers.value[index]?.toLowerCase()
-      const ck = currentQuestions.value[index]?.correct_key?.toLowerCase()
-      return ua === ck
+    // ── Delete functions ─────────────────────────────────────
+    const confirmDeleteQuizResults = (quizId, quizTitle) => {
+      deleteMode.value    = 'single'
+      deleteQuizId.value  = quizId
+      deleteMessage.value = `Delete all results for "${quizTitle}"? This cannot be undone.`
+      showDeleteModal.value = true
     }
-    
-    const getOptionReviewClass = (question, index, option) => {
-      const u = currentReviewAnswers.value[index]?.toLowerCase()
-      const c = question.correct_key?.toLowerCase()
-      const o = option.toLowerCase()
-      if (u === o && o === c) return 'bg-green-100 border-green-400'
-      if (u === o && o !== c) return 'bg-red-100 border-red-400'
-      if (o === c) return 'bg-green-50 border-green-300'
-      return 'bg-white border-gray-200'
+    const confirmClearAllResults = () => {
+      deleteMode.value    = 'all'
+      deleteQuizId.value  = null
+      deleteMessage.value = 'Delete all exam results? This cannot be undone.'
+      showDeleteModal.value = true
+    }
+    const executeDelete = async () => {
+      try {
+        if (deleteMode.value === 'single' && deleteQuizId.value) {
+          await apiCall(`/student/mock-exam/attempts/${deleteQuizId.value}`, 'DELETE')
+        } else {
+          await apiCall('/student/mock-exam/attempts', 'DELETE')
+        }
+        await fetchAttemptsFromDB()
+        if (!hasTakenExams.value) {
+          weaknessAnalysis.value  = []
+          aiRecommendations.value = []
+          aiSummary.value         = ''
+        }
+      } catch (e) {
+        console.error('Delete failed:', e)
+        alert('Failed to delete results.')
+      } finally {
+        showDeleteModal.value = false
+        deleteMode.value      = ''
+        deleteQuizId.value    = null
+      }
     }
 
-    const scrollToQuizzes = () => document.querySelector('.quizzes-section')?.scrollIntoView({ behavior: 'smooth' })
+    // ── Exam flow ────────────────────────────────────────────
+    const startExam = async (examId) => {
+      loading.value = true
+      retakeLabel.value        = ''
+      retakeParentQuizId.value = null
+      skippedQuestions.value   = []
+      isReviewingSkipped.value = false
+      try {
+        currentExam.value = examId === 'quiz-0'
+          ? comprehensiveExam.value
+          : availableQuizzes.value.find(q => q.id === examId)
+        if (!currentExam.value) { alert('Exam not found.'); return }
+        currentQuestions.value    = currentExam.value.questions || []
+        if (!currentQuestions.value.length) { alert('No questions available.'); return }
+        currentQuestionIndex.value = 0
+        userAnswers.value          = new Array(currentQuestions.value.length).fill(null)
+        timeRemaining.value        = currentExam.value.time_limit || 3600
+        startTimer()
+        showExamModal.value = true
+      } catch (e) {
+        console.error(e)
+        alert('Failed to load exam.')
+      } finally {
+        loading.value = false
+      }
+    }
 
-    // ── Retake subcategory ─────────────────────────────────────────────────
+    const takeExam           = id => startExam(id)
+    const startInitialExam   = () => comprehensiveExam.value ? startExam('quiz-0') : alert('Comprehensive exam not available.')
+    const startRecommendedExam = () => availableQuizzes.value.length ? startExam(availableQuizzes.value[0].id) : null
+    const scrollToQuizzes    = () => document.querySelector('.quizzes-section')?.scrollIntoView({ behavior: 'smooth' })
+
     const retakeSubcategory = (questions, subcatName, quizId, quizTitle) => {
       if (!questions?.length) return
-      retakeLabel.value = `${quizTitle} › ${subcatName}`
+      retakeLabel.value        = `${quizTitle} › ${subcatName}`
       retakeParentQuizId.value = quizId
-      currentExam.value = {
-        id: 'retake_sub',
-        title: `📝 ${subcatName}`,
-        course_name: quizTitle,
-        questions,
-        time_limit: questions.length * 90
-      }
-      currentQuestions.value = [...questions]
+      currentExam.value = { id: 'retake_sub', title: `📝 ${subcatName}`, course_name: quizTitle, questions, time_limit: questions.length * 90 }
+      currentQuestions.value     = [...questions]
       currentQuestionIndex.value = 0
-      userAnswers.value = new Array(questions.length).fill(null)
-      timeRemaining.value = questions.length * 90
+      userAnswers.value          = new Array(questions.length).fill(null)
+      skippedQuestions.value     = []
+      isReviewingSkipped.value   = false
+      timeRemaining.value        = questions.length * 90
       startTimer()
       showExamModal.value = true
     }
-
-    // ── Load initial ───────────────────────────────────────────────────────
-    const loadInitialData = async () => {
-      loading.value = true
-      try {
-        await initializeData()
-        user.value = await fetchUserData()
-        currentLanguage.value = user.value.preferred_language || 'en'
-        const saved = localStorage.getItem('examResults')
-        examResults.value = saved ? JSON.parse(saved) : []
-        if (hasTakenExams.value) await loadAIRecommendations()
-      } catch (e) { 
-        console.error(e); 
-        availableQuizzes.value = [] 
-      } finally { 
-        loading.value = false 
-      }
-    }
-
-    const loadAIRecommendations = async () => {
-      if (!hasTakenExams.value || !user.value.id) return
-      try {
-        const a = await analyzePerformanceWithAI([], [])
-        if (a) { 
-          weaknessAnalysis.value = a.weakness_analysis || []; 
-          aiRecommendations.value = a.recommendations || []; 
-          aiSummary.value = a.summary || '' 
-        }
-      } catch { 
-        weaknessAnalysis.value = []; 
-        aiRecommendations.value = []; 
-        aiSummary.value = '' 
-      }
-    }
-
-    const startExam = async (examId) => {
-      loading.value = true
-      retakeLabel.value = ''
-      retakeParentQuizId.value = null
-      // Reset skipped questions
-      skippedQuestions.value = []
-      isReviewingSkipped.value = false
-      
-      try {
-        currentExam.value = examId === 'quiz-0' ? comprehensiveExam.value : availableQuizzes.value.find(q => q.id === examId)
-        if (!currentExam.value) { alert('Exam not found.'); return }
-        currentQuestions.value = currentExam.value.questions || []
-        if (!currentQuestions.value.length) { alert('No questions found.'); return }
-        currentQuestionIndex.value = 0
-        userAnswers.value = new Array(currentQuestions.value.length).fill(null)
-        timeRemaining.value = currentExam.value.time_limit || 3600
-        startTimer()
-        showExamModal.value = true
-      } catch (e) { 
-        console.error(e); 
-        alert('Failed to load exam.') 
-      } finally { 
-        loading.value = false 
-      }
-    }
-
-    const takeExam = id => startExam(id)
-    const startInitialExam = () => comprehensiveExam.value ? startExam('quiz-0') : alert('Comprehensive exam not available.')
-    const startRecommendedExam = () => availableQuizzes.value.length ? startExam(availableQuizzes.value[0].id) : null
 
     const startTimer = () => {
       if (timerInterval.value) clearInterval(timerInterval.value)
       timerInterval.value = setInterval(() => {
         timeRemaining.value--
-        if (timeRemaining.value <= 0) { 
-          clearInterval(timerInterval.value); 
-          submitExam() 
-        }
+        if (timeRemaining.value <= 0) { clearInterval(timerInterval.value); submitExam() }
       }, 1000)
     }
 
-    // Skip current question
     const skipQuestion = () => {
       if (!skippedQuestions.value.includes(currentQuestionIndex.value)) {
         skippedQuestions.value.push(currentQuestionIndex.value)
       }
-      
-      // Move to next question
       if (currentQuestionIndex.value < currentQuestions.value.length - 1) {
         currentQuestionIndex.value++
       } else {
-        // If at last question, go to first skipped question
         goToFirstSkipped()
       }
     }
-      // Go to first unanswered/skipped question
-      const goToFirstSkipped = () => {
+
+    const goToFirstSkipped = () => {
+      if (skippedQuestions.value.length > 0) {
+        skippedQuestions.value.sort((a, b) => a - b)
+        currentQuestionIndex.value = skippedQuestions.value[0]
+        isReviewingSkipped.value   = true
+      }
+    }
+
+    const nextQuestion = () => {
+      if (isReviewingSkipped.value && userAnswers.value[currentQuestionIndex.value]) {
+        const idx = skippedQuestions.value.indexOf(currentQuestionIndex.value)
+        if (idx > -1) skippedQuestions.value.splice(idx, 1)
+        const allAnswered = userAnswers.value.every(a => a !== null)
+        if (allAnswered) {
+          currentQuestionIndex.value = currentQuestions.value.length - 1
+          isReviewingSkipped.value   = false
+          return
+        }
         if (skippedQuestions.value.length > 0) {
-          // Sort skipped questions in order
           skippedQuestions.value.sort((a, b) => a - b)
           currentQuestionIndex.value = skippedQuestions.value[0]
-          isReviewingSkipped.value = true
+          return
         }
+        isReviewingSkipped.value = false
+        const firstUnanswered = userAnswers.value.findIndex(a => a === null)
+        if (firstUnanswered !== -1) { currentQuestionIndex.value = firstUnanswered; return }
       }
-
-      // Next question with skip handling
-      const nextQuestion = () => {
-        // If we're reviewing skipped questions and current question is answered
-        if (isReviewingSkipped.value && userAnswers.value[currentQuestionIndex.value]) {
-          // Remove from skipped list if answered
-          const index = skippedQuestions.value.indexOf(currentQuestionIndex.value)
-          if (index > -1) {
-            skippedQuestions.value.splice(index, 1)
-          }
-          
-          // Check if ALL questions are now answered
-          const allAnswered = userAnswers.value.every(ans => ans !== null)
-          
-          if (allAnswered) {
-            // Lahat nasagot na, pumunta sa huling tanong para magpakita ng Submit button
-            currentQuestionIndex.value = currentQuestions.value.length - 1
-            isReviewingSkipped.value = false
-            return
-          }
-          
-          // Go to next skipped question if any
-          if (skippedQuestions.value.length > 0) {
-            // Sort para sure na ascending order
-            skippedQuestions.value.sort((a, b) => a - b)
-            currentQuestionIndex.value = skippedQuestions.value[0]
-            return
-          } else {
-            // All skipped questions answered, go to first unanswered
-            isReviewingSkipped.value = false
-            
-            // Check if there are still unanswered questions
-            const firstUnanswered = userAnswers.value.findIndex(ans => ans === null)
-            if (firstUnanswered !== -1) {
-              currentQuestionIndex.value = firstUnanswered
-              return
-            }
-          }
-        }
-        
-        // Normal next behavior - kung hindi huling tanong
-        if (currentQuestionIndex.value < currentQuestions.value.length - 1) {
-          currentQuestionIndex.value++
-        } 
-        // Kung nasa huling tanong na at may skipped questions
-        else if (currentQuestionIndex.value === currentQuestions.value.length - 1 && skippedQuestions.value.length > 0) {
-          // I-sort ang skipped questions at pumunta sa una
-          skippedQuestions.value.sort((a, b) => a - b)
-          currentQuestionIndex.value = skippedQuestions.value[0]
-          isReviewingSkipped.value = true
-        }
+      if (currentQuestionIndex.value < currentQuestions.value.length - 1) {
+        currentQuestionIndex.value++
+      } else if (skippedQuestions.value.length > 0) {
+        skippedQuestions.value.sort((a, b) => a - b)
+        currentQuestionIndex.value = skippedQuestions.value[0]
+        isReviewingSkipped.value   = true
       }
+    }
 
-    // Previous question with skip handling
     const previousQuestion = () => {
       if (currentQuestionIndex.value > 0) {
         currentQuestionIndex.value--
-        
-        // If we're in review mode and move to a non-skipped question, adjust
         if (isReviewingSkipped.value && !skippedIndices.value.has(currentQuestionIndex.value)) {
           isReviewingSkipped.value = false
         }
       }
     }
 
-      // Select answer with skip handling
-      const selectAnswer = (index, answer) => {
-        userAnswers.value[index] = answer
-        
-        // If this was a skipped question, remove from skipped list
-        const skippedIndex = skippedQuestions.value.indexOf(index)
-        if (skippedIndex > -1) {
-          skippedQuestions.value.splice(skippedIndex, 1)
-        }
-        
-        // Check if ALL questions are now answered
-        const allAnswered = userAnswers.value.every(ans => ans !== null)
-        
-        // If all answered and we're not at the last question, go to last question to show Submit
-        if (allAnswered && currentQuestionIndex.value < currentQuestions.value.length - 1) {
-          currentQuestionIndex.value = currentQuestions.value.length - 1
-          isReviewingSkipped.value = false
-        }
+    const selectAnswer = (index, answer) => {
+      userAnswers.value[index] = answer
+      const skippedIdx = skippedQuestions.value.indexOf(index)
+      if (skippedIdx > -1) skippedQuestions.value.splice(skippedIdx, 1)
+      const allAnswered = userAnswers.value.every(a => a !== null)
+      if (allAnswered && currentQuestionIndex.value < currentQuestions.value.length - 1) {
+        currentQuestionIndex.value = currentQuestions.value.length - 1
+        isReviewingSkipped.value   = false
       }
-      
-    // Submit exam with validation
+    }
+
     const submitExam = async () => {
-      // Check if there are still unanswered questions
-      const unansweredIndices = userAnswers.value
-        .map((ans, idx) => ans === null ? idx : null)
-        .filter(idx => idx !== null)
-      
-      if (unansweredIndices.length > 0) {
-        // Save skipped questions and go to first unanswered
-        skippedQuestions.value = unansweredIndices
-        currentQuestionIndex.value = unansweredIndices[0]
-        isReviewingSkipped.value = true
-        alert(`Please answer all questions. You have ${unansweredIndices.length} unanswered question(s).`)
+      const unanswered = userAnswers.value.map((a, i) => a === null ? i : null).filter(i => i !== null)
+      if (unanswered.length > 0) {
+        skippedQuestions.value     = unanswered
+        currentQuestionIndex.value = unanswered[0]
+        isReviewingSkipped.value   = true
+        alert(`Please answer all questions. You have ${unanswered.length} unanswered question(s).`)
         return
       }
 
       try {
-        if (timerInterval.value) { 
-          clearInterval(timerInterval.value); 
-          timerInterval.value = null 
-        }
+        if (timerInterval.value) { clearInterval(timerInterval.value); timerInterval.value = null }
         showExamModal.value = false
 
-        const isRetake = retakeLabel.value !== ''
-        const parentQuizId = isRetake ? retakeParentQuizId.value : currentExam.value.id
-        const parentQuiz = parentQuizId === 'quiz-0' ? comprehensiveExam.value : availableQuizzes.value.find(q => q.id === parentQuizId)
-        const parentTitle = parentQuiz?.title || currentExam.value.course_name || currentExam.value.title
+        const isRetake      = retakeLabel.value !== ''
+        const parentQuizId  = isRetake ? retakeParentQuizId.value : currentExam.value.id
+        const parentQuiz    = parentQuizId === 'quiz-0'
+          ? comprehensiveExam.value
+          : availableQuizzes.value.find(q => q.id === parentQuizId)
+        const parentTitle   = parentQuiz?.title || currentExam.value.course_name || currentExam.value.title
 
+        // Calculate score
         let scoreToSave = 0
+        let correctCount = 0
         if (isRetake && parentQuiz?.questions) {
-          const masterMap = getMasterAnswersForQuiz(parentQuizId, parentQuiz.questions)
+          // Merge retake answers into existing mastery to compute cumulative score
+          const tempMastery = { ...(masteryMap.value[parentQuizId] || {}) }
           currentQuestions.value.forEach((q, i) => {
             const ans = userAnswers.value[i]
-            if (ans !== null && ans !== undefined) {
-              masterMap[q.id] = { answer: ans, correct: ans.toLowerCase() === q.correct_key?.toLowerCase() }
+            if (ans !== null) {
+              tempMastery[q.id] = { answer: ans, correct: ans.toLowerCase() === q.correct_key?.toLowerCase() }
             }
           })
-          const totalCorrect = Object.values(masterMap).filter(v => v.correct).length
-          scoreToSave = Math.round((totalCorrect / parentQuiz.questions.length) * 100)
+          const totalCorrect = parentQuiz.questions.filter(q => tempMastery[q.id]?.correct).length
+          scoreToSave  = Math.round((totalCorrect / parentQuiz.questions.length) * 100)
+          correctCount = totalCorrect
         } else {
-          const correct = currentQuestions.value.filter((q, i) => userAnswers.value[i]?.toLowerCase() === q.correct_key?.toLowerCase()).length
-          scoreToSave = Math.round((correct / currentQuestions.value.length) * 100)
+          correctCount = currentQuestions.value.filter((q, i) => userAnswers.value[i]?.toLowerCase() === q.correct_key?.toLowerCase()).length
+          scoreToSave  = Math.round((correctCount / currentQuestions.value.length) * 100)
         }
 
         currentScore.value = scoreToSave
-        loading.value = true
+        loading.value      = true
 
-        const analysis = await analyzePerformanceWithAI(currentQuestions.value, userAnswers.value)
+        // Local analysis for results modal
+        const analysis = performLocalAnalysis(currentQuestions.value, userAnswers.value)
         currentWeaknessAnalysis.value = analysis.weakness_analysis || []
-        currentRecommendation.value = analysis.recommendation || generateRecommendation(currentWeaknessAnalysis.value)
+        currentRecommendation.value   = analysis.recommendation || ''
 
-        const attemptRecord = {
-          student_id: user.value.id || 'demo-user',
-          exam_id: parentQuizId,
-          exam_title: parentTitle,
-          score: scoreToSave,
-          total_questions: isRetake && parentQuiz ? parentQuiz.questions.length : currentQuestions.value.length,
-          correct_answers: isRetake && parentQuiz ? Math.round(scoreToSave / 100 * parentQuiz.questions.length) : currentQuestions.value.filter((q, i) => userAnswers.value[i]?.toLowerCase() === q.correct_key?.toLowerCase()).length,
-          answers: [...userAnswers.value],
-          retake_question_ids: isRetake ? currentQuestions.value.map(q => q.id) : null,
-          language: currentLanguage.value,
-          completed_at: new Date().toISOString()
-        }
+        // Save to DB
+        await apiCall('/student/mock-exam/attempts', 'POST', {
+          exam_id:              parentQuizId,
+          exam_title:           parentTitle,
+          score:                scoreToSave,
+          total_questions:      isRetake && parentQuiz ? parentQuiz.questions.length : currentQuestions.value.length,
+          correct_answers:      correctCount,
+          answers:              [...userAnswers.value],
+          retake_question_ids:  isRetake ? currentQuestions.value.map(q => q.id) : null,
+          questions:            currentQuestions.value,   // needed for mastery upsert
+          language:             currentLanguage.value,
+        })
 
-        const saved = await submitExamAttemptToAPI(attemptRecord)
-        examResults.value.unshift({ ...saved, ...attemptRecord })
-        localStorage.setItem('examResults', JSON.stringify(examResults.value))
-        
-        if (examResults.value.length === 1) await loadAIRecommendations()
-        loading.value = false
+        // Re-fetch attempts + mastery from DB so UI is fresh
+        await fetchAttemptsFromDB()
+
+        loading.value         = false
         showResultsModal.value = true
-      } catch (e) { 
-        console.error(e); 
-        alert('Failed to submit exam.'); 
-        loading.value = false 
+      } catch (e) {
+        console.error('submitExam error:', e)
+        alert('Failed to submit exam.')
+        loading.value = false
       }
     }
 
     const reviewExam = (attempt) => {
-      let quiz = attempt.exam_id === 'quiz-0' ? comprehensiveExam.value
+      const quiz = attempt.exam_id === 'quiz-0'
+        ? comprehensiveExam.value
         : availableQuizzes.value.find(q => q.id === attempt.exam_id) || availableQuizzes.value.find(q => q.title === attempt.exam_title)
       if (!quiz) return
 
       const masterMap = getMasterAnswersForQuiz(attempt.exam_id, quiz.questions)
-      currentQuestions.value = quiz.questions
-      currentReviewAnswers.value = quiz.questions.map(q => masterMap[q.id]?.answer || null)
-      currentReviewAttempt.value = {
+      currentQuestions.value      = quiz.questions
+      currentReviewAnswers.value  = quiz.questions.map(q => masterMap[q.id]?.answer || null)
+      currentReviewAttempt.value  = {
         ...attempt,
-        score: getCumulativeScoreForQuiz(attempt.exam_id),
+        score:           getCumulativeScoreForQuiz(attempt.exam_id),
         total_questions: quiz.questions.length,
-        correct_answers: Object.values(masterMap).filter(v => v.correct).length
+        correct_answers: Object.values(masterMap).filter(v => v.correct).length,
       }
       showReviewModal.value = true
     }
 
     const updateUserLanguage = async () => {
-      if (user.value.id) { 
-        try { 
-          await apiCall('/student/language', 'PUT', { language: currentLanguage.value }) 
-        } catch {} 
-      }
-      if (user.value) { 
-        user.value.preferred_language = currentLanguage.value; 
-        localStorage.setItem('user', JSON.stringify(user.value)) 
+      try {
+        await apiCall('/student/mock-exam/language', 'PUT', { language: currentLanguage.value })
+        if (user.value) {
+          user.value.preferred_language = currentLanguage.value
+          localStorage.setItem('user', JSON.stringify(user.value))
+        }
+      } catch (e) {
+        console.error('updateLanguage error:', e)
       }
     }
 
     const closeExamModal = () => {
       if (confirm('Exit the exam? Your progress will be lost.')) {
-        if (timerInterval.value) { 
-          clearInterval(timerInterval.value); 
-          timerInterval.value = null 
-        }
-        showExamModal.value = false
-        retakeLabel.value = ''
+        if (timerInterval.value) { clearInterval(timerInterval.value); timerInterval.value = null }
+        showExamModal.value      = false
+        retakeLabel.value        = ''
         retakeParentQuizId.value = null
       }
     }
@@ -1488,7 +1228,7 @@ export default {
     onMounted(() => loadInitialData())
 
     return {
-      user, currentLanguage, availableQuizzes, examResults, searchQuery,
+      user, currentLanguage, availableQuizzes, examResults, masteryMap, searchQuery,
       loading, showTutorialModal, showExamModal, showResultsModal, showReviewModal,
       showDeleteModal, deleteMessage,
       weaknessAnalysis, aiRecommendations, aiSummary,
@@ -1497,73 +1237,29 @@ export default {
       currentReviewAttempt, currentReviewAnswers, retakeLabel,
       allWeaknessGroups, totalWeakCount, latestResultsPerQuiz, uniqueExamsTaken, overallAvgScore,
       hasTakenExams, filteredQuizzes, currentQuestion, answeredCount, formattedTime, progressWidth,
+      skippedQuestions, skippedIndices, isReviewingSkipped,
       getLocalizedText, getOptionText, getOptionReviewClass, isReviewCorrect,
       takeExam, startExam, startInitialExam, startRecommendedExam, retakeSubcategory,
-      selectAnswer, previousQuestion, nextQuestion, submitExam, reviewExam,
+      selectAnswer, previousQuestion, nextQuestion, submitExam, reviewExam, skipQuestion,
       updateUserLanguage, closeExamModal, scrollToQuizzes,
       getScoreColorClass, getStatusClass, getButtonClass, getButtonText, getExamStatus,
       getCumulativeScoreForQuiz, formatDate, getRemarks, getResultMessage,
       confirmDeleteQuizResults, confirmClearAllResults, executeDelete,
-      skippedQuestions, skippedIndices, isReviewingSkipped, skipQuestion, goToFirstSkipped
     }
   }
 }
 </script>
 
 <style scoped>
-.backdrop { 
-  background: rgba(0,0,0,0.5); 
-  backdrop-filter: blur(2px); 
+.backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+.fade-in  { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-.progress-bar { 
-  height: 8px; 
-  border-radius: 4px; 
-  overflow: hidden; 
-}
-
-.progress-fill { 
-  height: 100%; 
-  transition: width 0.4s ease; 
-}
-
-.fade-in { 
-  animation: fadeIn 0.3s ease; 
-}
-
-@keyframes fadeIn { 
-  from { 
-    opacity: 0; 
-    transform: translateY(6px); 
-  } 
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  } 
-}
-
-/* Custom scrollbar for weakness analysis */
-.weakness-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.weakness-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-
-.weakness-scrollbar::-webkit-scrollbar-thumb {
-  background: #f97316;
-  border-radius: 10px;
-}
-
-.weakness-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #ea580c;
-}
-
-/* For Firefox */
-.weakness-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #f97316 #f1f1f1;
-}
+.weakness-scrollbar::-webkit-scrollbar       { width: 6px; }
+.weakness-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+.weakness-scrollbar::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
+.weakness-scrollbar::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+.weakness-scrollbar { scrollbar-width: thin; scrollbar-color: #f97316 #f1f1f1; }
 </style>

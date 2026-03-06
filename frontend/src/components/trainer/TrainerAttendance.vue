@@ -277,7 +277,7 @@
 
           <div v-else class="border rounded overflow-hidden">
             <table class="min-w-full text-sm">
-              <thead class="bg-gray-100">
+              <thead class="bg-blue-800 text-white">
                 <tr>
                   <th class="text-left py-2 px-3">Date</th>
                   <th class="text-left py-2 px-3">Present</th>

@@ -1,525 +1,411 @@
 <template>
   <StudentLayout active-page="dashboard">
-    <!-- Header Slots -->
+
     <template #header-left>
-      <input 
-        type="text" 
-        placeholder="Search..." 
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-        v-model="searchQuery"
-      >
-    </template>
-    
-    <template #header-right>
-      <div class="flex items-center gap-4">
-        <div class="relative">
-          <button @click="toggleNotifications" class="p-2 hover:bg-green-700 rounded-full">
-            <span class="text-xl">🔔</span>
-          </button>
-          <div v-if="hasNotifications" class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
-        </div>
-        <div class="w-10 h-10 bg-white text-green-800 rounded-full flex items-center justify-center text-xl font-bold">
-          {{ getUserInitial() }}
-        </div>
+      <div class="flex items-center gap-3 w-full">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Search sessions..."
+          class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
+        />
+        <button
+          @click="loadAll"
+          class="px-4 py-2 rounded-md text-sm font-semibold shadow-sm border bg-green-700 text-white border-green-700 hover:bg-green-800"
+          title="Refresh"
+        >
+          ↻ Refresh
+        </button>
       </div>
     </template>
-    
-    <!-- Main Content -->
+
     <div>
-      <!-- Welcome Section -->
-      <h1 class="text-3xl font-bold text-gray-800 mb-6">Welcome, {{ studentName }}!</h1>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Progress Overview with Animation -->
-        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow">
-          <h2 class="bg-green-700 text-white font-semibold px-4 py-2 rounded-lg mb-4 inline-block">
-            Progress Overview
-          </h2>
-          <div class="space-y-4">
-            <div 
-              v-for="course in progressOverview" 
-              :key="course.name"
-              class="progress-item"
-            >
-              <div class="flex justify-between mb-1">
-                <p class="font-medium text-gray-700">{{ course.name }}</p>
-                <span class="text-sm text-gray-500">{{ course.percentage }}%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div 
-                  class="h-3 rounded-full progress-bar"
-                  :class="course.colorClass"
-                  :style="{ width: '0%' }"
-                  :data-width="course.percentage"
-                  ref="progressBars"
-                ></div>
-              </div>
+      <!-- Title row -->
+      <div class="flex items-start justify-between gap-4 mb-2">
+        <div>
+          <h2 class="text-lg font-bold text-green-800">📊 Student Dashboard</h2>
+          <p class="text-lg text-green-800 mt-1 font-bold">Welcome back, {{ studentName }}!</p>
+        </div>
+        <div v-if="examLoading" class="text-xs text-gray-500 mt-1">Loading…</div>
+      </div>
+
+      <!-- ── Summary Cards ── -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+
+        <div class="bg-green-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-3xl font-bold text-green-800">{{ examProgress.length }}</h3>
+              <p class="text-green-700 font-medium mt-1">Quizzes Taken</p>
+              <p class="text-xs text-green-700 mt-1">Mock exam attempts</p>
+            </div>
+            <div class="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center">
+              <span class="text-2xl">📝</span>
             </div>
           </div>
         </div>
 
-        <!-- Enroll in Course -->
-        <div class="bg-white p-6 rounded-xl shadow">
-          <h2 class="bg-green-700 text-white font-semibold px-4 py-2 rounded-lg mb-4 inline-block">
-            Enroll in Course
-          </h2>
-          <div class="space-y-3">
-            <div 
-              v-for="course in availableCourses" 
-              :key="course.id"
-              class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
-            >
-              <div>
-                <p class="font-medium text-gray-700">{{ course.name }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ course.description }}</p>
-              </div>
-              <button 
-                @click="enrollInCourse(course.id)"
-                :class="[
-                  'text-sm px-4 py-2 rounded-lg transition-all duration-300',
-                  course.enrolled 
-                    ? 'bg-gray-300 text-gray-700 cursor-not-allowed transform scale-95' 
-                    : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
-                ]"
-                :disabled="course.enrolled"
-              >
-                {{ course.enrolled ? 'Enrolled ✓' : 'Enroll' }}
-              </button>
+        <div class="bg-blue-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-3xl font-bold text-blue-800">{{ overallAvg }}%</h3>
+              <p class="text-blue-700 font-medium mt-1">Average Score</p>
+              <p class="text-xs text-blue-700 mt-1">Across all quizzes</p>
+            </div>
+            <div class="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center">
+              <span class="text-2xl">📊</span>
             </div>
           </div>
         </div>
 
-        <!-- Upcoming Sessions Table (New format) -->
-        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="bg-green-700 text-white font-semibold px-4 py-2 rounded-lg inline-block">
-              Upcoming Sessions
-            </h2>
-            <button @click="viewAllSessions" class="text-green-700 hover:text-green-800 font-medium text-sm">
-              View All →
-            </button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-              <thead class="bg-green-800 text-white">
-                <tr>
-                  <th class="py-3 px-4 text-left font-medium">Session Title</th>
-                  <th class="py-3 px-4 text-left font-medium">Instructor</th>
-                  <th class="py-3 px-4 text-left font-medium">Date & Time</th>
-                  <th class="py-3 px-4 text-left font-medium">Status</th>
-                  <th class="py-3 px-4 text-left font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr 
-                  v-for="(session, index) in filteredSessions" 
-                  :key="session.id" 
-                  class="border-b hover:bg-gray-50 transition-colors"
-                  :style="{ animationDelay: `${index * 0.1}s` }"
-                >
-                  <td class="py-3 px-4">
-                    <div class="font-medium text-gray-800">{{ session.title }}</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ session.instructor }}</div>
-                  </td>
-                  <td class="py-3 px-4">{{ session.instructor }}</td>
-                  <td class="py-3 px-4">
-                    <div>{{ formatDate(session.dateTime) }}</div>
-                    <div class="text-xs text-gray-500">{{ formatTime(session.dateTime) }}</div>
-                  </td>
-                  <td class="py-3 px-4">
-                    <span :class="statusClass(session.status)">
-                      {{ session.status === 'upcoming' ? 'Upcoming' : 
-                         session.status === 'ongoing' ? 'Ongoing' : 'Completed' }}
-                    </span>
-                  </td>
-                  <td class="py-3 px-4">
-                    <button 
-                      @click="handleSessionAction(session)"
-                      :class="[
-                        'text-sm font-medium transition-all duration-300',
-                        session.actionText === 'Join' 
-                          ? 'text-green-600 hover:text-green-800' 
-                          : 'text-blue-600 hover:text-blue-800'
-                      ]"
-                    >
-                      {{ session.actionText }}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="bg-yellow-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-3xl font-bold text-yellow-800">{{ upcomingSessions.length }}</h3>
+              <p class="text-yellow-700 font-medium mt-1">Upcoming Sessions</p>
+              <p class="text-xs text-yellow-700 mt-1">Scheduled driving lessons</p>
+            </div>
+            <div class="w-12 h-12 bg-yellow-200 rounded-full flex items-center justify-center">
+              <span class="text-2xl">📅</span>
+            </div>
           </div>
         </div>
 
-        <!-- Course Progress & Quick Stats -->
-        <div class="bg-white p-6 rounded-xl shadow">
-          <h2 class="bg-green-700 text-white font-semibold px-4 py-2 rounded-lg mb-4 inline-block">
-            Course Progress
-          </h2>
-          
-          <!-- Progress Circles with Animation -->
-          <div class="flex justify-center gap-6 mb-6">
-            <div 
-              v-for="(course, index) in courseProgress" 
-              :key="index"
-              class="relative w-20 h-20 progress-circle-container"
-            >
-              <svg class="w-20 h-20 transform -rotate-90">
-                <circle 
-                  cx="40" 
-                  cy="40" 
-                  r="35" 
-                  stroke="currentColor" 
-                  :stroke-width="6" 
-                  fill="transparent" 
-                  class="text-gray-200"
-                />
-                <circle 
-                  cx="40" 
-                  cy="40" 
-                  r="35" 
-                  stroke="currentColor" 
-                  :stroke-width="6" 
-                  fill="transparent" 
-                  :stroke-dasharray="220"
-                  :stroke-dashoffset="220"
-                  :class="course.borderColor"
-                  class="progress-circle"
-                  :data-percentage="course.percentage"
-                  ref="progressCircles"
-                />
-              </svg>
-              <span class="absolute inset-0 flex items-center justify-center font-bold text-gray-800 text-lg progress-percentage">
-                {{ course.percentage }}%
-              </span>
+        <div class="bg-purple-100 p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-3xl font-bold text-purple-800">{{ passedCount }}</h3>
+              <p class="text-purple-700 font-medium mt-1">Quizzes Passed</p>
+              <p class="text-xs text-purple-700 mt-1">Score of 70% or above</p>
+            </div>
+            <div class="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
+              <span class="text-2xl">🏆</span>
             </div>
           </div>
-          
-          <!-- Quick Stats -->
-          <div class="space-y-3">
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-300">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                  <span class="text-green-700 text-xl">📚</span>
-                </div>
-                <div>
-                  <p class="text-sm text-gray-600">Courses Taken</p>
-                  <p class="font-bold text-gray-800">{{ stats.coursesTaken }}</p>
-                </div>
-              </div>
+        </div>
+
+      </div>
+
+      <!-- ── Quick Links ── -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <button
+          @click="$router.push('/student-quiz')"
+          class="bg-white border border-gray-200 rounded-xl p-5 text-left shadow-sm hover:shadow transition"
+        >
+          <div class="text-sm text-gray-500">Quick Link</div>
+          <div class="mt-1 font-semibold text-green-800">📝 Mock Exams</div>
+          <div class="text-xs text-gray-500 mt-1">Practice theory questions</div>
+        </button>
+
+        <button
+          @click="$router.push('/student-enroll')"
+          class="bg-white border border-gray-200 rounded-xl p-5 text-left shadow-sm hover:shadow transition"
+        >
+          <div class="text-sm text-gray-500">Quick Link</div>
+          <div class="mt-1 font-semibold text-green-800">📚 Enroll in Course</div>
+          <div class="text-xs text-gray-500 mt-1">PDC-A, PDC-B, PDC-AB, TDC</div>
+        </button>
+
+        <button
+          @click="$router.push('/student-schedule')"
+          class="bg-white border border-gray-200 rounded-xl p-5 text-left shadow-sm hover:shadow transition"
+        >
+          <div class="text-sm text-gray-500">Quick Link</div>
+          <div class="mt-1 font-semibold text-green-800">📅 My Schedule</div>
+          <div class="text-xs text-gray-500 mt-1">View upcoming sessions</div>
+        </button>
+
+        <button
+          @click="$router.push('/student-certificate')"
+          class="bg-white border border-gray-200 rounded-xl p-5 text-left shadow-sm hover:shadow transition"
+        >
+          <div class="text-sm text-gray-500">Quick Link</div>
+          <div class="mt-1 font-semibold text-green-800">🏆 Certificates</div>
+          <div class="text-xs text-gray-500 mt-1">View earned certificates</div>
+        </button>
+      </div>
+
+      <!-- ── Mock Exam Progress (Top quizzes this month style) ── -->
+      <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-md font-semibold text-green-800">📈 Mock Exam Progress</h3>
+          <span class="text-xs text-gray-500">cumulative score per quiz</span>
+        </div>
+
+        <div v-if="examLoading" class="flex justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-700"></div>
+        </div>
+
+        <div v-else-if="examProgress.length === 0" class="text-sm text-gray-500 py-4 text-center">
+          No quizzes taken yet.
+          <button @click="$router.push('/student-quiz')" class="ml-2 text-green-700 underline font-medium">Start a quiz →</button>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div
+            v-for="item in examProgress"
+            :key="item.exam_id"
+            class="border border-gray-200 rounded-lg p-4"
+          >
+            <div class="text-sm font-semibold text-gray-800 truncate" :title="item.title">
+              {{ item.title }}
             </div>
-            
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-300">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                  <span class="text-blue-700 text-xl">✅</span>
-                </div>
-                <div>
-                  <p class="text-sm text-gray-600">Attendance Rate</p>
-                  <p class="font-bold text-gray-800">{{ stats.attendanceRate }}%</p>
-                </div>
-              </div>
+            <div
+              class="text-2xl font-bold mt-2"
+              :class="item.score >= 80 ? 'text-green-700' : item.score >= 60 ? 'text-yellow-600' : 'text-red-500'"
+            >
+              {{ item.score }}%
             </div>
-            
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-300">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                  <span class="text-yellow-700 text-xl">⭐</span>
-                </div>
-                <div>
-                  <p class="text-sm text-gray-600">Average Score</p>
-                  <p class="font-bold text-gray-800">{{ stats.averageScore }}/100</p>
-                </div>
-              </div>
+            <div class="text-xs text-gray-500">{{ item.attempts }} attempt{{ item.attempts !== 1 ? 's' : '' }}</div>
+            <!-- mini progress bar -->
+            <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all duration-700"
+                :class="item.score >= 80 ? 'bg-green-500' : item.score >= 60 ? 'bg-yellow-400' : 'bg-red-400'"
+                :style="{ width: item.score + '%' }"
+              ></div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- ── Available Courses ── -->
+      <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-md font-semibold text-green-800">🚗 Available Courses</h3>
+          <button @click="$router.push('/student-enroll')" class="text-green-700 hover:text-green-800 font-medium text-sm">
+            View All →
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div
+            v-for="course in courses"
+            :key="course.id"
+            @click="$router.push('/student-enroll')"
+            class="border border-gray-200 rounded-lg p-4 hover:border-green-400 hover:shadow-sm transition cursor-pointer group"
+          >
+            <div class="flex items-center gap-1.5 mb-2">
+              <span class="text-xs font-bold text-white bg-green-700 px-2 py-0.5 rounded">{{ course.code }}</span>
+              <span class="text-[10px] text-green-600 font-semibold">● Active</span>
+            </div>
+            <div class="text-sm font-semibold text-gray-800 leading-snug">{{ course.name }}</div>
+            <div v-if="course.subtitle" class="text-xs text-gray-500 mt-0.5">{{ course.subtitle }}</div>
+            <div class="mt-3 space-y-1 text-xs text-gray-500">
+              <div v-if="course.duration">⏱ {{ course.duration }}</div>
+              <div class="font-bold text-green-700 text-sm">
+                {{ course.fee > 0 ? '₱' + course.fee.toLocaleString() : 'See requirements' }}
+              </div>
+            </div>
+            <div class="mt-3 text-xs text-green-700 font-semibold group-hover:underline">
+              📋 View Requirements →
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Upcoming Sessions Table ── -->
+      <div class="overflow-x-auto mb-10">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-md font-semibold text-green-800">Upcoming Sessions</h3>
+          <button
+            @click="$router.push('/student-schedule')"
+            class="text-green-700 hover:text-green-800 font-medium text-sm"
+          >
+            View All →
+          </button>
+        </div>
+
+        <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+          <thead class="bg-green-800 text-white">
+            <tr>
+              <th class="py-3 px-4 text-left font-medium">Session</th>
+              <th class="py-3 px-4 text-left font-medium">Instructor</th>
+              <th class="py-3 px-4 text-left font-medium">Date</th>
+              <th class="py-3 px-4 text-left font-medium">Time</th>
+              <th class="py-3 px-4 text-left font-medium">Status</th>
+              <th class="py-3 px-4 text-left font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="session in filteredSessions"
+              :key="session.id"
+              class="border-b hover:bg-gray-50 transition-colors"
+            >
+              <td class="py-3 px-4 font-medium text-gray-800">{{ session.title }}</td>
+              <td class="py-3 px-4 text-gray-600">{{ session.instructor }}</td>
+              <td class="py-3 px-4">{{ formatDate(session.dateTime) }}</td>
+              <td class="py-3 px-4 text-gray-500">{{ formatTime(session.dateTime) }}</td>
+              <td class="py-3 px-4">
+                <span :class="statusPill(session.status)">
+                  {{ session.status === 'upcoming' ? 'Upcoming' : session.status === 'ongoing' ? 'Ongoing' : 'Completed' }}
+                </span>
+              </td>
+              <td class="py-3 px-4">
+                <button
+                  @click="handleSessionAction(session)"
+                  :class="session.actionText === 'Join'
+                    ? 'text-green-600 hover:text-green-800 font-semibold text-xs'
+                    : 'text-blue-600 hover:text-blue-800 font-semibold text-xs'"
+                >
+                  {{ session.actionText }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="filteredSessions.length === 0">
+              <td colspan="6" class="py-6 px-4 text-center text-gray-500">No upcoming sessions.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
     </div>
   </StudentLayout>
 </template>
 
 <script>
 import StudentLayout from './StudentLayout.vue'
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: 'http://localhost:3000/api',
+  withCredentials: true,
+})
+
+const QUIZ_TITLES = {
+  'quiz-0':  'Comprehensive',
+  'quiz-1':  'Traffic Rules & Signs',
+  'quiz-2':  'Safe Driving',
+  'quiz-3':  'Licensing & Docs',
+  'quiz-4':  'Violations & Penalties',
+  'quiz-5':  'Vehicle Operations',
+  'quiz-6':  'Emergency & Accidents',
+  'quiz-7':  'Special Vehicles',
+  'quiz-8':  'Driver Wellness',
+  'quiz-9':  'Child Safety',
+  'quiz-10': 'Vehicle Maintenance',
+  'quiz-11': 'Weather & Conditions',
+  'quiz-12': 'Right of Way',
+  'quiz-13': 'Other Topics',
+}
 
 export default {
   name: 'StudentDashboard',
-  components: {
-    StudentLayout
-  },
+  components: { StudentLayout },
+
   data() {
     return {
-      searchQuery: '',
-      studentName: 'John',
-      hasNotifications: true,
-      progressOverview: [
-        { name: 'Traffic Rules', percentage: 80, colorClass: 'bg-green-600' },
-        { name: 'Driving Simulation', percentage: 45, colorClass: 'bg-yellow-500' },
-        { name: 'Safety Orientation', percentage: 20, colorClass: 'bg-blue-500' }
+      searchQuery:  '',
+      studentName:  'Student',
+      examLoading:  false,
+      examProgress: [],
+
+      courses: [
+        { id: 'pdc-a',  code: 'PDC-A',  name: 'Practical Driving Course (A)',   subtitle: null,                              duration: '8 hours',          fee: 500  },
+        { id: 'pdc-ab', code: 'PDC-AB', name: 'Practical Driving Course (AB)',  subtitle: 'Motorcycle & 4 Wheels 8 Seater',  duration: '8 hours',          fee: 4200 },
+        { id: 'pdc-b',  code: 'PDC-B',  name: 'Practical Driving Course (B)',   subtitle: '4 Wheels 8 Seater',               duration: '4 hours for 2 days', fee: 3000 },
+        { id: 'tdc',    code: 'TDC',    name: 'Theoretical Driving Course',     subtitle: null,                              duration: null,               fee: 0    },
       ],
-      availableCourses: [
-        { id: 1, name: 'First Aid Basics', description: 'Emergency response training', enrolled: false },
-        { id: 2, name: 'Traffic Law Review', description: 'Latest traffic regulations', enrolled: false },
-        { id: 3, name: 'Defensive Driving', description: 'Advanced driving techniques', enrolled: true }
-      ],
+
       upcomingSessions: [
-        { id: 1, title: 'Traffic Rules', instructor: 'Prof. Smith', dateTime: '2025-10-25T14:00:00', status: 'upcoming', actionText: 'View Details' },
-        { id: 2, title: 'Driving Simulation', instructor: 'Coach Johnson', dateTime: '2025-10-28T09:00:00', status: 'ongoing', actionText: 'Join' },
-        { id: 3, title: 'Safety Orientation', instructor: 'Dr. Williams', dateTime: '2025-11-02T13:30:00', status: 'upcoming', actionText: 'View Details' },
-        { id: 4, title: 'Basic Driving', instructor: 'Mr. Cruz', dateTime: '2025-11-05T08:00:00', status: 'upcoming', actionText: 'View Details' },
-        { id: 5, title: 'Traffic Rules', instructor: 'Ms. Reyes', dateTime: '2025-11-08T13:00:00', status: 'upcoming', actionText: 'View Details' }
+        { id: 1, title: 'Traffic Rules',      instructor: 'Prof. Smith',   dateTime: '2025-10-25T14:00:00', status: 'upcoming', actionText: 'View Details' },
+        { id: 2, title: 'Driving Simulation', instructor: 'Coach Johnson', dateTime: '2025-10-28T09:00:00', status: 'ongoing',  actionText: 'Join' },
+        { id: 3, title: 'Safety Orientation', instructor: 'Dr. Williams',  dateTime: '2025-11-02T13:30:00', status: 'upcoming', actionText: 'View Details' },
+        { id: 4, title: 'Basic Driving',      instructor: 'Mr. Cruz',      dateTime: '2025-11-05T08:00:00', status: 'upcoming', actionText: 'View Details' },
       ],
-      courseProgress: [
-        { percentage: 80, borderColor: 'text-green-600' },
-        { percentage: 45, borderColor: 'text-yellow-500' }
-      ],
-      stats: {
-        coursesTaken: 5,
-        attendanceRate: 92,
-        averageScore: 85
-      }
     }
   },
+
   computed: {
     filteredSessions() {
-      if (!this.searchQuery) return this.upcomingSessions;
-      
-      const query = this.searchQuery.toLowerCase();
-      return this.upcomingSessions.filter(session => 
-        session.title.toLowerCase().includes(query) ||
-        session.instructor.toLowerCase().includes(query) ||
-        session.status.toLowerCase().includes(query)
-      );
-    }
+      if (!this.searchQuery) return this.upcomingSessions
+      const q = this.searchQuery.toLowerCase()
+      return this.upcomingSessions.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.instructor.toLowerCase().includes(q) ||
+        s.status.toLowerCase().includes(q)
+      )
+    },
+    overallAvg() {
+      if (!this.examProgress.length) return 0
+      return Math.round(this.examProgress.reduce((s, r) => s + r.score, 0) / this.examProgress.length)
+    },
+    passedCount() {
+      return this.examProgress.filter(r => r.score >= 70).length
+    },
   },
-  mounted() {
-    // Load student data from localStorage
+
+  async mounted() {
     const userData = localStorage.getItem('user')
     if (userData) {
       try {
-        const user = JSON.parse(userData)
-        this.studentName = user.name || user.username || 'John'
-      } catch (e) {
-        console.error('Error parsing user data:', e)
-      }
+        const u = JSON.parse(userData)
+        this.studentName = u.fullname || u.name || u.username || 'Student'
+      } catch (e) { /* ignore */ }
     }
-    
-    // Initialize animations
-    this.$nextTick(() => {
-      this.animateProgressBars()
-      this.animateProgressCircles()
-    })
+    await this.loadAll()
   },
+
   methods: {
-    formatDate(dateTime) {
-      const date = new Date(dateTime)
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      })
+    async loadAll() {
+      await this.fetchExamProgress()
     },
-    formatTime(dateTime) {
-      const date = new Date(dateTime)
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit', 
-        hour12: true 
-      })
-    },
-    statusClass(status) {
-      return {
-        'text-green-600 font-semibold': status === 'ongoing',
-        'text-yellow-600 font-semibold': status === 'upcoming',
-        'text-gray-600 font-semibold': status === 'completed'
-      };
-    },
-    enrollInCourse(courseId) {
-      const course = this.availableCourses.find(c => c.id === courseId)
-      if (course && !course.enrolled) {
-        course.enrolled = true
-        console.log(`Enrolling in course: ${course.name}`)
+
+    async fetchExamProgress() {
+      this.examLoading = true
+      try {
+        const res = await api.get('/student/mock-exam/attempts')
+        const { attempts = [], mastery = {} } = res.data?.data || {}
+        if (!attempts.length) return
+
+        const quizIds  = [...new Set(attempts.map(a => a.exam_id))]
+        const progress = []
+
+        quizIds.forEach(qid => {
+          const quizAttempts = attempts.filter(a => a.exam_id === qid)
+          const quizMastery  = mastery[qid] || {}
+          const totalCorrect = Object.values(quizMastery).filter(v => v.correct).length
+          const totalQ       = quizAttempts[0].total_questions || 0
+          const score        = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0
+
+          progress.push({
+            exam_id:  qid,
+            title:    QUIZ_TITLES[qid] || quizAttempts[0].exam_title || qid,
+            score,
+            attempts: quizAttempts.length,
+          })
+        })
+
+        this.examProgress = progress.sort((a, b) => a.score - b.score)
+      } catch (err) {
+        console.error('fetchExamProgress error:', err)
+      } finally {
+        this.examLoading = false
       }
+    },
+
+    formatDate(dt) {
+      const d = new Date(dt)
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    },
+    formatTime(dt) {
+      const d = new Date(dt)
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    },
+    statusPill(status) {
+      if (status === 'ongoing')   return 'px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700'
+      if (status === 'upcoming')  return 'px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800'
+      return 'px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600'
     },
     handleSessionAction(session) {
-      if (session.actionText === 'Join') {
-        console.log('Joining session:', session.title)
-      } else {
-        console.log('Viewing details for:', session.title)
-      }
+      console.log(session.actionText === 'Join' ? 'Joining:' : 'Viewing:', session.title)
     },
-    toggleNotifications() {
-      this.hasNotifications = false
-      console.log('Notifications clicked')
-    },
-    getUserInitial() {
-      return this.studentName.charAt(0).toUpperCase()
-    },
-    viewAllSessions() {
-      console.log('Viewing all sessions')
-      // Implement navigation to schedule page
-    },
-    
-    // Animation methods
-    animateProgressBars() {
-      const progressBars = this.$refs.progressBars
-      if (progressBars) {
-        progressBars.forEach((bar, index) => {
-          const width = this.progressOverview[index]?.percentage || 0
-          setTimeout(() => {
-            bar.style.width = width + '%'
-          }, index * 200) // Stagger the animations
-        })
-      }
-    },
-    
-    animateProgressCircles() {
-      const progressCircles = this.$refs.progressCircles
-      if (progressCircles) {
-        progressCircles.forEach((circle, index) => {
-          const percentage = this.courseProgress[index]?.percentage || 0
-          const circumference = 220 // 2 * π * r (r = 35)
-          const offset = circumference - (circumference * percentage) / 100
-          
-          // Set initial state
-          circle.style.strokeDashoffset = circumference
-          
-          // Animate to final state
-          setTimeout(() => {
-            circle.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'
-            circle.style.strokeDashoffset = offset
-          }, index * 300) // Stagger the animations
-        })
-      }
-    }
-  }
+  },
 }
 </script>
 
 <style scoped>
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* Progress Bar Animation */
-.progress-bar {
-  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 0%;
-}
-
-/* Progress Item Animation */
-.progress-item {
-  opacity: 0;
-  transform: translateY(10px);
-  animation: fadeInUp 0.5s ease forwards;
-}
-
-.progress-item:nth-child(1) { animation-delay: 0.1s; }
-.progress-item:nth-child(2) { animation-delay: 0.2s; }
-.progress-item:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Progress Circle Animation */
-.progress-circle {
-  transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.progress-circle-container {
-  opacity: 0;
-  transform: scale(0.8);
-  animation: scaleIn 0.6s ease forwards;
-}
-
-.progress-circle-container:nth-child(1) { animation-delay: 0.1s; }
-.progress-circle-container:nth-child(2) { animation-delay: 0.3s; }
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Progress Percentage Animation */
-.progress-percentage {
-  opacity: 0;
-  animation: fadeIn 0.8s ease forwards;
-  animation-delay: 0.5s;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Table Row Animation */
-tr {
-  opacity: 0;
-  transform: translateX(-10px);
-  animation: slideInRight 0.4s ease forwards;
-}
-
-tr:nth-child(1) { animation-delay: 0.1s; }
-tr:nth-child(2) { animation-delay: 0.2s; }
-tr:nth-child(3) { animation-delay: 0.3s; }
-tr:nth-child(4) { animation-delay: 0.4s; }
-tr:nth-child(5) { animation-delay: 0.5s; }
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Smooth transitions for all interactive elements */
-button, input, select {
-  transition: all 0.2s ease;
-}
-
-.hover\:scale-105:hover {
-  transform: scale(1.05);
-}
-
-.hover\:scale-110:hover {
-  transform: scale(1.10);
-}
+button, input { transition: all 0.2s ease; }
 </style>

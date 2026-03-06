@@ -109,7 +109,7 @@
           </button>
           <button
             @click="markAllAsRead"
-            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors"
+            class="px-3 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium transition-colors"
           >
             Mark All Read
           </button>
@@ -529,11 +529,14 @@ export default {
       );
     });
 
-    // Show contacts that are NOT already in the inbox (for quick access)
     const recentContacts = computed(() =>
-      allContacts.value.filter(
-        (c) => !inbox.value.some((conv) => conv.id === c.id)
-      ).slice(0, 12)
+      allContacts.value
+        .filter(
+          (c) =>
+            ["admin", "instructor", "trainer"].includes(c.role) &&
+            !inbox.value.some((conv) => conv.id === c.id)
+        )
+        .slice(0, 12)
     );
 
     // ── Helpers ────────────────────────────────────────────────────────────────
