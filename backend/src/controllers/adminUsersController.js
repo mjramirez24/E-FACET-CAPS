@@ -62,6 +62,283 @@ async function getDisableColumn() {
   return null;
 }
 
+function splitFullname(fullname) {
+  const clean = String(fullname || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!clean) return { firstname: "Unknown", lastname: "User" };
+
+  const parts = clean.split(" ");
+  const firstname = parts.shift() || "Unknown";
+  const lastname = parts.join(" ") || "User";
+
+  return { firstname, lastname };
+}
+
+function makeProfileCode(prefix, userId) {
+  return `${prefix}-${String(userId).padStart(4, "0")}`;
+}
+
+async function upsertInstructorProfile({
+  userId,
+  fullname,
+  email,
+  contact,
+  active = true,
+}) {
+  if (!(await hasTable("instructors"))) return;
+
+  const hasUserId = await hasColumn("instructors", "user_id");
+  const hasEmail = await hasColumn("instructors", "email");
+  const hasContact = await hasColumn("instructors", "contact_number");
+  const hasStatus = await hasColumn("instructors", "status");
+  const hasSpec = await hasColumn("instructors", "specialization");
+  const hasUpdated = await hasColumn("instructors", "updated_at");
+
+  const { firstname, lastname } = splitFullname(fullname);
+
+  let rows = [];
+  if (hasUserId) {
+    [rows] = await pool.query(
+      `SELECT instructor_id, instructor_code FROM instructors WHERE user_id = ? LIMIT 1`,
+      [userId],
+    );
+  }
+
+  if (rows.length) {
+    const updates = ["firstname = ?", "lastname = ?"];
+    const params = [firstname, lastname];
+
+    if (hasEmail) {
+      updates.push("email = ?");
+      params.push(email || null);
+    }
+
+    if (hasContact) {
+      updates.push("contact_number = ?");
+      params.push(contact || null);
+    }
+
+    if (hasStatus) {
+      updates.push("status = ?");
+      params.push(active ? "active" : "inactive");
+    }
+
+    if (hasSpec) {
+      updates.push("specialization = COALESCE(specialization, ?)");
+      params.push("Driving Instructor");
+    }
+
+    if (hasUpdated) {
+      updates.push("updated_at = CURRENT_TIMESTAMP");
+    }
+
+    params.push(rows[0].instructor_id);
+
+    await pool.query(
+      `UPDATE instructors SET ${updates.join(", ")} WHERE instructor_id = ?`,
+      params,
+    );
+    return;
+  }
+
+  if (!active) return;
+
+  const cols = ["instructor_code", "firstname", "lastname"];
+  const vals = [makeProfileCode("INS", userId), firstname, lastname];
+
+  if (hasEmail) {
+    cols.push("email");
+    vals.push(email || null);
+  }
+
+  if (hasContact) {
+    cols.push("contact_number");
+    vals.push(contact || null);
+  }
+
+  if (hasSpec) {
+    cols.push("specialization");
+    vals.push("Driving Instructor");
+  }
+
+  if (hasStatus) {
+    cols.push("status");
+    vals.push("active");
+  }
+
+  if (hasUserId) {
+    cols.push("user_id");
+    vals.push(userId);
+  }
+
+  const placeholders = cols.map(() => "?").join(", ");
+  await pool.query(
+    `INSERT INTO instructors (${cols.join(", ")}) VALUES (${placeholders})`,
+    vals,
+  );
+}
+
+async function upsertTrainerProfile({
+  userId,
+  fullname,
+  email,
+  contact,
+  active = true,
+}) {
+  if (!(await hasTable("trainers"))) return;
+
+  const hasUserId = await hasColumn("trainers", "user_id");
+  const hasEmail = await hasColumn("trainers", "email");
+  const hasContact = await hasColumn("trainers", "contact_number");
+  const hasStatus = await hasColumn("trainers", "status");
+  const hasSpec = await hasColumn("trainers", "specialization");
+  const hasUpdated = await hasColumn("trainers", "updated_at");
+
+  const { firstname, lastname } = splitFullname(fullname);
+
+  let rows = [];
+  if (hasUserId) {
+    [rows] = await pool.query(
+      `SELECT trainer_id, trainer_code FROM trainers WHERE user_id = ? LIMIT 1`,
+      [userId],
+    );
+  }
+
+  if (rows.length) {
+    const updates = ["firstname = ?", "lastname = ?"];
+    const params = [firstname, lastname];
+
+    if (hasEmail) {
+      updates.push("email = ?");
+      params.push(email || null);
+    }
+
+    if (hasContact) {
+      updates.push("contact_number = ?");
+      params.push(contact || null);
+    }
+
+    if (hasStatus) {
+      updates.push("status = ?");
+      params.push(active ? "active" : "inactive");
+    }
+
+    if (hasSpec) {
+      updates.push("specialization = COALESCE(specialization, ?)");
+      params.push("TESDA Trainer");
+    }
+
+    if (hasUpdated) {
+      updates.push("updated_at = CURRENT_TIMESTAMP");
+    }
+
+    params.push(rows[0].trainer_id);
+
+    await pool.query(
+      `UPDATE trainers SET ${updates.join(", ")} WHERE trainer_id = ?`,
+      params,
+    );
+    return;
+  }
+
+  if (!active) return;
+
+  const cols = ["trainer_code", "firstname", "lastname"];
+  const vals = [makeProfileCode("TRN", userId), firstname, lastname];
+
+  if (hasEmail) {
+    cols.push("email");
+    vals.push(email || null);
+  }
+
+  if (hasContact) {
+    cols.push("contact_number");
+    vals.push(contact || null);
+  }
+
+  if (hasSpec) {
+    cols.push("specialization");
+    vals.push("TESDA Trainer");
+  }
+
+  if (hasStatus) {
+    cols.push("status");
+    vals.push("active");
+  }
+
+  if (hasUserId) {
+    cols.push("user_id");
+    vals.push(userId);
+  }
+
+  const placeholders = cols.map(() => "?").join(", ");
+  await pool.query(
+    `INSERT INTO trainers (${cols.join(", ")}) VALUES (${placeholders})`,
+    vals,
+  );
+}
+
+async function syncRoleProfiles({ userId, fullname, email, contact, role }) {
+  const roleNorm = String(role || "")
+    .trim()
+    .toLowerCase();
+
+  if (roleNorm === "instructor") {
+    await upsertInstructorProfile({
+      userId,
+      fullname,
+      email,
+      contact,
+      active: true,
+    });
+
+    await upsertTrainerProfile({
+      userId,
+      fullname,
+      email,
+      contact,
+      active: false,
+    });
+    return;
+  }
+
+  if (roleNorm === "trainer") {
+    await upsertTrainerProfile({
+      userId,
+      fullname,
+      email,
+      contact,
+      active: true,
+    });
+
+    await upsertInstructorProfile({
+      userId,
+      fullname,
+      email,
+      contact,
+      active: false,
+    });
+    return;
+  }
+
+  await upsertInstructorProfile({
+    userId,
+    fullname,
+    email,
+    contact,
+    active: false,
+  });
+
+  await upsertTrainerProfile({
+    userId,
+    fullname,
+    email,
+    contact,
+    active: false,
+  });
+}
+
 // GET /api/admin/users?search=&role=&track=&page=&limit=
 async function listUsers(req, res) {
   try {
@@ -476,10 +753,20 @@ async function createUser(req, res) {
     }
 
     const placeholders = cols.map(() => "?").join(", ");
-    await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO users (${cols.join(", ")}) VALUES (${placeholders})`,
       vals,
     );
+
+    const newUserId = result.insertId;
+
+    await syncRoleProfiles({
+      userId: newUserId,
+      fullname: fullnameTrim,
+      email: emailTrim,
+      contact: contactTrim,
+      role: roleNorm,
+    });
 
     return res.json({ status: "success", message: "User created" });
   } catch (err) {
@@ -649,6 +936,14 @@ async function updateUser(req, res) {
       `UPDATE users SET ${updates.join(", ")} WHERE id = ? LIMIT 1`,
       params,
     );
+
+    await syncRoleProfiles({
+      userId: id,
+      fullname: fullnameTrim,
+      email: emailTrim,
+      contact: contactTrim,
+      role: roleNorm,
+    });
 
     return res.json({ status: "success", message: "User updated" });
   } catch (err) {

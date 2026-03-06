@@ -95,6 +95,7 @@ const tesdaRoutes = require("./src/routes/tesdaRoutes");
 // ✅ Certificates routes (updated: driving/tesda endpoints are inside this file)
 const adminCertificateRoutes = require("./src/routes/adminCertificateRoutes");
 const studentCertificateRoutes = require("./src/routes/studentCertificateRoutes");
+const tesdaStudentCertificateRoutes = require("./src/routes/tesdaStudentCertificateRoutes");
 
 const studentResCtrl = require("./src/controllers/studentReservationController");
 
@@ -130,6 +131,7 @@ setInterval(async () => {
 // ✅ Certificates (mount early ok)
 app.use("/api/admin/certificates", adminCertificateRoutes);
 app.use("/api/student/certificates", studentCertificateRoutes);
+app.use("/api/tesda/certificates", tesdaStudentCertificateRoutes);
 
 // TESDA
 app.use("/api/admin/tesda", adminTesdaRoutes); // admin only
@@ -186,6 +188,7 @@ app.get("/", (req, res) => {
       tesda_admin: "/api/admin/tesda/*",
       certificates_admin: "/api/admin/certificates/*",
       certificates_student: "/api/student/certificates/*",
+      certificates_tesda_student: "/api/tesda/certificates/*",
       uploads: "/uploads/*",
       assets: "/assets/*",
     },
