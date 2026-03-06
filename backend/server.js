@@ -107,6 +107,8 @@ const trainerCertificatesRoutes = require("./src/routes/trainerCertificatesRoute
 const settingsRoutes = require("./src/routes/settingsRoutes");
 const trainerTesdaAttendanceRoutes = require("./src/routes/trainerTesdaAttendanceRoutes");
 
+const trainerDashboardRoutes = require("./src/routes/trainerDashboardRoutes");
+
 
 // ==============================
 // Auto mark DONE reservations
@@ -150,6 +152,8 @@ app.use("/api/trainer", trainerTesdaStudentsRoutes);
 app.use("/api/settings", settingsRoutes);
 
 app.use("/api/trainer", trainerTesdaAttendanceRoutes);
+
+app.use("/api/trainer", trainerDashboardRoutes);
 
 // ==============================
 // ⏰ Initialize Reminder Scheduler

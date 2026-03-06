@@ -19,6 +19,10 @@ const {
   getInstructorSchedulesList,
 } = require("../controllers/instructorScheduleController");
 
+const {
+  getInstructorDashboardSummary,
+} = require("../controllers/instructorDashboardController");
+
 // ✅ debug route para sure ka na gumagana ang mount
 router.get("/instructor/ping", (req, res) => {
   return res.json({
@@ -42,6 +46,8 @@ router.get("/instructor/driving/classes", getDrivingInstructorClasses);
 router.get("/instructor/tesda/classes", getTesdaClasses);
 
 router.get("/instructor/schedules/list", getInstructorSchedulesList);
+
+router.get("/instructor/dashboard/summary", getInstructorDashboardSummary);
 
 
 module.exports = router;
