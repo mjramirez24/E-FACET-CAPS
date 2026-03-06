@@ -360,8 +360,8 @@
             <div>
               <label class="text-sm font-medium text-gray-700">Source</label>
               <select v-model="formData.source" class="w-full mt-1 p-2 border rounded-md">
-                <option value="online">online</option>
-                <option value="walkin">walkin</option>
+                <option value="online">walkin</option>
+                <option value="walkin">online</option>
               </select>
             </div>
 
