@@ -91,6 +91,7 @@ const adminTesdaStudentsCrudRoutes = require("./src/routes/adminTesdaStudentsCru
 const adminCoursesRoutes = require("./src/routes/adminCoursesRoutes");
 const tesdaPublicRoutes = require("./src/routes/tesdaPublicRoutes");
 const tesdaRoutes = require("./src/routes/tesdaRoutes");
+const adminMockExamRoutes = require("./src/routes/adminMockExamRoutes");
 
 // ✅ Certificates routes (updated: driving/tesda endpoints are inside this file)
 const adminCertificateRoutes = require("./src/routes/adminCertificateRoutes");
@@ -150,6 +151,7 @@ app.use("/api/instructor", instructorRoutes);
 app.use("/api/trainer", trainerRoutes);
 app.use("/api/trainer", trainerTesdaSchedulesRoutes);
 app.use("/api/trainer", trainerTesdaStudentsRoutes);
+app.use("/api/admin/mock-exam", adminMockExamRoutes);
 
 app.use("/api/settings", settingsRoutes);
 

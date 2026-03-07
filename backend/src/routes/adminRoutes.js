@@ -17,6 +17,11 @@ const adminStudentsController = require("../controllers/adminStudentsController"
 const adminQrphVerifyController = require("../controllers/adminQrphVerifyController");
 const drivingAssignController = require("../controllers/drivingInstructorAssignController");
 const adminUsersController = require("../controllers/adminUsersController");
+const mockExamCtrl = require('../controllers/studentMockExamController');
+
+router.post('/mock-exam/questions', (req, res) => {
+  return mockExamCtrl.addQuestion(req, res);
+});
 
 const adminDashboardController = require("../controllers/adminDashboardController");
 
@@ -34,9 +39,20 @@ function safe(method, path, handler, label) {
   router[method](path, handler);
 }
 
+
+
 // ================= MIDDLEWARE =================
 router.use(requireAuth);
 router.use(requireAdmin);
+
+// ================= MOCK EXAM MONITOR =================
+safe('get',  '/mock-exam/exams',           mockExamCtrl.getAdminExamList,       'mockExamCtrl.getAdminExamList');
+safe('get',  '/mock-exam/recent-attempts', mockExamCtrl.getAdminRecentAttempts, 'mockExamCtrl.getAdminRecentAttempts');
+safe('get',  '/mock-exam/stats',           mockExamCtrl.getAdminStats,          'mockExamCtrl.getAdminStats');
+safe('post', '/mock-exam/questions',       mockExamCtrl.addQuestion,            'mockExamCtrl.addQuestion');
+safe('get',    '/mock-exam/questions',      mockExamCtrl.getAdminQuestions, 'getAdminQuestions');
+safe('put',    '/mock-exam/questions/:id',  mockExamCtrl.updateQuestion,    'updateQuestion');
+safe('delete', '/mock-exam/questions/:id',  mockExamCtrl.deleteQuestion,    'deleteQuestion');
 
 // ================= DASHBOARD =================
 safe(

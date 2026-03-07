@@ -21,7 +21,7 @@
     <div>
       <div class="flex items-start justify-between gap-4 mb-2">
         <div>
-          <h2 class="text-lg font-bold text-green-800">📊 Trainer Dashboard</h2>
+          <h2 class="text-lg font-bold text-blue-800">📊 Trainer Dashboard</h2>
           <p class="text-xs text-gray-500 mt-1">Real-time totals from TESDA schedules/reservations</p>
         </div>
         <div v-if="loading" class="text-xs text-gray-500 mt-1">Loading…</div>

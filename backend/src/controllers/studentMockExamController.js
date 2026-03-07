@@ -314,3 +314,220 @@ exports.getLanguage = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Failed to fetch language.' });
   }
 };
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/admin/mock-exam/exams
+// All distinct exam titles from student_exam_attempts
+// ─────────────────────────────────────────────────────────────
+exports.getAdminExamList = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT 
+         exam_id                                    AS id,
+         exam_title                                 AS title,
+         COUNT(*)                                   AS totalAttempts,
+         COUNT(DISTINCT student_id)                 AS uniqueStudents,
+         ROUND(AVG(score), 1)                       AS avgScore,
+         ROUND(MAX(score), 1)                       AS highestScore,
+         MAX(completed_at)                          AS lastAttempt
+       FROM student_exam_attempts
+       GROUP BY exam_id, exam_title
+       ORDER BY exam_title ASC`
+    );
+    return res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('getAdminExamList error:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch exam list.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/admin/mock-exam/recent-attempts
+// Last 20 attempts across all students with student name
+// ─────────────────────────────────────────────────────────────
+exports.getAdminRecentAttempts = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT
+         a.id,
+         a.student_id,
+         COALESCE(u.fullname, u.username, CONCAT('Student #', a.student_id)) AS studentName,
+         a.exam_id,
+         a.exam_title                                AS examTitle,
+         a.score,
+         a.correct_answers,
+         a.total_questions,
+         a.completed_at                              AS date,
+         attempt_counts.totalAttempts                AS attemptCount,
+         attempt_counts.avgScore                     AS studentAvgScore
+       FROM student_exam_attempts a
+       LEFT JOIN users u ON u.id = a.student_id
+       INNER JOIN (
+         SELECT student_id, exam_id,
+                MAX(completed_at)      AS latest,
+                COUNT(*)               AS totalAttempts,
+                ROUND(AVG(score), 1)   AS avgScore
+         FROM student_exam_attempts
+         GROUP BY student_id, exam_id
+       ) attempt_counts ON attempt_counts.student_id = a.student_id
+                       AND attempt_counts.exam_id    = a.exam_id
+                       AND attempt_counts.latest     = a.completed_at
+       ORDER BY a.completed_at DESC
+       LIMIT 50`
+    );
+
+    const parsed = rows.map(r => ({
+      ...r,
+      date: r.date instanceof Date ? r.date.toISOString() : r.date,
+    }));
+
+    return res.json({ status: 'success', data: parsed });
+  } catch (err) {
+    console.error('getAdminRecentAttempts error:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch recent attempts.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/admin/mock-exam/stats
+// Aggregate stats for the 4 stat cards
+// ─────────────────────────────────────────────────────────────
+exports.getAdminStats = async (req, res) => {
+  try {
+    const [[totals]] = await pool.execute(
+      `SELECT
+         COUNT(DISTINCT exam_id)       AS totalExams,
+         COUNT(DISTINCT student_id)    AS totalStudents,
+         COUNT(*)                      AS totalAttempts,
+         ROUND(AVG(score), 1)          AS averageScore
+       FROM student_exam_attempts`
+    );
+    return res.json({
+      status: 'success',
+      data: {
+        totalExams:    totals.totalExams    || 0,
+        totalStudents: totals.totalStudents || 0,
+        totalAttempts: totals.totalAttempts || 0,
+        averageScore:  totals.averageScore  || 0,
+      }
+    });
+  } catch (err) {
+    console.error('getAdminStats error:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch stats.' });
+  }
+};
+exports.addQuestion = async (req, res) => {
+  try {
+    const {
+      topic,
+      symbol,
+      stem_en, stem_tl,
+      choice_a_en, choice_a_tl,
+      choice_b_en, choice_b_tl,
+      choice_c_en, choice_c_tl,
+      correct_key,
+      rationale_en, rationale_tl,
+      is_active = 1,
+    } = req.body;
+
+    // Basic validation
+    if (!stem_en || !stem_tl || !correct_key ||
+        !choice_a_en || !choice_b_en || !choice_c_en) {
+      return res.status(400).json({ status: 'error', message: 'Missing required fields.' });
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO question_bank
+         (topic, symbol,
+          stem_en, stem_tl,
+          choice_a_en, choice_a_tl,
+          choice_b_en, choice_b_tl,
+          choice_c_en, choice_c_tl,
+          correct_key,
+          rationale_en, rationale_tl,
+          is_active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        JSON.stringify(Array.isArray(topic) ? topic : [topic]),
+        symbol   || null,
+        stem_en,
+        stem_tl,
+        choice_a_en,
+        choice_a_tl || null,
+        choice_b_en,
+        choice_b_tl || null,
+        choice_c_en,
+        choice_c_tl || null,
+        correct_key.toLowerCase(),
+        rationale_en || null,
+        rationale_tl || null,
+        is_active ? 1 : 0,
+      ]
+    );
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Question added successfully.',
+      data: { id: result.insertId },
+    });
+  } catch (err) {
+    console.error('addQuestion error:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to add question.' });
+  }
+};
+// GET /api/admin/mock-exam/questions  — all questions (active + inactive)
+exports.getAdminQuestions = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT id, topic, stem_en, stem_tl,
+              choice_a_en, choice_a_tl, choice_b_en, choice_b_tl, choice_c_en, choice_c_tl,
+              correct_key, rationale_en, rationale_tl, symbol, is_active, created_at
+       FROM question_bank ORDER BY id DESC`
+    )
+    return res.json({ status: 'success', data: rows })
+  } catch(err) {
+    console.error('getAdminQuestions error:', err)
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch questions.' })
+  }
+}
+
+// PUT /api/admin/mock-exam/questions/:id  — update question
+exports.updateQuestion = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { topic, symbol, stem_en, stem_tl, choice_a_en, choice_a_tl,
+            choice_b_en, choice_b_tl, choice_c_en, choice_c_tl,
+            correct_key, rationale_en, rationale_tl, is_active } = req.body
+
+    await pool.execute(
+      `UPDATE question_bank SET
+         topic=?, symbol=?, stem_en=?, stem_tl=?,
+         choice_a_en=?, choice_a_tl=?, choice_b_en=?, choice_b_tl=?,
+         choice_c_en=?, choice_c_tl=?, correct_key=?,
+         rationale_en=?, rationale_tl=?, is_active=?
+       WHERE id=?`,
+      [
+        JSON.stringify(Array.isArray(topic) ? topic : [topic]),
+        symbol||null, stem_en, stem_tl,
+        choice_a_en, choice_a_tl||null, choice_b_en, choice_b_tl||null,
+        choice_c_en, choice_c_tl||null, correct_key.toLowerCase(),
+        rationale_en||'', rationale_tl||'', is_active?1:0, id
+      ]
+    )
+    return res.json({ status: 'success', message: 'Question updated.' })
+  } catch(err) {
+    console.error('updateQuestion error:', err)
+    return res.status(500).json({ status: 'error', message: 'Failed to update question.' })
+  }
+}
+
+// DELETE /api/admin/mock-exam/questions/:id
+exports.deleteQuestion = async (req, res) => {
+  try {
+    await pool.execute(`DELETE FROM question_bank WHERE id=?`, [req.params.id])
+    return res.json({ status: 'success', message: 'Question deleted.' })
+  } catch(err) {
+    console.error('deleteQuestion error:', err)
+    return res.status(500).json({ status: 'error', message: 'Failed to delete question.' })
+  }
+}
