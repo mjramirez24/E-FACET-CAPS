@@ -1,8 +1,16 @@
 // backend/src/controllers/tesdaStudentDashboardSummaryController.js
 const pool = require("../config/database");
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Session stores user info nested: req.session.user.user_id
+// (confirmed via /api/debug/session: { user: { user_id: 93, ... } })
+// ─────────────────────────────────────────────────────────────────────────────
 function getSessionUserId(req) {
-  const v = req?.session?.user_id ?? req?.session?.userId ?? req?.session?.id;
+  const v =
+    req?.session?.user?.user_id ??
+    req?.session?.user?.id ??
+    req?.session?.user_id ??
+    req?.session?.userId;
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
@@ -13,13 +21,13 @@ function enrolledStatuses() {
 
 exports.getTesdaStudentDashboardSummary = async (req, res) => {
   try {
-    const role = String(req.session.role || "").toLowerCase();
-    // TESDA student normally role = "student"
-    if (role !== "student") {
-      return res.status(403).json({
-        status: "error",
-        message: "Access denied. Student role required.",
-      });
+    // TESDA students: role="user", track_code="tesda"
+    const trackCode = String(req?.session?.user?.track_code || "").toLowerCase();
+    const role      = String(req?.session?.user?.role || req?.session?.role || "").toLowerCase();
+
+    const isTesdaStudent = trackCode === "tesda" || role === "student" || role === "user";
+    if (!isTesdaStudent) {
+      return res.status(403).json({ status: "error", message: "Access denied." });
     }
 
     const userId = getSessionUserId(req);
@@ -27,16 +35,18 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       return res.status(401).json({ status: "error", message: "Unauthorized" });
     }
 
-    const enrolled = enrolledStatuses();
+    const enrolled       = enrolledStatuses();
     const inPlaceholders = enrolled.map(() => "?").join(",");
 
-    const [userRows] = await pool.execute(
-      `SELECT id, fullname, username, role FROM users WHERE id = ? LIMIT 1`,
-      [userId],
-    );
-    const me = userRows?.[0] || null;
+    // ── User (from session — no extra DB call needed) ─────────────────────
+    const me = {
+      id:       userId,
+      fullname: req?.session?.user?.fullname || null,
+      username: req?.session?.user?.username || null,
+      role:     req?.session?.user?.role     || null,
+    };
 
-    // status counts
+    // ── Status counts ─────────────────────────────────────────────────────
     const [statusRows] = await pool.execute(
       `SELECT UPPER(reservation_status) AS status, COUNT(*) AS count
        FROM tesda_schedule_reservations
@@ -51,30 +61,45 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
     }
 
     const stats = {
-      total: Object.values(byStatus).reduce((a, b) => a + b, 0),
-      pending: byStatus.PENDING || 0,
-      enrolled:
-        (byStatus.CONFIRMED || 0) +
-        (byStatus.APPROVED || 0) +
-        (byStatus.ACTIVE || 0),
-      done: byStatus.DONE || 0,
+      total:     Object.values(byStatus).reduce((a, b) => a + b, 0),
+      pending:   byStatus.PENDING   || 0,
+      enrolled:  (byStatus.CONFIRMED || 0) + (byStatus.APPROVED || 0) + (byStatus.ACTIVE || 0),
+      done:      (byStatus.DONE || 0) + (byStatus.COMPLETED || 0) + (byStatus.FINISHED || 0),
       cancelled: byStatus.CANCELLED || 0,
     };
 
-    // upcoming (course is from tesda_schedules.course_id)
+    // ── Currently enrolled course (yellow KPI card) ───────────────────────
+    const [enrolledCourseRows] = await pool.execute(
+      `SELECT
+         tc.course_name,
+         tc.course_code,
+         UPPER(tr.reservation_status) AS status
+       FROM tesda_schedule_reservations tr
+       JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
+       JOIN tesda_courses tc   ON tc.id = ts.course_id
+       WHERE tr.student_id = ?
+         AND UPPER(tr.reservation_status) IN ('CONFIRMED','APPROVED','ACTIVE')
+       ORDER BY tr.created_at DESC
+       LIMIT 1`,
+      [userId],
+    );
+    const currentEnrollment = enrolledCourseRows?.[0] || null;
+
+    // ── Upcoming sessions ─────────────────────────────────────────────────
     const [upcoming] = await pool.execute(
       `SELECT
          tr.reservation_id AS id,
          UPPER(tr.reservation_status) AS status,
          tc.course_name,
+         tc.course_code,
          DATE(ts.schedule_date) AS schedule_date,
          ts.start_time,
          ts.end_time,
-         tu.fullname AS trainer_name
+         CONCAT(t.firstname, ' ', t.lastname) AS trainer_name
        FROM tesda_schedule_reservations tr
-       JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
+       JOIN tesda_schedules ts   ON ts.schedule_id = tr.schedule_id
        LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
-       LEFT JOIN users tu ON tu.id = ts.trainer_id
+       LEFT JOIN trainers t       ON t.trainer_id = ts.trainer_id
        WHERE tr.student_id = ?
          AND ts.schedule_date IS NOT NULL
          AND ts.schedule_date >= CURDATE()
@@ -84,7 +109,7 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       [userId, ...enrolled],
     );
 
-    // top courses this month (my)
+    // ── Top courses this month ────────────────────────────────────────────
     const [topCourses] = await pool.execute(
       `SELECT
          tc.id AS course_id,
@@ -92,7 +117,7 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
          COUNT(*) AS reservations
        FROM tesda_schedule_reservations tr
        JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
-       JOIN tesda_courses tc ON tc.id = ts.course_id
+       JOIN tesda_courses tc   ON tc.id = ts.course_id
        WHERE tr.student_id = ?
          AND tr.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
          AND UPPER(tr.reservation_status) <> 'CANCELLED'
@@ -102,7 +127,7 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       [userId],
     );
 
-    // certificates tesda
+    // ── Certificates ──────────────────────────────────────────────────────
     const [[certAgg]] = await pool.execute(
       `SELECT COUNT(*) AS cnt
        FROM certificates cert
@@ -113,7 +138,36 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       [userId],
     );
 
-    // recent activity
+    // ── Attendance (coming soon — tesda_attendance table not yet created) ──
+    // TODO: Once tesda_attendance is ready, replace this block with:
+    //
+    //   const [[attRow]] = await pool.execute(
+    //     `SELECT
+    //        COUNT(*) AS total_sessions,
+    //        SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) AS present,
+    //        SUM(CASE WHEN status = 'ABSENT'  THEN 1 ELSE 0 END) AS absent
+    //      FROM tesda_attendance
+    //      WHERE student_id = ?`,
+    //     [userId],
+    //   );
+    //   const total = Number(attRow?.total_sessions) || 0;
+    //   const present = Number(attRow?.present) || 0;
+    //   const attendance = {
+    //     comingSoon: false,
+    //     totalSessions: total,
+    //     present,
+    //     absent: Number(attRow?.absent) || 0,
+    //     rate: total > 0 ? Math.round((present / total) * 100) : 0,
+    //   };
+    const attendance = {
+      comingSoon:    true,
+      totalSessions: 0,
+      present:       0,
+      absent:        0,
+      rate:          0,
+    };
+
+    // ── Recent activity ───────────────────────────────────────────────────
     const [recent] = await pool.execute(
       `SELECT
          tr.reservation_id AS id,
@@ -125,7 +179,7 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
          ts.end_time
        FROM tesda_schedule_reservations tr
        LEFT JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
-       LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
+       LEFT JOIN tesda_courses tc   ON tc.id = ts.course_id
        WHERE tr.student_id = ?
        ORDER BY tr.created_at DESC
        LIMIT 300`,
@@ -137,16 +191,16 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       data: {
         user: me,
         stats,
+        currentEnrollment,
         upcoming,
         topCourses,
         certificates: { issued: Number(certAgg?.cnt) || 0 },
+        attendance,
         recent,
       },
     });
   } catch (err) {
     console.error("getTesdaStudentDashboardSummary error:", err);
-    return res
-      .status(500)
-      .json({ status: "error", message: "Failed to load TESDA dashboard" });
+    return res.status(500).json({ status: "error", message: "Failed to load TESDA dashboard" });
   }
 };

@@ -28,14 +28,6 @@
           <span class="ml-2">✅ Attendance</span>
         </router-link>
 
-        <router-link to="/tesda-materials" :class="linkClass('TesdaMaterials')">
-          <span class="ml-2">📚 Learning Materials</span>
-        </router-link>
-
-        <router-link to="/tesda-assessment" :class="linkClass('TesdaAssessment')">
-          <span class="ml-2">🧪 Assessment</span>
-        </router-link>
-
         <router-link to="/tesda-certificate" :class="linkClass('TesdaCertificate')">
           <span class="ml-2">🎓 Certificates</span>
         </router-link>

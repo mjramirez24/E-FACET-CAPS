@@ -40,23 +40,34 @@ const upload = multer({
   },
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Authentication middleware
+// Supports both session shapes:
+//   - Flat:   req.session.user_id  (regular student / instructor / admin)
+//   - Nested: req.session.user.user_id  (TESDA student)
+// ─────────────────────────────────────────────────────────────────────────────
 const requireAuth = (req, res, next) => {
-  if (req.session && req.session.user_id) {
+  // Resolve user_id from either session shape
+  const userId =
+    req.session?.user_id ??
+    req.session?.user?.user_id ??
+    req.session?.user?.id ??
+    null;
+
+  // Resolve role from either session shape
+  const role = String(
+    req.session?.role || req.session?.user?.role || ""
+  ).toLowerCase();
+
+  if (userId && userId > 0) {
     const allowedRoles = ["user", "student", "instructor", "admin", "trainer"];
-
-    // ✅ normalize to lowercase para di case-sensitive
-    const role = String(req.session.role || "").toLowerCase();
-
     if (allowedRoles.includes(role)) {
-      // optional: keep normalized for downstream code
+      // Normalize so downstream controllers can always use req.session.user_id
+      req.session.user_id = Number(userId);
       req.session.role = role;
       next();
     } else {
-      res.status(403).json({
-        status: "error",
-        message: "Access denied",
-      });
+      res.status(403).json({ status: "error", message: "Access denied" });
     }
   } else {
     res.status(401).json({
