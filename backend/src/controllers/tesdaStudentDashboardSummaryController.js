@@ -19,15 +19,65 @@ function enrolledStatuses() {
   return ["CONFIRMED", "APPROVED", "ACTIVE", "DONE", "COMPLETED", "FINISHED"];
 }
 
+function normalizeAttendanceStatus(status) {
+  const s = String(status || "")
+    .toLowerCase()
+    .trim();
+  if (["present", "late", "absent", "excused", "unmarked"].includes(s)) {
+    return s;
+  }
+  return "unmarked";
+}
+
+function computeAttendanceStats(rows = []) {
+  const stats = {
+    comingSoon: false,
+    totalSessions: 0,
+    present: 0,
+    late: 0,
+    absent: 0,
+    excused: 0,
+    unmarked: 0,
+    rate: 0,
+  };
+
+  stats.totalSessions = rows.length;
+
+  for (const row of rows) {
+    const s = normalizeAttendanceStatus(row.status);
+
+    if (s === "present") stats.present += 1;
+    else if (s === "late") stats.late += 1;
+    else if (s === "absent") stats.absent += 1;
+    else if (s === "excused") stats.excused += 1;
+    else stats.unmarked += 1;
+  }
+
+  const attended = stats.present + stats.late + stats.excused;
+  stats.rate =
+    stats.totalSessions > 0
+      ? Math.round((attended / stats.totalSessions) * 100)
+      : 0;
+
+  return stats;
+}
+
 exports.getTesdaStudentDashboardSummary = async (req, res) => {
   try {
     // TESDA students: role="user", track_code="tesda"
-    const trackCode = String(req?.session?.user?.track_code || "").toLowerCase();
-    const role      = String(req?.session?.user?.role || req?.session?.role || "").toLowerCase();
+    const trackCode = String(
+      req?.session?.user?.track_code || "",
+    ).toLowerCase();
+    const role = String(
+      req?.session?.user?.role || req?.session?.role || "",
+    ).toLowerCase();
 
-    const isTesdaStudent = trackCode === "tesda" || role === "student" || role === "user";
+    const isTesdaStudent =
+      trackCode === "tesda" || role === "student" || role === "user";
     if (!isTesdaStudent) {
-      return res.status(403).json({ status: "error", message: "Access denied." });
+      return res
+        .status(403)
+        .json({ status: "error", message: "Access denied." });
     }
 
     const userId = getSessionUserId(req);
@@ -35,15 +85,15 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       return res.status(401).json({ status: "error", message: "Unauthorized" });
     }
 
-    const enrolled       = enrolledStatuses();
+    const enrolled = enrolledStatuses();
     const inPlaceholders = enrolled.map(() => "?").join(",");
 
     // ── User (from session — no extra DB call needed) ─────────────────────
     const me = {
-      id:       userId,
+      id: userId,
       fullname: req?.session?.user?.fullname || null,
       username: req?.session?.user?.username || null,
-      role:     req?.session?.user?.role     || null,
+      role: req?.session?.user?.role || null,
     };
 
     // ── Status counts ─────────────────────────────────────────────────────
@@ -61,10 +111,16 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
     }
 
     const stats = {
-      total:     Object.values(byStatus).reduce((a, b) => a + b, 0),
-      pending:   byStatus.PENDING   || 0,
-      enrolled:  (byStatus.CONFIRMED || 0) + (byStatus.APPROVED || 0) + (byStatus.ACTIVE || 0),
-      done:      (byStatus.DONE || 0) + (byStatus.COMPLETED || 0) + (byStatus.FINISHED || 0),
+      total: Object.values(byStatus).reduce((a, b) => a + b, 0),
+      pending: byStatus.PENDING || 0,
+      enrolled:
+        (byStatus.CONFIRMED || 0) +
+        (byStatus.APPROVED || 0) +
+        (byStatus.ACTIVE || 0),
+      done:
+        (byStatus.DONE || 0) +
+        (byStatus.COMPLETED || 0) +
+        (byStatus.FINISHED || 0),
       cancelled: byStatus.CANCELLED || 0,
     };
 
@@ -97,7 +153,7 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
          ts.end_time,
          CONCAT(t.firstname, ' ', t.lastname) AS trainer_name
        FROM tesda_schedule_reservations tr
-       JOIN tesda_schedules ts   ON ts.schedule_id = tr.schedule_id
+       JOIN tesda_schedules ts    ON ts.schedule_id = tr.schedule_id
        LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
        LEFT JOIN trainers t       ON t.trainer_id = ts.trainer_id
        WHERE tr.student_id = ?
@@ -138,34 +194,40 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
       [userId],
     );
 
-    // ── Attendance (coming soon — tesda_attendance table not yet created) ──
-    // TODO: Once tesda_attendance is ready, replace this block with:
-    //
-    //   const [[attRow]] = await pool.execute(
-    //     `SELECT
-    //        COUNT(*) AS total_sessions,
-    //        SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) AS present,
-    //        SUM(CASE WHEN status = 'ABSENT'  THEN 1 ELSE 0 END) AS absent
-    //      FROM tesda_attendance
-    //      WHERE student_id = ?`,
-    //     [userId],
-    //   );
-    //   const total = Number(attRow?.total_sessions) || 0;
-    //   const present = Number(attRow?.present) || 0;
-    //   const attendance = {
-    //     comingSoon: false,
-    //     totalSessions: total,
-    //     present,
-    //     absent: Number(attRow?.absent) || 0,
-    //     rate: total > 0 ? Math.round((present / total) * 100) : 0,
-    //   };
-    const attendance = {
-      comingSoon:    true,
+    // ── Attendance (LIVE from tesda_trainer_attendance) ───────────────────
+    let attendance = {
+      comingSoon: false,
       totalSessions: 0,
-      present:       0,
-      absent:        0,
-      rate:          0,
+      present: 0,
+      late: 0,
+      absent: 0,
+      excused: 0,
+      unmarked: 0,
+      rate: 0,
     };
+
+    try {
+      const [attendanceRows] = await pool.execute(
+        `SELECT LOWER(COALESCE(status, 'unmarked')) AS status
+         FROM tesda_trainer_attendance
+         WHERE student_id = ?`,
+        [userId],
+      );
+
+      attendance = computeAttendanceStats(attendanceRows || []);
+    } catch (attendanceErr) {
+      console.error("TESDA dashboard attendance query error:", attendanceErr);
+      attendance = {
+        comingSoon: false,
+        totalSessions: 0,
+        present: 0,
+        late: 0,
+        absent: 0,
+        excused: 0,
+        unmarked: 0,
+        rate: 0,
+      };
+    }
 
     // ── Recent activity ───────────────────────────────────────────────────
     const [recent] = await pool.execute(
@@ -201,6 +263,8 @@ exports.getTesdaStudentDashboardSummary = async (req, res) => {
     });
   } catch (err) {
     console.error("getTesdaStudentDashboardSummary error:", err);
-    return res.status(500).json({ status: "error", message: "Failed to load TESDA dashboard" });
+    return res
+      .status(500)
+      .json({ status: "error", message: "Failed to load TESDA dashboard" });
   }
 };

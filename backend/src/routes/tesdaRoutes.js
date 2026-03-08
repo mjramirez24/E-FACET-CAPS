@@ -11,6 +11,7 @@ const tesdaReservation = require("../controllers/tesdaReservationController");
 const tesdaStudentSched = require("../controllers/tesdaStudentScheduleController");
 
 const tesdaStudentDashboardSummaryController = require("../controllers/tesdaStudentDashboardSummaryController");
+const tesdaStudentAttendanceController = require("../controllers/tesdaStudentAttendanceController");
 
 // --------------------
 // helpers: prevent server crash when a handler is undefined
@@ -140,6 +141,10 @@ router.get("/dashboard/summary", requireAuth, requireStudent, (req, res) =>
     req,
     res,
   ),
+);
+
+router.get("/attendance", requireAuth, requireStudent, (req, res) =>
+  tesdaStudentAttendanceController.getMyTesdaAttendance(req, res),
 );
 
 // ✅ schedules list
