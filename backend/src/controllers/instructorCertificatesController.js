@@ -4,6 +4,8 @@ const fs = require("fs");
 const PDFDocument = require("pdfkit");
 const pool = require("../config/database");
 
+const APP_ROOT = path.join(__dirname, "..", "..");
+
 /* ----------------------------- helpers ----------------------------- */
 
 function makeCertCode(prefix = "CERT") {
@@ -77,22 +79,54 @@ function drawSectionHeader(doc, x, y, w, title) {
     .restore();
 }
 
+function drawPhotoPlaceholder(doc, x, y, w, h) {
+  doc.save().rect(x, y, w, h).stroke("#9ca3af").restore();
+
+  doc
+    .save()
+    .strokeColor("#d1d5db")
+    .lineWidth(0.8)
+    .moveTo(x, y)
+    .lineTo(x + w, y + h)
+    .stroke()
+    .moveTo(x + w, y)
+    .lineTo(x, y + h)
+    .stroke()
+    .restore();
+
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#6b7280")
+    .text("2x2 PHOTO", x, y + h / 2 - 4, {
+      width: w,
+      align: "center",
+    })
+    .restore();
+}
+
 function resolveLocalImagePath(picture_2x2) {
   const v = String(picture_2x2 || "").trim();
   if (!v) return null;
   if (/^https?:\/\//i.test(v)) return null;
 
   const cleaned = v.replace(/\\/g, "/").replace(/^\/+/, "");
-  const abs1 = path.join(process.cwd(), cleaned);
-  if (fileExists(abs1)) return abs1;
-
   const baseName = path.basename(cleaned);
+
   const candidates = [
-    path.join(process.cwd(), "uploads", baseName),
-    path.join(process.cwd(), "uploads", "2x2", baseName),
-    path.join(process.cwd(), "uploads", "pictures_2x2", baseName),
-    path.join(process.cwd(), "uploads", "students", baseName),
-    path.join(process.cwd(), "uploads", "images", baseName),
+    path.join(APP_ROOT, cleaned),
+    path.join(APP_ROOT, "uploads", "2x2", baseName),
+    path.join(APP_ROOT, "uploads", "requirements", baseName),
+    path.join(APP_ROOT, "uploads", baseName),
+    path.join(APP_ROOT, "uploads", "pictures_2x2", baseName),
+    path.join(APP_ROOT, "uploads", "students", baseName),
+    path.join(APP_ROOT, "uploads", "student", baseName),
+    path.join(APP_ROOT, "uploads", "images", baseName),
+    path.join(APP_ROOT, "uploads", "profiles", baseName),
+    path.join(APP_ROOT, "uploads", "profile", baseName),
+    path.join(APP_ROOT, "uploads", "reservations", baseName),
+    path.join(APP_ROOT, "uploads", "schedule_reservations", baseName),
   ];
 
   for (const c of candidates) {
@@ -208,7 +242,7 @@ async function generateDrivingPdf(payload) {
     overrides,
   } = payload;
 
-  const uploadsDir = path.join(process.cwd(), "uploads", "certificates");
+  const uploadsDir = path.join(APP_ROOT, "uploads", "certificates");
   ensureDir(uploadsDir);
 
   const filename = `${certificate_code}.pdf`;
@@ -221,8 +255,8 @@ async function generateDrivingPdf(payload) {
   const pageW = doc.page.width;
   const pageH = doc.page.height;
 
-  const logoAbs = path.join(process.cwd(), "assets", "logo.png");
-  const sealAbs = path.join(process.cwd(), "assets", "seal.png");
+  const logoAbs = path.join(APP_ROOT, "assets", "logo.png");
+  const sealAbs = path.join(APP_ROOT, "assets", "seal.png");
 
   drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
 
@@ -260,32 +294,25 @@ async function generateDrivingPdf(payload) {
   const photoX = pageW - 40 - photoBoxW;
   const photoY = headerTop;
 
-  doc
-    .save()
-    .rect(photoX, photoY, photoBoxW, photoBoxH)
-    .stroke("#9ca3af")
-    .restore();
-
   const photoAbs = resolveLocalImagePath(picture_2x2);
   if (photoAbs && fileExists(photoAbs)) {
-    doc.image(photoAbs, photoX + 2, photoY + 2, {
-      width: photoBoxW - 4,
-      height: photoBoxH - 4,
-      fit: [photoBoxW - 4, photoBoxH - 4],
-      align: "center",
-      valign: "center",
-    });
-  } else {
-    doc
-      .save()
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#6b7280")
-      .text("2x2 PHOTO", photoX, photoY + 40, {
-        width: photoBoxW,
+    try {
+      doc
+        .save()
+        .rect(photoX, photoY, photoBoxW, photoBoxH)
+        .stroke("#9ca3af")
+        .restore();
+
+      doc.image(photoAbs, photoX + 2, photoY + 2, {
+        fit: [photoBoxW - 4, photoBoxH - 4],
         align: "center",
-      })
-      .restore();
+        valign: "center",
+      });
+    } catch (e) {
+      drawPhotoPlaceholder(doc, photoX, photoY, photoBoxW, photoBoxH);
+    }
+  } else {
+    drawPhotoPlaceholder(doc, photoX, photoY, photoBoxW, photoBoxH);
   }
 
   doc
@@ -420,15 +447,15 @@ async function generateDrivingPdf(payload) {
       ["D", "(M3)"],
     ];
 
-    const drawX = (x, y, w, h) => {
+    const drawX = (x, y0, w, h) => {
       doc.save().strokeColor("#111827").lineWidth(1.2);
       doc
-        .moveTo(x + 2, y + 2)
-        .lineTo(x + w - 2, y + h - 2)
+        .moveTo(x + 2, y0 + 2)
+        .lineTo(x + w - 2, y0 + h - 2)
         .stroke();
       doc
-        .moveTo(x + w - 2, y + 2)
-        .lineTo(x + 2, y + h - 2)
+        .moveTo(x + w - 2, y0 + 2)
+        .lineTo(x + 2, y0 + h - 2)
         .stroke();
       doc.restore();
     };
@@ -444,8 +471,9 @@ async function generateDrivingPdf(payload) {
     const resolveDlCheck = (code) => {
       const c = String(code || "").toUpperCase();
 
-      if (dlOverride && dlOverride[c])
+      if (dlOverride && dlOverride[c]) {
         return { mt: !!dlOverride[c].mt, at: !!dlOverride[c].at };
+      }
 
       if (c === "A") {
         if (!fallbackA) return { mt: false, at: false };
@@ -498,6 +526,7 @@ async function generateDrivingPdf(payload) {
           .fillColor("#111827")
           .text(code, x + 8, rowY, { width: 40 })
           .restore();
+
         doc
           .save()
           .font("Helvetica")
@@ -568,7 +597,6 @@ exports.listDrivingCompletions = async (req, res) => {
     const userId = requireInstructorSession(req, res);
     if (!userId) return;
 
-    // IMPORTANT mapping
     const scheduleInstructorId =
       await resolveScheduleInstructorIdFromUserId(userId);
     if (!scheduleInstructorId) {
@@ -610,7 +638,9 @@ exports.listDrivingCompletions = async (req, res) => {
       JOIN schedules s ON s.schedule_id = r.schedule_id
       JOIN users u ON u.id = r.student_id
       JOIN courses c ON c.id = r.course_id
-      LEFT JOIN certificates cert ON cert.reservation_id = r.reservation_id
+      LEFT JOIN certificates cert
+        ON cert.reservation_id = r.reservation_id
+       AND cert.certificate_type = 'DRIVING'
       WHERE UPPER(TRIM(r.reservation_status)) = 'DONE'
         AND u.role = 'user'
         AND COALESCE(UPPER(TRIM(r.reservation_type)),'') <> 'TESDA'
@@ -673,7 +703,6 @@ exports.generateDriving = async (req, res) => {
 
     const cleanOverrides = sanitizeOverrides(overrides);
 
-    // must be DONE + driving + belongs to instructor via schedules
     const [rRows] = await pool.execute(
       `
       SELECT
@@ -725,9 +754,13 @@ exports.generateDriving = async (req, res) => {
     }
 
     const [existing] = await pool.execute(
-      `SELECT certificate_id FROM certificates WHERE reservation_id = ? LIMIT 1`,
+      `SELECT certificate_id
+       FROM certificates
+       WHERE reservation_id = ? AND certificate_type='DRIVING'
+       LIMIT 1`,
       [reservation_id],
     );
+
     if (existing.length) {
       return res.status(409).json({
         status: "error",
@@ -739,8 +772,9 @@ exports.generateDriving = async (req, res) => {
     const issued_at = new Date();
 
     const [ins] = await pool.execute(
-      `INSERT INTO certificates (reservation_id, certificate_code, issued_at, status)
-       VALUES (?, ?, ?, 'issued')`,
+      `INSERT INTO certificates
+       (reservation_id, certificate_code, certificate_type, issued_at, status)
+       VALUES (?, ?, 'DRIVING', ?, 'issued')`,
       [reservation_id, certificate_code, issued_at],
     );
 
@@ -804,7 +838,7 @@ async function getCertPdfInfoForInstructor(certId, scheduleInstructorId) {
 
   if (!rows.length || !rows[0].pdf_path) return null;
 
-  const abs = path.join(process.cwd(), String(rows[0].pdf_path));
+  const abs = path.join(APP_ROOT, String(rows[0].pdf_path));
   if (!fs.existsSync(abs))
     return { missing: true, certificate_code: rows[0].certificate_code };
   return { abs, certificate_code: rows[0].certificate_code };

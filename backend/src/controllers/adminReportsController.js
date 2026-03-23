@@ -65,7 +65,6 @@ function getReportMode(req) {
 }
 
 function enrolledStatuses() {
-  // Anything outside this list (e.g., PENDING/REJECTED/CANCELLED) should not count as enrolled.
   return ["CONFIRMED", "APPROVED", "ACTIVE", "DONE", "COMPLETED", "FINISHED"];
 }
 
@@ -73,7 +72,6 @@ function sqlInPlaceholders(arr) {
   return arr.map(() => "?").join(",");
 }
 
-// DONE logic from schedule_reservations (source of truth)
 function isDoneConditionSql() {
   return `(sr.done_at IS NOT NULL OR UPPER(sr.reservation_status) IN ('DONE','COMPLETED','FINISHED'))`;
 }
@@ -136,7 +134,7 @@ async function exportAsXlsx(res, sheetName, columns, rows, baseName) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(sheetName);
 
-  ws.columns = columns; // [{ header, key, width }]
+  ws.columns = columns;
   ws.addRows(rows);
 
   ws.getRow(1).font = { bold: true };
@@ -179,23 +177,141 @@ function exportAsCsv(res, columns, rows, baseName) {
 function exportAsPdfSimple(res, title, columns, rows, baseName) {
   setDownloadHeaders(res, "application/pdf", makeFileName(baseName, "pdf"));
 
-  const doc = new PDFDocument({ size: "A4", margin: 36 });
+  const doc = new PDFDocument({
+    size: "A4",
+    layout: "landscape",
+    margin: 24,
+  });
+
   doc.pipe(res);
 
-  doc.fontSize(14).text(title);
-  doc.moveDown(0.75);
+  const pageWidth =
+    doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const startX = doc.page.margins.left;
+  const bottomY = doc.page.height - doc.page.margins.bottom;
 
-  doc.fontSize(9).text(columns.map((c) => c.header).join(" | "));
-  doc.moveDown(0.25);
-  doc.text("-".repeat(110));
-  doc.moveDown(0.25);
+  const headerFontSize = 8;
+  const bodyFontSize = 7;
+  const cellPadX = 4;
+  const cellPadY = 4;
+  const minRowHeight = 18;
 
-  const keys = columns.map((c) => c.key);
-  doc.fontSize(9);
+  const totalWeight = columns.reduce(
+    (sum, c) => sum + (Number(c.width) || 10),
+    0,
+  );
 
-  for (const r of rows) {
-    const line = keys.map((k) => String(r[k] ?? "")).join(" | ");
-    doc.text(line);
+  const colWidths = columns.map((c) => {
+    const weight = Number(c.width) || 10;
+    return Math.max(42, (weight / totalWeight) * pageWidth);
+  });
+
+  function cleanText(v) {
+    return String(v ?? "")
+      .replace(/\r?\n/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function drawReportHeader() {
+    doc.font("Helvetica-Bold").fontSize(14).text(title, startX, doc.y, {
+      width: pageWidth,
+      align: "center",
+    });
+
+    doc.moveDown(0.2);
+
+    doc
+      .font("Helvetica")
+      .fontSize(8)
+      .text(`Generated: ${new Date().toLocaleString()}`, startX, doc.y, {
+        width: pageWidth,
+        align: "right",
+      });
+
+    doc.moveDown(0.5);
+  }
+
+  function getRowHeight(row, isHeader = false) {
+    doc.font(isHeader ? "Helvetica-Bold" : "Helvetica");
+    doc.fontSize(isHeader ? headerFontSize : bodyFontSize);
+
+    let maxHeight = minRowHeight;
+
+    columns.forEach((col, i) => {
+      const txt = isHeader ? col.header : cleanText(row[col.key]);
+      const h = doc.heightOfString(txt, {
+        width: colWidths[i] - cellPadX * 2,
+        align: "left",
+      });
+      maxHeight = Math.max(maxHeight, h + cellPadY * 2);
+    });
+
+    return maxHeight;
+  }
+
+  function drawTableHeader(y) {
+    const rowHeight = getRowHeight({}, true);
+    let x = startX;
+
+    doc.font("Helvetica-Bold").fontSize(headerFontSize);
+
+    columns.forEach((col, i) => {
+      const w = colWidths[i];
+
+      doc.rect(x, y, w, rowHeight).stroke();
+      doc.text(col.header, x + cellPadX, y + cellPadY, {
+        width: w - cellPadX * 2,
+        align: "left",
+      });
+
+      x += w;
+    });
+
+    return y + rowHeight;
+  }
+
+  function addPageWithHeader() {
+    doc.addPage({ size: "A4", layout: "landscape", margin: 24 });
+    drawReportHeader();
+    return drawTableHeader(doc.y);
+  }
+
+  drawReportHeader();
+  let y = drawTableHeader(doc.y);
+
+  doc.font("Helvetica").fontSize(bodyFontSize);
+
+  if (!rows.length) {
+    doc.moveDown(1);
+    doc.fontSize(9).text("No data available.", startX, doc.y);
+    doc.end();
+    return;
+  }
+
+  for (const row of rows) {
+    const rowHeight = getRowHeight(row, false);
+
+    if (y + rowHeight > bottomY) {
+      y = addPageWithHeader();
+    }
+
+    let x = startX;
+
+    columns.forEach((col, i) => {
+      const w = colWidths[i];
+      const txt = cleanText(row[col.key]);
+
+      doc.rect(x, y, w, rowHeight).stroke();
+      doc.text(txt, x + cellPadX, y + cellPadY, {
+        width: w - cellPadX * 2,
+        align: "left",
+      });
+
+      x += w;
+    });
+
+    y += rowHeight;
   }
 
   doc.end();
@@ -213,13 +329,10 @@ exports.getDetailed = async (req, res) => {
 
     const courseId = safeStr(req.query.course_id);
     const gender = safeStr(req.query.gender).toLowerCase();
-    const paymentMethod = safeStr(req.query.payment_method).toUpperCase(); // CASH / GCASH
-    const status = safeStr(req.query.status).toLowerCase(); // done / pending
+    const paymentMethod = safeStr(req.query.payment_method).toUpperCase();
+    const status = safeStr(req.query.status).toLowerCase();
     const q = safeStr(req.query.q);
 
-    // -----------------------------
-    // TESDA mode
-    // -----------------------------
     if (mode === "tesda") {
       const { page, limit, offset } = clampLimitOffset(
         req.query.page,
@@ -227,9 +340,6 @@ exports.getDetailed = async (req, res) => {
       );
       const enrolled = enrolledStatuses();
 
-      // NOTE: TESDA schema uses trainers + tesda_schedules(trainer_id) (not instructors).
-      // Also: some MySQL setups can throw "Incorrect arguments to mysqld_stmt_execute"
-      // when LIMIT/OFFSET are parameter markers. We'll inline sanitized integers.
       const safeLimit = Number.isFinite(limit) ? limit : 20;
       const safeOffset = Number.isFinite(offset) ? offset : 0;
 
@@ -333,9 +443,6 @@ exports.getDetailed = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // DRIVING mode
-    // -----------------------------
     const { page, limit, offset } = clampLimitOffset(
       req.query.page,
       req.query.limit,
@@ -968,7 +1075,7 @@ exports.getRevenuePreview = async (req, res) => {
     const { from, to } = getDateRange(req);
 
     const courseId = safeStr(req.query.course_id);
-    const paymentMethod = safeStr(req.query.payment_method).toUpperCase(); // GCASH / CASH
+    const paymentMethod = safeStr(req.query.payment_method).toUpperCase();
 
     const dateExpr = `COALESCE(sr.done_at, sr.updated_at, sr.created_at)`;
 
@@ -1161,7 +1268,7 @@ exports.exportOverview = async (req, res) => {
     ];
 
     if (format === "csv") return exportAsCsv(res, columns, rows, "overview");
-    if (format === "pdf")
+    if (format === "pdf") {
       return exportAsPdfSimple(
         res,
         "Overview Export",
@@ -1169,6 +1276,7 @@ exports.exportOverview = async (req, res) => {
         rows,
         "overview",
       );
+    }
     return await exportAsXlsx(res, "Overview", columns, rows, "overview");
   } catch (err) {
     console.error("exportOverview error:", err);
@@ -1226,7 +1334,7 @@ exports.exportTopCourses = async (req, res) => {
     }));
 
     if (format === "csv") return exportAsCsv(res, columns, out, "top-courses");
-    if (format === "pdf")
+    if (format === "pdf") {
       return exportAsPdfSimple(
         res,
         "Top Courses Export",
@@ -1234,6 +1342,7 @@ exports.exportTopCourses = async (req, res) => {
         out,
         "top-courses",
       );
+    }
     return await exportAsXlsx(res, "TopCourses", columns, out, "top-courses");
   } catch (err) {
     console.error("exportTopCourses error:", err);
@@ -1287,9 +1396,10 @@ exports.exportCourseMonthly = async (req, res) => {
       count: safeInt(r.count, 0),
     }));
 
-    if (format === "csv")
+    if (format === "csv") {
       return exportAsCsv(res, columns, out, "course-monthly");
-    if (format === "pdf")
+    }
+    if (format === "pdf") {
       return exportAsPdfSimple(
         res,
         "Course Monthly Export",
@@ -1297,6 +1407,7 @@ exports.exportCourseMonthly = async (req, res) => {
         out,
         "course-monthly",
       );
+    }
     return await exportAsXlsx(
       res,
       "CourseMonthly",
@@ -1386,7 +1497,7 @@ exports.exportRevenue = async (req, res) => {
     }));
 
     if (format === "csv") return exportAsCsv(res, columns, out, "revenue");
-    if (format === "pdf")
+    if (format === "pdf") {
       return exportAsPdfSimple(
         res,
         "Revenue Export (DONE)",
@@ -1394,6 +1505,7 @@ exports.exportRevenue = async (req, res) => {
         out,
         "revenue",
       );
+    }
     return await exportAsXlsx(res, "Revenue", columns, out, "revenue");
   } catch (err) {
     console.error("exportRevenue error:", err);
@@ -1460,11 +1572,9 @@ exports.exportDetailed = async (req, res) => {
         u.fullname,
         u.gender,
         u.birthday,
-
         u.nationality,
         u.civil_status,
         u.address,
-
         c.course_name,
         ${dlCodeExprSql()} AS dl_code,
         i.fullname AS instructor_name,
@@ -1495,33 +1605,6 @@ exports.exportDetailed = async (req, res) => {
       params,
     );
 
-    const columns = [
-      { header: "Reservation ID", key: "reservation_id", width: 14 },
-      { header: "Schedule ID", key: "schedule_id", width: 12 },
-      { header: "Student ID", key: "student_id", width: 10 },
-      { header: "LTO Client ID", key: "lto_client_id", width: 18 },
-      { header: "Full Name", key: "fullname", width: 26 },
-      { header: "Gender", key: "gender", width: 8 },
-      { header: "Birthdate", key: "birthday", width: 12 },
-      { header: "Nationality", key: "nationality", width: 14 },
-      { header: "Civil Status", key: "civil_status", width: 12 },
-      { header: "Address", key: "address", width: 28 },
-      { header: "Course", key: "course_name", width: 22 },
-      { header: "DL Code", key: "dl_code", width: 10 },
-      { header: "Instructor", key: "instructor_name", width: 22 },
-      { header: "Training Purpose", key: "training_purpose", width: 22 },
-      { header: "Source", key: "reservation_source", width: 10 },
-      { header: "Status", key: "reservation_status", width: 12 },
-      { header: "Derived", key: "derived_status", width: 10 },
-      { header: "Payment Method", key: "payment_method", width: 12 },
-      { header: "Payment Ref", key: "payment_ref", width: 18 },
-      { header: "Submission Status", key: "submission_status", width: 16 },
-      { header: "Verified At", key: "verified_at", width: 14 },
-      { header: "Amount (₱)", key: "amount_peso", width: 12 },
-      { header: "Created At", key: "created_at", width: 16 },
-      { header: "Done At", key: "done_at", width: 16 },
-    ];
-
     const out = rows.map((r) => ({
       reservation_id: r.reservation_id,
       schedule_id: r.schedule_id,
@@ -1549,16 +1632,63 @@ exports.exportDetailed = async (req, res) => {
       done_at: r.done_at ? toISODate(r.done_at) : "",
     }));
 
-    if (format === "csv") return exportAsCsv(res, columns, out, "detailed");
-    if (format === "pdf")
+    // Full columns for Excel / CSV
+    const fullColumns = [
+      { header: "Reservation ID", key: "reservation_id", width: 14 },
+      { header: "Schedule ID", key: "schedule_id", width: 12 },
+      { header: "Student ID", key: "student_id", width: 10 },
+      { header: "LTO Client ID", key: "lto_client_id", width: 18 },
+      { header: "Full Name", key: "fullname", width: 26 },
+      { header: "Gender", key: "gender", width: 8 },
+      { header: "Birthdate", key: "birthday", width: 12 },
+      { header: "Nationality", key: "nationality", width: 14 },
+      { header: "Civil Status", key: "civil_status", width: 12 },
+      { header: "Address", key: "address", width: 28 },
+      { header: "Course", key: "course_name", width: 22 },
+      { header: "DL Code", key: "dl_code", width: 10 },
+      { header: "Instructor", key: "instructor_name", width: 22 },
+      { header: "Training Purpose", key: "training_purpose", width: 22 },
+      { header: "Source", key: "reservation_source", width: 10 },
+      { header: "Status", key: "reservation_status", width: 12 },
+      { header: "Derived", key: "derived_status", width: 10 },
+      { header: "Payment Method", key: "payment_method", width: 12 },
+      { header: "Payment Ref", key: "payment_ref", width: 18 },
+      { header: "Submission Status", key: "submission_status", width: 16 },
+      { header: "Verified At", key: "verified_at", width: 14 },
+      { header: "Amount (₱)", key: "amount_peso", width: 12 },
+      { header: "Created At", key: "created_at", width: 16 },
+      { header: "Done At", key: "done_at", width: 16 },
+    ];
+
+    // Reduced columns for PDF only
+    const pdfColumns = [
+      { header: "LTO Client ID", key: "lto_client_id", width: 16 },
+      { header: "Full Name", key: "fullname", width: 24 },
+      { header: "Course", key: "course_name", width: 22 },
+      { header: "Instructor", key: "instructor_name", width: 18 },
+      { header: "DL Code", key: "dl_code", width: 9 },
+      { header: "Source", key: "reservation_source", width: 10 },
+      { header: "Status", key: "derived_status", width: 10 },
+      { header: "Payment", key: "payment_method", width: 10 },
+      { header: "Amount (₱)", key: "amount_peso", width: 12 },
+      { header: "Created At", key: "created_at", width: 14 },
+    ];
+
+    if (format === "csv") {
+      return exportAsCsv(res, fullColumns, out, "detailed");
+    }
+
+    if (format === "pdf") {
       return exportAsPdfSimple(
         res,
         "Detailed Export",
-        columns,
+        pdfColumns,
         out,
         "detailed",
       );
-    return await exportAsXlsx(res, "Detailed", columns, out, "detailed");
+    }
+
+    return await exportAsXlsx(res, "Detailed", fullColumns, out, "detailed");
   } catch (err) {
     console.error("exportDetailed error:", err);
     return res.status(500).json({
@@ -1582,6 +1712,7 @@ exports.exportAll = async (req, res) => {
 
     let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
     const params = [from, to];
+
     if (courseId) {
       where += ` AND sr.course_id = ?`;
       params.push(courseId);
@@ -1612,10 +1743,12 @@ exports.exportAll = async (req, res) => {
 
     let doneWhere = `WHERE sr.created_at >= ? AND sr.created_at < ? AND ${isDoneConditionSql()}`;
     const doneParams = [from, to];
+
     if (courseId) {
       doneWhere += ` AND sr.course_id = ?`;
       doneParams.push(courseId);
     }
+
     const [revRows] = await pool.execute(
       `
       SELECT
@@ -1665,10 +1798,12 @@ exports.exportAll = async (req, res) => {
     const dateExpr = `COALESCE(sr.done_at, sr.updated_at, sr.created_at)`;
     let revWhere = `WHERE ${dateExpr} >= ? AND ${dateExpr} < ? AND ${isDoneConditionSql()}`;
     const revParams = [from, to];
+
     if (courseId) {
       revWhere += ` AND sr.course_id = ?`;
       revParams.push(courseId);
     }
+
     const [revenueList] = await pool.execute(
       `
       SELECT
@@ -1704,11 +1839,9 @@ exports.exportAll = async (req, res) => {
         u.fullname,
         u.gender,
         u.birthday,
-
         u.nationality,
         u.civil_status,
         u.address,
-
         c.course_name,
         ${dlCodeExprSql()} AS dl_code,
         sr.training_purpose,

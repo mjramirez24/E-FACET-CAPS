@@ -4,6 +4,8 @@ const fs = require("fs");
 const PDFDocument = require("pdfkit");
 const pool = require("../config/database");
 
+const APP_ROOT = path.join(__dirname, "..", "..");
+
 /* ----------------------------- helpers ----------------------------- */
 
 function makeCertCode(prefix = "CERT") {
@@ -77,40 +79,69 @@ function drawSectionHeader(doc, x, y, w, title) {
     .restore();
 }
 
+function drawPhotoPlaceholder(doc, x, y, w, h) {
+  doc.save().rect(x, y, w, h).stroke("#9ca3af").restore();
+
+  doc
+    .save()
+    .strokeColor("#d1d5db")
+    .lineWidth(0.8)
+    .moveTo(x, y)
+    .lineTo(x + w, y + h)
+    .stroke()
+    .moveTo(x + w, y)
+    .lineTo(x, y + h)
+    .stroke()
+    .restore();
+
+  doc
+    .save()
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#6b7280")
+    .text("2x2 PHOTO", x, y + h / 2 - 4, {
+      width: w,
+      align: "center",
+    })
+    .restore();
+}
+
 /**
  * Resolve local path for picture_2x2
  * supports:
- * - "uploads/xxx.jpg"
- * - "/uploads/xxx.jpg"
- * - "xxx.jpg" (filename only) -> will try common folders
+ * - "uploads/2x2/xxx.jpg"
+ * - "/uploads/2x2/xxx.jpg"
+ * - "xxx.jpg" (filename only)
  */
 function resolveLocalImagePath(picture_2x2) {
   const v = String(picture_2x2 || "").trim();
   if (!v) return null;
 
-  // remote
   if (/^https?:\/\//i.test(v)) return null;
 
-  // normalize slashes
   const cleaned = v.replace(/\\/g, "/").replace(/^\/+/, "");
-
-  // 1) as-is relative from project root
-  const abs1 = path.join(process.cwd(), cleaned);
-  if (fileExists(abs1)) return abs1;
-
-  // 2) if filename only, try common places
   const baseName = path.basename(cleaned);
 
   const candidates = [
-    path.join(process.cwd(), "uploads", baseName),
-    path.join(process.cwd(), "uploads", "2x2", baseName),
-    path.join(process.cwd(), "uploads", "pictures_2x2", baseName),
-    path.join(process.cwd(), "uploads", "students", baseName),
-    path.join(process.cwd(), "uploads", "images", baseName),
+    // exact relative path from app root
+    path.join(APP_ROOT, cleaned),
+
+    // common fallback locations
+    path.join(APP_ROOT, "uploads", "2x2", baseName),
+    path.join(APP_ROOT, "uploads", "requirements", baseName),
+    path.join(APP_ROOT, "uploads", baseName),
+    path.join(APP_ROOT, "uploads", "pictures_2x2", baseName),
+    path.join(APP_ROOT, "uploads", "students", baseName),
+    path.join(APP_ROOT, "uploads", "student", baseName),
+    path.join(APP_ROOT, "uploads", "images", baseName),
+    path.join(APP_ROOT, "uploads", "profiles", baseName),
+    path.join(APP_ROOT, "uploads", "profile", baseName),
+    path.join(APP_ROOT, "uploads", "reservations", baseName),
+    path.join(APP_ROOT, "uploads", "schedule_reservations", baseName),
   ];
 
-  for (const c of candidates) {
-    if (fileExists(c)) return c;
+  for (const p of candidates) {
+    if (fileExists(p)) return p;
   }
 
   return null;
@@ -154,7 +185,6 @@ function normalizeMode(v) {
 function sanitizeOverrides(overrides) {
   if (!overrides || typeof overrides !== "object") return null;
 
-  // support old field `transmission` too
   const mode = normalizeMode(overrides.mode || overrides.transmission);
 
   const dlIn =
@@ -193,7 +223,7 @@ async function generateDrivingPdf({
   picture_2x2,
   overrides,
 }) {
-  const uploadsDir = path.join(process.cwd(), "uploads", "certificates");
+  const uploadsDir = path.join(APP_ROOT, "uploads", "certificates");
   ensureDir(uploadsDir);
 
   const filename = `${certificate_code}.pdf`;
@@ -206,8 +236,8 @@ async function generateDrivingPdf({
   const pageW = doc.page.width;
   const pageH = doc.page.height;
 
-  const logoAbs = path.join(process.cwd(), "assets", "logo.png");
-  const sealAbs = path.join(process.cwd(), "assets", "seal.png"); // optional watermark
+  const logoAbs = path.join(APP_ROOT, "assets", "logo.png");
+  const sealAbs = path.join(APP_ROOT, "assets", "seal.png");
 
   // outer border
   drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
@@ -249,33 +279,26 @@ async function generateDrivingPdf({
   const photoX = pageW - 40 - photoBoxW;
   const photoY = headerTop;
 
-  doc
-    .save()
-    .rect(photoX, photoY, photoBoxW, photoBoxH)
-    .stroke("#9ca3af")
-    .restore();
-
   const photoAbs = resolveLocalImagePath(picture_2x2);
+
   if (photoAbs && fileExists(photoAbs)) {
-    doc.image(photoAbs, photoX + 2, photoY + 2, {
-      width: photoBoxW - 4,
-      height: photoBoxH - 4,
-      fit: [photoBoxW - 4, photoBoxH - 4],
-      align: "center",
-      valign: "center",
-    });
-  } else {
-    // ✅ requirement: kapag walang upload, placeholder lang (no crash)
-    doc
-      .save()
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#6b7280")
-      .text("2x2 PHOTO", photoX, photoY + 40, {
-        width: photoBoxW,
+    try {
+      doc
+        .save()
+        .rect(photoX, photoY, photoBoxW, photoBoxH)
+        .stroke("#9ca3af")
+        .restore();
+
+      doc.image(photoAbs, photoX + 2, photoY + 2, {
+        fit: [photoBoxW - 4, photoBoxH - 4],
         align: "center",
-      })
-      .restore();
+        valign: "center",
+      });
+    } catch (e) {
+      drawPhotoPlaceholder(doc, photoX, photoY, photoBoxW, photoBoxH);
+    }
+  } else {
+    drawPhotoPlaceholder(doc, photoX, photoY, photoBoxW, photoBoxH);
   }
 
   // header center text
@@ -414,42 +437,41 @@ async function generateDrivingPdf({
       ["D", "(M3)"],
     ];
 
-    const drawX = (x, y, w, h) => {
+    const drawX = (x, y0, w, h) => {
       doc.save().strokeColor("#111827").lineWidth(1.2);
       doc
-        .moveTo(x + 2, y + 2)
-        .lineTo(x + w - 2, y + h - 2)
+        .moveTo(x + 2, y0 + 2)
+        .lineTo(x + w - 2, y0 + h - 2)
         .stroke();
       doc
-        .moveTo(x + w - 2, y + 2)
-        .lineTo(x + 2, y + h - 2)
+        .moveTo(x + w - 2, y0 + 2)
+        .lineTo(x + 2, y0 + h - 2)
         .stroke();
       doc.restore();
     };
 
-    const parsed = parseDlFromCourseCode(course_code); // "A"|"B"|"AB"|""
+    const parsed = parseDlFromCourseCode(course_code);
     const fallbackA = parsed === "A" || parsed === "AB";
     const fallbackB = parsed === "B" || parsed === "AB";
 
-    const mode = normalizeMode(overrides?.mode); // "MT" | "AT" | ""
+    const mode = normalizeMode(overrides?.mode);
     const dlOverride =
       overrides?.dl && typeof overrides.dl === "object" ? overrides.dl : null;
 
     const resolveDlCheck = (code) => {
       const c = String(code || "").toUpperCase();
 
-      // 1) Explicit checkbox overrides
       if (dlOverride && dlOverride[c]) {
         return { mt: !!dlOverride[c].mt, at: !!dlOverride[c].at };
       }
 
-      // 2) Fallback: based on course_code A/B/AB, but column depends on mode
       if (c === "A") {
         if (!fallbackA) return { mt: false, at: false };
         return mode === "AT"
           ? { mt: false, at: true }
           : { mt: true, at: false };
       }
+
       if (c === "B") {
         if (!fallbackB) return { mt: false, at: false };
         return mode === "AT"
@@ -472,7 +494,6 @@ async function generateDrivingPdf({
         .text("DL Code (Vehicle Category)", x + 8, y0 + 6, { width: w - 16 })
         .restore();
 
-      // headers
       const headY = y0 + 28;
       doc.save().font("Helvetica-Bold").fontSize(9).fillColor("#374151");
       doc.text("DL Code", x + 8, headY, { width: w - 16 - 80 });
@@ -501,7 +522,6 @@ async function generateDrivingPdf({
 
         const check = resolveDlCheck(code);
 
-        // checkboxes
         const mtX = x + w - 66;
         const atX = x + w - 32;
         const cbY = rowY + 1;
@@ -535,7 +555,6 @@ async function generateDrivingPdf({
   );
   doc.restore();
 
-  // QR placeholder box
   doc
     .save()
     .rect(qrBox.x, qrBox.y, qrBox.w, qrBox.h)
@@ -549,7 +568,6 @@ async function generateDrivingPdf({
     .text("QR", qrBox.x, qrBox.y + 38, { width: qrBox.w, align: "center" })
     .restore();
 
-  // signature lines
   const sigY = pageH - 85;
   doc.save().strokeColor("#9ca3af").lineWidth(1);
   doc.moveTo(70, sigY).lineTo(245, sigY).stroke();
@@ -586,13 +604,12 @@ async function generateTesdaPdf({
   issued_at,
   done_at,
 }) {
-  const uploadsDir = path.join(process.cwd(), "uploads", "certificates");
+  const uploadsDir = path.join(APP_ROOT, "uploads", "certificates");
   ensureDir(uploadsDir);
 
   const filename = `${certificate_code}.pdf`;
   const absFilepath = path.join(uploadsDir, filename);
 
-  // ✅ LANDSCAPE
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
   const stream = fs.createWriteStream(absFilepath);
   doc.pipe(stream);
@@ -600,25 +617,21 @@ async function generateTesdaPdf({
   const pageW = doc.page.width;
   const pageH = doc.page.height;
 
-  // assets
-  const tesdaLogoAbs = path.join(process.cwd(), "assets", "tesda-logo.png");
+  const tesdaLogoAbs = path.join(APP_ROOT, "assets", "tesda-logo.png");
   const logoAbs = fileExists(tesdaLogoAbs)
     ? tesdaLogoAbs
-    : path.join(process.cwd(), "assets", "logo.png");
+    : path.join(APP_ROOT, "assets", "logo.png");
 
-  const watermarkAbs = path.join(process.cwd(), "assets", "tesda-watermark.png");
+  const watermarkAbs = path.join(APP_ROOT, "assets", "tesda-watermark.png");
 
-  // ✅ margins inside page (since margin:0)
   const M = 28;
   const innerX = M;
   const innerY = M;
   const innerW = pageW - M * 2;
   const innerH = pageH - M * 2;
 
-  // border
   drawBorder(doc, innerX, innerY, innerW, innerH);
 
-  // watermark (optional)
   if (fileExists(watermarkAbs)) {
     const wmW = innerW * 0.55;
     const wmH = wmW;
@@ -631,30 +644,29 @@ async function generateTesdaPdf({
     doc.restore();
   }
 
-  // ---------------- HEADER LAYOUT (no overlap) ----------------
   const headerTop = innerY + 18;
   const logoSize = 64;
 
   const logoX = innerX + 18;
   const logoY = headerTop;
 
-  // right certificate code box
   const codeBoxW = 210;
   const codeX = innerX + innerW - 18 - codeBoxW;
   const codeY = headerTop + 4;
 
-  // center header text area = between logo and code box
   const headerTextX = logoX + logoSize + 12;
   const headerTextW = codeX - 12 - headerTextX;
 
-  // logo
   if (fileExists(logoAbs)) {
     doc.image(logoAbs, logoX, logoY, { width: logoSize, height: logoSize });
   } else {
-    doc.save().rect(logoX, logoY, logoSize, logoSize).stroke("#9ca3af").restore();
+    doc
+      .save()
+      .rect(logoX, logoY, logoSize, logoSize)
+      .stroke("#9ca3af")
+      .restore();
   }
 
-  // certificate code (top-right)
   doc
     .save()
     .font("Helvetica")
@@ -664,10 +676,12 @@ async function generateTesdaPdf({
     .font("Courier-Bold")
     .fontSize(10)
     .fillColor("#111827")
-    .text(certificate_code, codeX, codeY + 14, { width: codeBoxW, align: "right" })
+    .text(certificate_code, codeX, codeY + 14, {
+      width: codeBoxW,
+      align: "right",
+    })
     .restore();
 
-  // header lines (centered ONLY inside safe width)
   doc
     .save()
     .fillColor("#111827")
@@ -697,7 +711,6 @@ async function generateTesdaPdf({
     )
     .restore();
 
-  // blue bar (full width inside border)
   const barY = headerTop + logoSize + 14;
   doc
     .save()
@@ -706,7 +719,6 @@ async function generateTesdaPdf({
     .fill()
     .restore();
 
-  // ---------------- MAIN BODY (centered, stacked) ----------------
   const bodyTop = barY + 55;
 
   doc
@@ -775,7 +787,6 @@ async function generateTesdaPdf({
     })
     .restore();
 
-  // ---------------- FOOTER (no circle badge) ----------------
   const footY = innerY + innerH - 70;
 
   doc.save().font("Helvetica").fontSize(9).fillColor("#374151");
@@ -994,6 +1005,7 @@ WHERE reservation_id = ? AND certificate_type='DRIVING'
 LIMIT 1`,
       [reservation_id],
     );
+
     if (existing.length) {
       return res.status(409).json({
         status: "error",
@@ -1090,14 +1102,12 @@ exports.generateTesda = async (req, res) => {
 
     const r = rRows[0];
 
-    // ✅ only check DONE
     if (r.reservation_status !== "DONE") {
       return res
         .status(400)
         .json({ status: "error", message: "Student is not DONE yet." });
     }
 
-    // ✅ prevent duplicates PER TYPE
     const [existing] = await pool.execute(
       `SELECT certificate_id FROM certificates WHERE reservation_id = ? AND certificate_type='TESDA' LIMIT 1`,
       [reservation_id],
@@ -1160,7 +1170,7 @@ async function getCertPdfInfo(certId) {
 
   if (!rows.length || !rows[0].pdf_path) return null;
 
-  const abs = path.join(process.cwd(), String(rows[0].pdf_path));
+  const abs = path.join(APP_ROOT, String(rows[0].pdf_path));
   if (!fs.existsSync(abs))
     return { missing: true, certificate_code: rows[0].certificate_code };
 
