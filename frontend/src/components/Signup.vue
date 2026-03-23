@@ -415,27 +415,6 @@
         </button>
       </form>
 
-      <!-- Divider -->
-      <div class="my-5">
-        <div class="relative">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-white/10"></div>
-          </div>
-          <div class="relative flex justify-center">
-            <span class="px-3 text-xs text-gray-400">or sign up with</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Google Button -->
-      <button
-        @click="handleGoogleSignup"
-        class="w-full bg-white border border-gray-300 rounded-lg py-3 flex justify-center items-center space-x-3 hover:bg-gray-50 transition"
-      >
-        <img src="/google-icon.png" alt="Google" class="w-5 h-5" />
-        <span class="text-gray-700 font-medium text-sm">Google</span>
-      </button>
-
       <!-- Footer Links -->
       <div class="mt-6 pt-5 border-t border-white/10">
         <p class="text-center text-xs text-gray-400 mb-3">
@@ -455,6 +434,90 @@
         </p>
       </div>
     </div>
+
+    <!-- OTP Verification Modal -->
+    <div
+      v-if="otpStep"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 w-full max-w-xs shadow-2xl">
+
+        <!-- Icon -->
+        <div class="flex justify-center mb-4">
+          <div class="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center">
+            <svg class="w-7 h-7 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+        </div>
+
+        <h3 class="text-white font-semibold text-lg mb-1 text-center">Check your email</h3>
+        <p class="text-gray-300 text-xs text-center mb-1">
+          We sent a 6-digit verification code to
+        </p>
+        <p class="text-white text-xs text-center font-medium mb-5 truncate">{{ formData.email }}</p>
+
+        <!-- Code input -->
+        <input
+          type="text"
+          v-model="otpCode"
+          maxlength="6"
+          placeholder="000000"
+          class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-center text-2xl tracking-widest placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition mb-2"
+          :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
+        />
+
+        <!-- Error -->
+        <p v-if="otpError" class="text-red-400 text-xs text-center mb-3 flex items-center justify-center">
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          {{ otpError }}
+        </p>
+
+        <!-- Verify button -->
+        <button
+          @click="verifyOtp"
+          :disabled="otpLoading"
+          class="w-full text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+          :class="track === 'tesda' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'"
+        >
+          <span v-if="otpLoading" class="flex items-center justify-center">
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Verifying...
+          </span>
+          <span v-else>Verify Code</span>
+        </button>
+
+        <!-- Resend -->
+        <p class="text-center text-xs text-gray-400 mb-3">
+          Didn't receive it?
+          <button
+            type="button"
+            @click="sendOtp"
+            :disabled="otpResendTimer > 0 || otpLoading"
+            class="text-white font-medium hover:underline disabled:opacity-40 disabled:cursor-not-allowed ml-1"
+          >
+            {{ otpResendTimer > 0 ? `Resend in ${otpResendTimer}s` : 'Resend code' }}
+          </button>
+        </p>
+
+        <!-- Cancel -->
+        <p class="text-center">
+          <button
+            type="button"
+            @click="otpStep = false"
+            class="text-gray-500 text-xs hover:text-gray-300 transition"
+          >
+            ← Cancel and go back
+          </button>
+        </p>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -515,6 +578,16 @@ export default {
       errors: {},
       message: { text: "", type: "" },
       isLoading: false,
+
+      // OTP state
+      otpStep: false,
+      otpCode: "",
+      otpSent: false,
+      otpVerified: false,
+      otpError: "",
+      otpLoading: false,
+      otpResendTimer: 0,
+      otpTimerInterval: null,
     };
   },
 
@@ -722,15 +795,65 @@ export default {
       return parts.join(", ");
     },
 
-    async handleSignup() {
-      this.message.text = "";
-      this.errors = {};
-      this.closeAllDropdowns();
+    // --------------------
+    // OTP methods
+    // --------------------
+    async sendOtp() {
+      this.otpLoading = true;
+      this.otpError = "";
+      try {
+        const res = await fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: this.formData.email.trim(), track: this.track }),
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          this.otpStep = true;
+          this.otpSent = true;
+          this.otpCode = "";
+          this.startResendTimer();
+        } else {
+          this.message = { text: data.message || "Failed to send code", type: "error" };
+        }
+      } catch {
+        this.message = { text: "Failed to send verification code. Please try again.", type: "error" };
+      } finally {
+        this.otpLoading = false;
+      }
+    },
 
-      if (!this.validateForm()) return;
+    async verifyOtp() {
+      if (!this.otpCode || this.otpCode.length !== 6) {
+        this.otpError = "Please enter the 6-digit code";
+        return;
+      }
+      this.otpLoading = true;
+      this.otpError = "";
+      try {
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: this.formData.email.trim(), code: this.otpCode }),
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          this.otpVerified = true;
+          this.otpStep = false;
+          clearInterval(this.otpTimerInterval);
+          await this.createAccount();
+        } else {
+          this.otpError = data.message || "Invalid code. Please try again.";
+        }
+      } catch {
+        this.otpError = "Verification failed. Please try again.";
+      } finally {
+        this.otpLoading = false;
+      }
+    },
 
+    async createAccount() {
       this.isLoading = true;
-
       try {
         const payload = {
           fullname: this.formData.fullname.trim(),
@@ -747,32 +870,55 @@ export default {
           track: this.track,
         };
 
-        const response = await fetch("/api/auth/signup", {
+        const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
-        const data = await response.json();
+        const data = await res.json();
 
         if (data.status === "success") {
           localStorage.setItem("lastSelectedTrack", this.track);
           this.message = { text: data.message || "Account created successfully!", type: "success" };
-
           setTimeout(() => {
             this.$router.push(`/login?track=${this.track}`);
           }, 1000);
         } else {
           if (data.errors) this.errors = data.errors;
-          if (data.errors?.general) this.message = { text: data.errors.general, type: "error" };
-          else this.message = { text: "Please check the form for errors", type: "error" };
+          this.message = {
+            text: data.errors?.general || "Please check the form for errors",
+            type: "error",
+          };
         }
-      } catch (error) {
-        console.error("Signup error:", error);
+      } catch {
         this.message = { text: "An error occurred. Please try again.", type: "error" };
       } finally {
         this.isLoading = false;
       }
+    },
+
+    startResendTimer() {
+      this.otpResendTimer = 60;
+      clearInterval(this.otpTimerInterval);
+      this.otpTimerInterval = setInterval(() => {
+        this.otpResendTimer -= 1;
+        if (this.otpResendTimer <= 0) clearInterval(this.otpTimerInterval);
+      }, 1000);
+    },
+
+    // --------------------
+    // Main form submit
+    // --------------------
+    async handleSignup() {
+      this.message.text = "";
+      this.errors = {};
+      this.closeAllDropdowns();
+
+      if (!this.validateForm()) return;
+
+      // Send OTP first — account is created only after verification
+      await this.sendOtp();
     },
 
     handleGoogleSignup() {
@@ -780,7 +926,6 @@ export default {
     },
 
     onDocMouseDown(e) {
-      // if click outside the form card, close all dropdowns
       const root = this.$el;
       if (!root) return;
       if (!root.contains(e.target)) {
@@ -792,13 +937,12 @@ export default {
   mounted() {
     this.readTrackFromQuery();
     this.nationalityQuery = this.formData.nationality || "";
-
-    // IMPORTANT: mousedown (not capture) so clicks still register
     document.addEventListener("mousedown", this.onDocMouseDown);
   },
 
   beforeUnmount() {
     document.removeEventListener("mousedown", this.onDocMouseDown);
+    clearInterval(this.otpTimerInterval);
   },
 
   watch: {

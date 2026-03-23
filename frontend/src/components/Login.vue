@@ -123,28 +123,6 @@
         </button>
       </form>
 
-      <!-- Divider -->
-      <div class="my-5">
-        <div class="relative">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-white/10"></div>
-          </div>
-          <div class="relative flex justify-center">
-            <span class="px-3 text-xs text-gray-400">or continue with</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Google Button - Clean Design -->
-      <button
-        @click="handleGoogleLogin"
-        :disabled="isLoading"
-        class="w-full bg-white border border-gray-300 rounded-lg py-3 flex justify-center items-center space-x-3 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <img src="/google-icon.png" alt="Google" class="w-5 h-5" />
-        <span class="text-gray-700 font-medium text-sm">Google</span>
-      </button>
-
       <!-- Footer Links -->
       <div class="mt-6 pt-5 border-t border-white/10">
         <p class="text-center text-xs text-gray-400 mb-3">

@@ -1,5 +1,12 @@
 const pool = require("../config/database.js");
 const bcrypt = require("bcryptjs");
+const transporter = require("../config/email.config");
+
+// --------------------
+// In-memory OTP store
+// { email: { code, expiresAt, attempts, verified } }
+// --------------------
+const otpStore = new Map();
 
 // --------------------
 // helpers
@@ -287,6 +294,206 @@ const checkInstructor = (req, res) => {
 };
 
 // --------------------
+// SEND OTP
+// POST /api/auth/send-otp
+// Body: { email }
+// --------------------
+const sendOtp = async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ status: "error", message: "Email is required" });
+    }
+
+    // Check if email already registered
+    const [existing] = await pool.execute(
+      "SELECT id FROM users WHERE email = ? LIMIT 1",
+      [email]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ status: "error", message: "Email already registered" });
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const track = String(req.body.track || "driving").trim().toLowerCase();
+
+    otpStore.set(email, { code, expiresAt, attempts: 0, verified: false, track });
+
+    const isTesda = track === "tesda";
+    const primaryColor    = isTesda ? "#1d4ed8" : "#15803d";
+    const primaryDark     = isTesda ? "#1e40af" : "#166534";
+    const primaryLight    = isTesda ? "#eff6ff" : "#f0fdf4";
+    const primaryBorder   = isTesda ? "#1d4ed8" : "#15803d";
+    const trackLabel      = isTesda ? "TESDA Training Portal" : "Driving Course Portal";
+    await transporter.sendMail({
+      from: `"E-FACET" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `🔐 Email Verification Code - FACET Enrollment (${Date.now()})`,
+      html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+          }
+          .content {
+            background: #f9fafb;
+            padding: 30px 20px;
+            border: 1px solid #e5e7eb;
+          }
+          .info-box {
+            background: white;
+            border-left: 4px solid ${primaryColor};
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+          }
+          .otp-box {
+            background: ${primaryLight};
+            border: 2px solid ${primaryBorder};
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+          }
+          .otp-code {
+            font-size: 42px;
+            font-weight: bold;
+            letter-spacing: 12px;
+            color: ${primaryColor};
+            margin: 10px 0;
+            font-family: monospace;
+          }
+          .important {
+            background: #fee2e2;
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+          }
+          .footer {
+            background: #1f2937;
+            color: #9ca3af;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 10px 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 style="margin: 0; font-size: 28px;">🔐 Email Verification</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.95;">Verify your email to complete registration</p>
+          <p style="margin: 6px 0 0 0; opacity: 0.80; font-size: 13px;">${trackLabel}</p>
+        </div>
+
+        <div class="content">
+          <p>Hello,</p>
+          <p>You're almost there! Use the verification code below to confirm your email address and complete your FACET account registration.</p>
+
+          <div class="otp-box">
+            <p style="margin: 0; font-size: 14px; color: ${primaryDark}; font-weight: 600;">YOUR VERIFICATION CODE</p>
+            <div class="otp-code">${code}</div>
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">This code expires in <strong>10 minutes</strong></p>
+          </div>
+
+          <div class="info-box">
+            <p style="margin: 0; font-size: 14px; color: #374151;">
+              📧 <strong>Registering with:</strong> ${email}
+            </p>
+          </div>
+
+          <div class="important">
+            <h4 style="margin-top: 0; color: #dc2626;">⚠️ Security Reminder</h4>
+            <p style="margin: 5px 0;">Never share this code with anyone. FACET staff will never ask for your verification code.</p>
+            <p style="margin: 5px 0;">If you didn't request this, you can safely ignore this email.</p>
+          </div>
+
+          <div style="margin: 30px 0; padding: 20px; background: ${primaryLight}; border-radius: 8px; text-align: center;">
+            <p style="margin: 0; font-size: 15px; color: ${primaryDark}; font-weight: 600;">
+              Welcome to FACET! 🎉
+            </p>
+            <p style="margin: 8px 0 0 0; font-size: 13px; color: ${primaryColor};">
+              Complete your registration and start your journey with us.
+            </p>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p style="margin: 0 0 10px 0;">This is an automated message. Please do not reply to this email.</p>
+          <p style="margin: 0;">&copy; ${new Date().getFullYear()} E-FACET Enrollment System. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `,
+    });
+
+    return res.json({ status: "success", message: "Verification code sent to your email" });
+  } catch (error) {
+    console.error("Send OTP error:", error);
+    return res.status(500).json({ status: "error", message: "Failed to send verification code" });
+  }
+};
+
+// --------------------
+// VERIFY OTP
+// POST /api/auth/verify-otp
+// Body: { email, code }
+// --------------------
+const verifyOtp = (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const code = String(req.body.code || "").trim();
+
+    const record = otpStore.get(email);
+    if (!record) {
+      return res.status(400).json({ status: "error", message: "No verification code found. Please request a new one." });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ status: "error", message: "Code has expired. Please request a new one." });
+    }
+
+    record.attempts += 1;
+    if (record.attempts > 5) {
+      otpStore.delete(email);
+      return res.status(400).json({ status: "error", message: "Too many attempts. Please request a new code." });
+    }
+
+    if (record.code !== code) {
+      return res.status(400).json({ status: "error", message: "Incorrect code. Please try again." });
+    }
+
+    // Mark as verified
+    record.verified = true;
+    return res.json({ status: "success", message: "Email verified successfully" });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    return res.status(500).json({ status: "error", message: "Server error" });
+  }
+};
+
+// --------------------
 // SIGNUP (student/user default)
 // --------------------
 const signup = async (req, res) => {
@@ -308,7 +515,7 @@ const signup = async (req, res) => {
 
     const fullnameTrimmed = (fullname || "").trim();
     const usernameTrimmed = (username || "").trim();
-    const emailTrimmed = (email || "").trim();
+    const emailTrimmed = (email || "").trim().toLowerCase();
     const contactTrimmed = (contact || "").trim();
     const addressTrimmed = (address || "").trim();
     const civilStatusTrimmed = (civil_status || "").trim();
@@ -372,6 +579,15 @@ const signup = async (req, res) => {
 
     if (Object.keys(errors).length > 0) {
       return res.status(400).json({ status: "error", errors });
+    }
+
+    // ✅ Check OTP was verified for this email
+    const otpRecord = otpStore.get(emailTrimmed);
+    if (!otpRecord || !otpRecord.verified) {
+      return res.status(400).json({
+        status: "error",
+        errors: { general: "Email not verified. Please verify your email first." },
+      });
     }
 
     const [existingUsers] = await pool.execute(
@@ -450,6 +666,9 @@ const signup = async (req, res) => {
       `INSERT INTO users (${cols.join(", ")}) VALUES (${placeholders})`,
       vals,
     );
+
+    // ✅ Clean up OTP store after successful signup
+    otpStore.delete(emailTrimmed);
 
     return res.json({
       status: "success",
@@ -683,5 +902,7 @@ module.exports = {
   checkAdmin,
   checkInstructor,
   checkUsername,
+  sendOtp,
+  verifyOtp,
   test,
 };

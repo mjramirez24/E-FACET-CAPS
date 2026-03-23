@@ -10,6 +10,8 @@ router.post("/login", authController.login);
 router.post("/signup", authController.signup);
 router.get("/logout", authController.logout);
 router.get("/check-username", authController.checkUsername);
+router.post("/send-otp", authController.sendOtp);
+router.post("/verify-otp", authController.verifyOtp);
 
 router.get("/me", (req, res) => {
   if (!req.session?.user_id) {
@@ -17,9 +19,9 @@ router.get("/me", (req, res) => {
   }
   res.json({
     user: {
-      id: req.session.user_id, // ← user_id not userId
+      id: req.session.user_id,
       role: req.session.role,
-      track: req.session.track_code, // ← track_code not track
+      track: req.session.track_code,
     },
   });
 });
