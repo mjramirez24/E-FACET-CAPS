@@ -1899,130 +1899,343 @@ export default {
       return [];
     }
 
-    function selectedColumnDefs() {
-      const defs = exportColumnOptions.value.filter((c) => !!exportColumns[c.key]);
-      return defs.length ? defs : exportColumnOptions.value;
+function selectedColumnDefs(targetOverride = null, forPdf = false) {
+  const target = targetOverride || exportTarget.value;
+  const chosen = exportColumnOptions.value.filter((c) => !!exportColumns[c.key]);
+
+  // XLSX/CSV = user-selected or all
+  if (!forPdf) {
+    return chosen.length ? chosen : exportColumnOptions.value;
+  }
+
+  // PDF = keep all selected columns too
+  return chosen.length ? chosen : exportColumnOptions.value;
+}
+
+function valueForCell(row, key) {
+  if (!row) return "";
+
+  if (key === "birthday") {
+    return row.birthday ? formatDateShort(row.birthday) : "";
+  }
+
+  if (key === "gender") {
+    if (!row.gender) return "";
+    return String(row.gender).toLowerCase() === "male" ? "M" : "F";
+  }
+
+  if (key === "course_start") {
+    return row.course_start ? formatDate(row.course_start) : "";
+  }
+
+  if (key === "course_end") {
+    return row.course_end ? formatDate(row.course_end) : "";
+  }
+
+  if (key === "created_at") {
+    return row.created_at ? formatDate(row.created_at) : "";
+  }
+
+  if (key === "verified_at") {
+    return row.verified_at ? formatDate(row.verified_at) : "";
+  }
+
+  if (key === "done_at") {
+    return row.done_at ? formatDate(row.done_at) : "";
+  }
+
+  if (key === "payment_method") {
+    return normalizePaymentMethod(row.payment_method) || "";
+  }
+
+  if (key === "amount_peso") {
+    const n = Number(row.amount_peso || 0);
+    return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+  }
+
+  return row[key] ?? "";
+}
+
+function buildTableFromRows(rows, defs) {
+  const headers = defs.map((d) => d.label);
+
+  const mapped = rows.map((r) =>
+    defs.map((d) => {
+      const v = valueForCell(r, d.key);
+      return String(v ?? "")
+        .replace(/\r?\n/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }),
+  );
+
+  return { headers, rows: mapped };
+}
+
+function exportXlsx(tables, filename) {
+  const wb = XLSX.utils.book_new();
+
+  for (const t of tables) {
+    const ws = XLSX.utils.aoa_to_sheet([t.headers, ...t.rows]);
+    XLSX.utils.book_append_sheet(wb, ws, (t.sheetName || "Export").slice(0, 31));
+  }
+
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
+function exportCsv(table, filename) {
+  const esc = (v) => {
+    const s = String(v ?? "");
+    if (s.includes('"') || s.includes(",") || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
     }
+    return s;
+  };
 
-    function valueForCell(row, key) {
-      if (!row) return "";
-      if (key === "birthday") return row.birthday ? formatDateShort(row.birthday) : "";
-      if (key === "gender") return row.gender ? (String(row.gender).toLowerCase() === "male" ? "M" : "F") : "";
-      if (key === "course_start") return row.course_start ? formatDate(row.course_start) : "";
-      if (key === "course_end") return row.course_end ? formatDate(row.course_end) : "";
-      if (key === "created_at") return row.created_at ? formatDate(row.created_at) : "";
-      if (key === "payment_method") return normalizePaymentMethod(row.payment_method) || "";
-      if (key === "amount_peso") return Number(row.amount_peso || 0);
-      return row[key] ?? "";
-    }
+  const lines = [table.headers.map(esc).join(",")];
+  for (const r of table.rows) {
+    lines.push(r.map(esc).join(","));
+  }
 
-    function exportXlsx(tables, filename) {
-      const wb = XLSX.utils.book_new();
-      for (const t of tables) {
-        const ws = XLSX.utils.aoa_to_sheet([t.headers, ...t.rows]);
-        XLSX.utils.book_append_sheet(wb, ws, t.sheetName.slice(0, 31));
-      }
-      XLSX.writeFile(wb, `${filename}.xlsx`);
-    }
+  const blob = new Blob([lines.join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
 
-    function exportCsv(table, filename) {
-      const esc = (v) => {
-        const s = String(v ?? "");
-        if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-        return s;
-      };
-      const lines = [table.headers.map(esc).join(",")];
-      for (const r of table.rows) lines.push(r.map(esc).join(","));
-      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${filename}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-    function exportPdf(table, filename) {
-      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-      doc.setFontSize(12);
-      doc.text(filename, 40, 30);
+function choosePdfLayout(table) {
+  const colCount = table.headers.length;
 
-      autoTable(doc, {
-        startY: 50,
-        head: [table.headers],
-        body: table.rows,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [230, 230, 230] },
+  // portrait kapag kaya pa
+  if (colCount <= 5) {
+    return {
+      orientation: "portrait",
+      fontSize: 8,
+      cellPadding: 5,
+    };
+  }
+
+  if (colCount <= 8) {
+    return {
+      orientation: "landscape",
+      fontSize: 7,
+      cellPadding: 4,
+    };
+  }
+
+  return {
+    orientation: "landscape",
+    fontSize: 6,
+    cellPadding: 3,
+  };
+}
+
+function exportPdf(table, filename, options = {}) {
+  const layout = choosePdfLayout(table);
+  const orientation = options.orientation || layout.orientation;
+
+  const doc = new jsPDF({
+    orientation,
+    unit: "pt",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 28;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("DETAILED REPORT", pageWidth / 2, 28, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(filename, pageWidth / 2, 44, { align: "center" });
+
+  doc.setFontSize(8);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - margin, 28, {
+    align: "right",
+  });
+
+  autoTable(doc, {
+    startY: 58,
+    head: [table.headers],
+    body: table.rows,
+    margin: { top: 58, right: margin, bottom: 28, left: margin },
+    theme: "grid",
+    styles: {
+      font: "helvetica",
+      fontSize: layout.fontSize,
+      cellPadding: layout.cellPadding,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      textColor: [0, 0, 0],
+      overflow: "linebreak",
+      valign: "middle",
+      fillColor: [255, 255, 255],
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      lineColor: [0, 0, 0],
+      lineWidth: 0.25,
+      fontStyle: "bold",
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+    },
+    alternateRowStyles: {
+      fillColor: [255, 255, 255],
+    },
+    didDrawPage: () => {
+      const currentPage = doc.internal.getNumberOfPages();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(
+        `Page ${currentPage}`,
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: "right" },
+      );
+    },
+  });
+
+  doc.save(`${filename}.pdf`);
+}
+
+function exportSingle(table, filename, target = null) {
+  if (exportFormat.value === "xlsx") {
+    return exportXlsx([{ sheetName: "Export", ...table }], filename);
+  }
+
+  if (exportFormat.value === "csv") {
+    return exportCsv(table, filename);
+  }
+
+  if (exportFormat.value === "pdf") {
+    return exportPdf(table, filename, { target });
+  }
+
+  throw new Error("Unsupported export format.");
+}
+
+function exportMulti(tables, filename) {
+  if (exportFormat.value === "xlsx") {
+    return exportXlsx(tables, filename);
+  }
+
+  if (exportFormat.value === "csv") {
+    return exportCsv(
+      { headers: tables[0].headers, rows: tables[0].rows },
+      `${filename}-trend-only`,
+    );
+  }
+
+  if (exportFormat.value === "pdf") {
+    return exportPdf(
+      { headers: tables[0].headers, rows: tables[0].rows },
+      `${filename}-trend-only`,
+    );
+  }
+
+  throw new Error("Unsupported export format.");
+}
+
+function runExport() {
+  exportError.value = "";
+
+  try {
+    const target = exportTarget.value;
+
+    if (target === "overview" || target === "all") {
+      const tables = [];
+
+      tables.push({
+        sheetName: "Trend",
+        headers: ["Label", "Enrollments"],
+        rows: (trend.labels || []).map((l, i) => [
+          l,
+          Number(trend.values?.[i] || 0),
+        ]),
       });
 
-      doc.save(`${filename}.pdf`);
-    }
+      tables.push({
+        sheetName: "Top Courses",
+        headers: ["Course", "Enrollments"],
+        rows: (topCourses.labels || []).map((l, i) => [
+          l,
+          Number(topCourses.values?.[i] || 0),
+        ]),
+      });
 
-    function buildTableFromRows(rows, defs) {
-      const headers = defs.map((d) => d.label);
-      const mapped = rows.map((r) => defs.map((d) => valueForCell(r, d.key)));
-      return { headers, rows: mapped };
-    }
+      tables.push({
+        sheetName: "Gender",
+        headers: ["Gender", "Count"],
+        rows: (gender.labels || []).map((l, i) => [
+          l,
+          Number(gender.values?.[i] || 0),
+        ]),
+      });
 
-    function runExport() {
-      exportError.value = "";
-      try {
-        const target = exportTarget.value;
+      tables.push({
+        sheetName: "Course Monthly",
+        headers: ["Month", "Course", "Enrollments"],
+        rows: (courseMonthlyPreview.value || []).map((r) => [
+          r.month_label || "",
+          r.course_name || "",
+          Number(r.count || 0),
+        ]),
+      });
 
-        if (target === "overview" || target === "all") {
-          const tables = [];
-
-          tables.push({
-            sheetName: "Trend",
-            headers: ["Label", "Enrollments"],
-            rows: (trend.labels || []).map((l, i) => [l, Number(trend.values?.[i] || 0)]),
-          });
-
-          tables.push({
-            sheetName: "Top Courses",
-            headers: ["Course", "Enrollments"],
-            rows: (topCourses.labels || []).map((l, i) => [l, Number(topCourses.values?.[i] || 0)]),
-          });
-
-          tables.push({
-            sheetName: "Gender",
-            headers: ["Gender", "Count"],
-            rows: (gender.labels || []).map((l, i) => [l, Number(gender.values?.[i] || 0)]),
-          });
-
-          tables.push({
-            sheetName: "Course Monthly",
-            headers: ["Month", "Course", "Enrollments"],
-            rows: (courseMonthlyPreview.value || []).map((r) => [r.month_label || "", r.course_name || "", Number(r.count || 0)]),
-          });
-
-          if (target === "overview") {
-            return exportMulti(tables, exportFileName.value);
-          }
-          exportMulti(tables, `${exportFileName.value}-overview`);
-        }
-
-        if ((target === "revenue" || target === "all") && reportMode.value === "driving") {
-          const rows = pickRowsForExport("revenue");
-          const defs = selectedColumnDefs();
-          const table = buildTableFromRows(rows, defs);
-          if (target === "revenue") return exportSingle(table, exportFileName.value);
-          exportSingle(table, `${exportFileName.value}-revenue`);
-        }
-
-        if (target === "detailed" || target === "all") {
-          const rows = pickRowsForExport("detailed");
-          const defs = selectedColumnDefs();
-          const table = buildTableFromRows(rows, defs);
-          if (target === "detailed") return exportSingle(table, exportFileName.value);
-          exportSingle(table, `${exportFileName.value}-detailed`);
-        }
-
+      if (target === "overview") {
         exportOpen.value = false;
-      } catch (e) {
-        exportError.value = e?.message || "Export failed.";
+        return exportMulti(tables, exportFileName.value);
       }
+
+      exportMulti(tables, `${exportFileName.value}-overview`);
     }
+
+    if (
+      (target === "revenue" || target === "all") &&
+      reportMode.value === "driving"
+    ) {
+      const rows = pickRowsForExport("revenue");
+      const defs = selectedColumnDefs("revenue", exportFormat.value === "pdf");
+      const table = buildTableFromRows(rows, defs);
+
+      if (target === "revenue") {
+        exportOpen.value = false;
+        return exportSingle(table, exportFileName.value, "revenue");
+      }
+
+      exportSingle(table, `${exportFileName.value}-revenue`, "revenue");
+    }
+
+    if (target === "detailed" || target === "all") {
+      const rows = pickRowsForExport("detailed");
+      const defs = selectedColumnDefs("detailed", exportFormat.value === "pdf");
+      const table = buildTableFromRows(rows, defs);
+
+      if (target === "detailed") {
+        exportOpen.value = false;
+        return exportSingle(table, exportFileName.value, "detailed");
+      }
+
+      exportSingle(table, `${exportFileName.value}-detailed`, "detailed");
+    }
+
+    exportOpen.value = false;
+  } catch (e) {
+    exportError.value = e?.message || "Export failed.";
+  }
+}
 
     function exportSingle(table, filename) {
       if (exportFormat.value === "xlsx") return exportXlsx([{ sheetName: "Export", ...table }], filename);
