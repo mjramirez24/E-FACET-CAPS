@@ -544,8 +544,6 @@ async function generateDrivingPdf({
 
   // footer statement + QR placeholder
   const footerTop = pageH - 170;
-  const qrBox = { w: 95, h: 95, x: pageW - 40 - 95, y: pageH - 155 };
-
   doc.save().fillColor("#111827").font("Helvetica").fontSize(9);
   doc.text(
     `This Certificate with Control Number ${certificate_code} has been issued in compliance with the applicable LTO training requirements.`,
@@ -554,19 +552,6 @@ async function generateDrivingPdf({
     { width: boxW - 110, align: "left" },
   );
   doc.restore();
-
-  doc
-    .save()
-    .rect(qrBox.x, qrBox.y, qrBox.w, qrBox.h)
-    .stroke("#6b7280")
-    .restore();
-  doc
-    .save()
-    .font("Helvetica")
-    .fontSize(8)
-    .fillColor("#6b7280")
-    .text("QR", qrBox.x, qrBox.y + 38, { width: qrBox.w, align: "center" })
-    .restore();
 
   const sigY = pageH - 85;
   doc.save().strokeColor("#9ca3af").lineWidth(1);

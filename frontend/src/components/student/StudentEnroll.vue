@@ -457,8 +457,18 @@
               <div class="font-semibold text-gray-800 mb-1">
                 2x2 Picture <span class="text-red-500">*</span>
               </div>
-              <div class="text-xs text-gray-600 mb-3">
-                Description: <span class="font-semibold">For Certification</span>
+              <div class="text-sm text-gray-700 mb-3">
+                Description:
+                <ul class="list-disc pl-4 mt-1">
+                  <li>2x2 identification photo</li>
+                  <li>Plain white background</li>
+                  <li>Well-lit environment (no shadows)</li>
+                  <li>Facing the camera directly</li>
+                  <li>Neutral facial expression</li>
+                  <li>Eyes open and clearly visible</li>
+                  <li>No hats, caps, or sunglasses</li>
+                  <li>No accessories that obscure the face</li>
+                </ul>
               </div>
 
               <div class="flex flex-col md:flex-row md:items-center gap-3">
