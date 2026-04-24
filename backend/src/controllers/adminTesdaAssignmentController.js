@@ -117,11 +117,15 @@ if (tRows[0].status !== "active") {
   });
 }
 
-    // ✅ safest: INSERT IGNORE (works if unique composite exists)
-    await pool.execute(
-      `INSERT IGNORE INTO ${ASSIGN_TABLE} (course_id, trainer_id) VALUES (?, ?)`,
-      [course_id, trainer_id],
-    );
+// Delete any existing assignment for this course first, then insert new one
+await pool.execute(
+  `DELETE FROM ${ASSIGN_TABLE} WHERE course_id = ?`,
+  [course_id]
+);
+await pool.execute(
+  `INSERT INTO ${ASSIGN_TABLE} (course_id, trainer_id) VALUES (?, ?)`,
+  [course_id, trainer_id]
+);
 
     return res.json({
       status: "success",

@@ -95,15 +95,18 @@ exports.saveAttempt = async (req, res) => {
         const ans = answers[i] ?? null;
         const isCorrect = ans && ans.toLowerCase() === q.correct_key?.toLowerCase() ? 1 : 0;
 
+        // Always save mastery under the real quiz ID (strip ||subcat if retake)
+        const masteryExamId = exam_id.includes('||') ? exam_id.split('||')[0] : exam_id
+
         await conn.execute(
           `INSERT INTO student_question_mastery
-             (student_id, exam_id, question_id, last_answer, is_correct)
-           VALUES (?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE
-             last_answer = VALUES(last_answer),
-             is_correct  = VALUES(is_correct),
-             updated_at  = NOW()`,
-          [studentId, exam_id, q.id, ans, isCorrect]
+            (student_id, exam_id, question_id, last_answer, is_correct)
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            last_answer = VALUES(last_answer),
+            is_correct  = VALUES(is_correct),
+            updated_at  = NOW()`,
+          [studentId, masteryExamId, q.id, ans, isCorrect]
         );
       }
 
