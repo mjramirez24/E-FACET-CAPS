@@ -863,24 +863,25 @@ export default {
     // ✅ DRIVING ASSIGNMENTS
     // ===============================
     const fetchDrivingInstructors = async () => {
-      const res = await api.get("/admin/driving-instructors");
+      const res = await api.get("/admin/instructors?active=true");
       instructors.value = res.data?.data ?? [];
     };
 
-    const fetchDrivingAssignments = async () => {
-      const res = await api.get("/admin/driving-course-instructors");
-      const rows = res.data?.data ?? [];
+      const fetchDrivingAssignments = async () => {
+        const res = await api.get("/admin/driving-course-instructors");
+        const rows = res.data?.data ?? [];
 
-      const map = {};
-      for (const r of rows) {
-        map[r.course_id] = {
-          instructor_id: r.instructor_id,
-          instructor_name: r.instructor_name || "—",
-          instructor_code: r.instructor_code || "",
-        };
-      }
-      assignmentsMap.value = map;
-    };
+        const map = {};
+        for (const r of rows) {
+          map[r.course_id] = {
+            instructor_id: r.instructor_id,
+            instructor_name: r.instructor_name || "—",
+            instructor_code: r.instructor_code || "",
+            status: r.status || "",
+          };
+        }
+        assignmentsMap.value = map;
+      };
 
     const refreshAssignments = async () => {
       try {
@@ -895,7 +896,7 @@ export default {
 
     const assignmentLabel = (courseId) => {
       const a = assignmentsMap.value[courseId];
-      if (!a || !a.instructor_id) return "—";
+      if (!a || !a.instructor_id || a.status !== 'active') return "—";
       return `${a.instructor_name}${a.instructor_code ? ` (${a.instructor_code})` : ""}`;
     };
 
@@ -1057,10 +1058,10 @@ export default {
       status: "active",
     });
 
-    const fetchTesdaTrainers = async () => {
-      const res = await api.get("/admin/tesda/trainers");
-      tesdaTrainers.value = res.data?.data ?? [];
-    };
+      const fetchTesdaTrainers = async () => {
+        const res = await api.get("/admin/tesda/trainers?active=true");
+        tesdaTrainers.value = res.data?.data ?? [];
+      };
 
     const fetchTesdaCourses = async () => {
       tesdaLoading.value = true;
@@ -1086,24 +1087,25 @@ export default {
       }
     };
 
-    const fetchTesdaAssignments = async () => {
-      const res = await api.get("/admin/tesda/course-trainers");
-      const rows = res.data?.data ?? [];
+      const fetchTesdaAssignments = async () => {
+        const res = await api.get("/admin/tesda/course-trainers");
+        const rows = res.data?.data ?? [];
 
-      const map = {};
-      for (const r of rows) {
-        map[r.course_id] = {
-          trainer_id: r.trainer_id,
-          trainer_name: r.trainer_name || "—",
-          trainer_code: r.trainer_code || "",
-        };
-      }
-      tesdaAssignmentsMap.value = map;
-    };
+        const map = {};
+        for (const r of rows) {
+          map[r.course_id] = {
+            trainer_id: r.trainer_id,
+            trainer_name: r.trainer_name || "—",
+            trainer_code: r.trainer_code || "",
+            status: r.status || "",
+          };
+        }
+        tesdaAssignmentsMap.value = map;
+      };
 
     const tesdaAssignmentLabel = (courseId) => {
       const a = tesdaAssignmentsMap.value[courseId];
-      if (!a || !a.trainer_id) return "—";
+      if (!a || !a.trainer_id || a.status !== 'active') return "—";
       return `${a.trainer_name}${a.trainer_code ? ` (${a.trainer_code})` : ""}`;
     };
 

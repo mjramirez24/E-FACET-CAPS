@@ -146,9 +146,41 @@ async function deleteTesdaCourse(req, res) {
   }
 }
 
+async function upsertTesdaAssignment(req, res) {
+  try {
+    const course_id = Number(req.body.course_id);
+    const trainer_id = Number(req.body.trainer_id);
+
+    if (!course_id || !trainer_id) {
+      return res.status(400).json({ status: "error", message: "course_id and trainer_id are required" });
+    }
+
+    const [trn] = await pool.execute(
+      `SELECT status FROM trainers WHERE trainer_id = ? LIMIT 1`,
+      [trainer_id]
+    );
+    if (!trn.length || trn[0].status !== "active") {
+      return res.status(400).json({ status: "error", message: "Cannot assign: trainer is not active" });
+    }
+
+    await pool.execute(
+      `INSERT INTO tesda_course_trainers (course_id, trainer_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE trainer_id = VALUES(trainer_id), updated_at = CURRENT_TIMESTAMP`,
+      [course_id, trainer_id]
+    );
+
+    res.json({ status: "success", message: "TESDA trainer assigned" });
+  } catch (err) {
+    console.error("upsertTesdaAssignment error:", err);
+    res.status(500).json({ status: "error", message: "Failed to assign TESDA trainer" });
+  }
+}
+
 module.exports = {
   getTesdaCourses,
   createTesdaCourse,
   updateTesdaCourse,
   deleteTesdaCourse,
+  upsertTesdaAssignment,
 };

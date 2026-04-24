@@ -7,41 +7,33 @@ function normalizeStatus(s) {
   return v === "inactive" ? "inactive" : "active";
 }
 
-// ✅ GET /api/admin/tesda/trainers
 async function getTrainers(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `
-      SELECT
-        trainer_id,
-        trainer_code,
-        firstname,
-        lastname,
-        CONCAT(firstname, ' ', lastname) AS fullname,
-        email,
-        contact_number,
-        specialization,
-        status,
-        created_at,
-        updated_at,
-        user_id
-      FROM trainers
-      ORDER BY trainer_id DESC
-      `
-    );
+   const activeOnly = req.query.active === "true";
+
+      const [rows] = await pool.execute(
+        `SELECT
+          trainer_id,
+          trainer_code,
+          firstname,
+          lastname,
+          CONCAT(firstname, ' ', lastname) AS fullname,
+          email,
+          contact_number,
+          specialization,
+          status,
+          created_at,
+          updated_at,
+          user_id
+        FROM trainers
+        ${activeOnly ? "WHERE status = 'active'" : ""}
+        ORDER BY trainer_id DESC`
+      );
 
     return res.json({ status: "success", data: rows });
   } catch (err) {
     console.error("getTrainers error:", err);
-    return res.status(500).json({
-      status: "error",
-      message: "Failed to load TESDA trainers",
-      debug: {
-        code: err.code,
-        sqlMessage: err.sqlMessage,
-        message: err.message,
-      },
-    });
+    return res.status(500).json({ status: "error", message: "Failed to load TESDA trainers" });
   }
 }
 
@@ -104,7 +96,6 @@ async function createTrainer(req, res) {
   }
 }
 
-// ✅ PUT /api/admin/tesda/trainers/:id
 async function updateTrainer(req, res) {
   try {
     const id = Number(req.params.id);
@@ -112,31 +103,13 @@ async function updateTrainer(req, res) {
       return res.status(400).json({ status: "error", message: "Invalid trainer id" });
     }
 
-    const {
-      trainer_code,
-      firstname,
-      lastname,
-      email,
-      contact_number,
-      specialization,
-      status,
-      user_id,
-    } = req.body;
+    const { trainer_code, firstname, lastname, email, contact_number, specialization, status, user_id } = req.body;
 
     const [result] = await pool.execute(
-      `
-      UPDATE trainers
-      SET
-        trainer_code = ?,
-        firstname = ?,
-        lastname = ?,
-        email = ?,
-        contact_number = ?,
-        specialization = ?,
-        status = ?,
-        user_id = ?
-      WHERE trainer_id = ?
-      `,
+      `UPDATE trainers
+       SET trainer_code = ?, firstname = ?, lastname = ?, email = ?,
+           contact_number = ?, specialization = ?, status = ?, user_id = ?
+       WHERE trainer_id = ?`,
       [
         String(trainer_code || "").trim(),
         String(firstname || "").trim(),
@@ -154,18 +127,21 @@ async function updateTrainer(req, res) {
       return res.status(404).json({ status: "error", message: "Trainer not found" });
     }
 
+    // ✅ If set to inactive, remove all course assignments
+    if (normalizeStatus(status) === "inactive") {
+      const assignTables = ["tesda_course_trainers", "course_trainers"];
+      for (const tbl of assignTables) {
+        const [tblExists] = await pool.query("SHOW TABLES LIKE ?", [tbl]);
+        if (tblExists.length) {
+          await pool.execute(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [id]);
+        }
+      }
+    }
+
     return res.json({ status: "success", message: "Trainer updated" });
   } catch (err) {
     console.error("updateTrainer error:", err);
-    return res.status(500).json({
-      status: "error",
-      message: "Failed to update trainer",
-      debug: {
-        code: err.code,
-        sqlMessage: err.sqlMessage,
-        message: err.message,
-      },
-    });
+    return res.status(500).json({ status: "error", message: "Failed to update trainer" });
   }
 }
 

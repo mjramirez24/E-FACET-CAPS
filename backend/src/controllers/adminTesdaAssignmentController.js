@@ -36,23 +36,24 @@ async function getCourseTrainers(req, res) {
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const [rows] = await pool.execute(
-      `
-      SELECT
+      const [rows] = await pool.execute(
+        `
+        SELECT
         a.course_id,
         c.course_name,
         c.course_code,
         a.trainer_id,
         t.trainer_code,
-        CONCAT(t.firstname, ' ', t.lastname) AS trainer_name
+        CONCAT(t.firstname, ' ', t.lastname) AS trainer_name,
+        t.status
       FROM ${ASSIGN_TABLE} a
       LEFT JOIN ${COURSES_TABLE} c ON c.id = a.course_id
       LEFT JOIN trainers t ON t.trainer_id = a.trainer_id
       ${whereSql}
       ORDER BY a.course_id ASC, a.trainer_id ASC
-      `,
-      params,
-    );
+        `,
+        params,
+      );
 
     return res.json({ status: "success", data: rows });
   } catch (err) {
@@ -99,16 +100,22 @@ async function assignTrainerToCourse(req, res) {
         .json({ status: "error", message: "Course not found" });
     }
 
-    // validate trainer exists
-    const [tRows] = await pool.execute(
-      `SELECT trainer_id FROM trainers WHERE trainer_id=? LIMIT 1`,
-      [trainer_id],
-    );
-    if (!tRows.length) {
-      return res
-        .status(404)
-        .json({ status: "error", message: "Trainer not found" });
-    }
+// validate trainer exists AND is active
+const [tRows] = await pool.execute(
+  `SELECT trainer_id, status FROM trainers WHERE trainer_id=? LIMIT 1`,
+  [trainer_id],
+);
+if (!tRows.length) {
+  return res
+    .status(404)
+    .json({ status: "error", message: "Trainer not found" });
+}
+if (tRows[0].status !== "active") {
+  return res.status(400).json({
+    status: "error",
+    message: "Cannot assign: this trainer's role has been revoked. They are no longer active.",
+  });
+}
 
     // ✅ safest: INSERT IGNORE (works if unique composite exists)
     await pool.execute(

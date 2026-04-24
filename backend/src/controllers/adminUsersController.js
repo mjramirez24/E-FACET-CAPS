@@ -279,64 +279,135 @@ async function upsertTrainerProfile({
   );
 }
 
+// Add these two helpers ABOVE syncRoleProfiles
+
+async function removeInstructorCourseAssignments(userId) {
+  try {
+    if (!(await hasTable("instructors"))) return;
+    if (!(await hasColumn("instructors", "user_id"))) return;
+
+    const [rows] = await pool.query(
+      `SELECT instructor_id FROM instructors WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+    if (!rows.length) return;
+
+    const instructorId = rows[0].instructor_id;
+
+    // Try both possible table names for driving course assignments
+    const assignTables = ["course_instructors", "driving_course_instructors"];
+    for (const tbl of assignTables) {
+      if (await hasTable(tbl)) {
+        await pool.query(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [instructorId]);
+      }
+    }
+  } catch (err) {
+    console.error("removeInstructorCourseAssignments error:", err);
+  }
+}
+
+async function removeTrainerCourseAssignments(userId) {
+  try {
+    if (!(await hasTable("trainers"))) return;
+    if (!(await hasColumn("trainers", "user_id"))) return;
+
+    const [rows] = await pool.query(
+      `SELECT trainer_id FROM trainers WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+    if (!rows.length) return;
+
+    const trainerId = rows[0].trainer_id;
+
+    // Try both possible table names for TESDA course assignments
+    const assignTables = ["tesda_course_trainers", "course_trainers"];
+    for (const tbl of assignTables) {
+      if (await hasTable(tbl)) {
+        await pool.query(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [trainerId]);
+      }
+    }
+  } catch (err) {
+    console.error("removeTrainerCourseAssignments error:", err);
+  }
+}
+async function removeInstructorProfile(userId) {
+  try {
+    if (!(await hasTable("instructors"))) return;
+    if (!(await hasColumn("instructors", "user_id"))) return;
+
+    const [rows] = await pool.query(
+      `SELECT instructor_id FROM instructors WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+    if (!rows.length) return;
+
+    const instructorId = rows[0].instructor_id;
+
+    // Delete course assignments first
+    const assignTables = ["course_instructors", "driving_course_instructors"];
+    for (const tbl of assignTables) {
+      if (await hasTable(tbl)) {
+        await pool.query(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [instructorId]);
+      }
+    }
+
+    // Delete the instructor row entirely
+    await pool.query(`DELETE FROM instructors WHERE instructor_id = ?`, [instructorId]);
+  } catch (err) {
+    console.error("removeInstructorProfile error:", err);
+  }
+}
+
+async function removeTrainerProfile(userId) {
+  try {
+    if (!(await hasTable("trainers"))) return;
+    if (!(await hasColumn("trainers", "user_id"))) return;
+
+    const [rows] = await pool.query(
+      `SELECT trainer_id FROM trainers WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+    if (!rows.length) return;
+
+    const trainerId = rows[0].trainer_id;
+
+    // Delete course assignments first
+    const assignTables = ["tesda_course_trainers", "course_trainers"];
+    for (const tbl of assignTables) {
+      if (await hasTable(tbl)) {
+        await pool.query(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [trainerId]);
+      }
+    }
+
+    // Delete the trainer row entirely
+    await pool.query(`DELETE FROM trainers WHERE trainer_id = ?`, [trainerId]);
+  } catch (err) {
+    console.error("removeTrainerProfile error:", err);
+  }
+}
+
 async function syncRoleProfiles({ userId, fullname, email, contact, role }) {
-  const roleNorm = String(role || "")
-    .trim()
-    .toLowerCase();
+  const roleNorm = String(role || "").trim().toLowerCase();
 
   if (roleNorm === "instructor") {
-    await upsertInstructorProfile({
-      userId,
-      fullname,
-      email,
-      contact,
-      active: true,
-    });
-
-    await upsertTrainerProfile({
-      userId,
-      fullname,
-      email,
-      contact,
-      active: false,
-    });
+    // Remove trainer profile + assignments entirely
+    await removeTrainerProfile(userId);
+    // Create/update instructor profile
+    await upsertInstructorProfile({ userId, fullname, email, contact, active: true });
     return;
   }
 
   if (roleNorm === "trainer") {
-    await upsertTrainerProfile({
-      userId,
-      fullname,
-      email,
-      contact,
-      active: true,
-    });
-
-    await upsertInstructorProfile({
-      userId,
-      fullname,
-      email,
-      contact,
-      active: false,
-    });
+    // Remove instructor profile + assignments entirely
+    await removeInstructorProfile(userId);
+    // Create/update trainer profile
+    await upsertTrainerProfile({ userId, fullname, email, contact, active: true });
     return;
   }
 
-  await upsertInstructorProfile({
-    userId,
-    fullname,
-    email,
-    contact,
-    active: false,
-  });
-
-  await upsertTrainerProfile({
-    userId,
-    fullname,
-    email,
-    contact,
-    active: false,
-  });
+  // Downgraded to user/admin/student — delete both profiles entirely
+  await removeInstructorProfile(userId);
+  await removeTrainerProfile(userId);
 }
 
 // GET /api/admin/users?search=&role=&track=&page=&limit=

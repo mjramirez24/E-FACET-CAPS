@@ -3,22 +3,25 @@ const pool = require("../config/database");
 // GET /api/admin/instructors
 exports.getInstructors = async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      `SELECT
-        instructor_id,
-        instructor_code,
-        firstname,
-        lastname,
-        fullname,
-        email,
-        contact_number,
-        specialization,
-        status,
-        created_at,
-        updated_at
-      FROM instructors
-      ORDER BY instructor_id DESC`,
-    );
+    const activeOnly = req.query.active === "true";
+
+      const [rows] = await pool.execute(
+        `SELECT
+          instructor_id,
+          instructor_code,
+          firstname,
+          lastname,
+          fullname,
+          email,
+          contact_number,
+          specialization,
+          status,
+          created_at,
+          updated_at
+        FROM instructors
+        ${activeOnly ? "WHERE status = 'active'" : ""}
+        ORDER BY instructor_id DESC`
+      );
 
     return res.json({ status: "success", data: rows });
   } catch (err) {
@@ -83,25 +86,14 @@ exports.createInstructor = async (req, res) => {
   }
 };
 
-// PUT /api/admin/instructors/:id
 exports.updateInstructor = async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) {
-      return res
-        .status(400)
-        .json({ status: "error", message: "Invalid instructor id" });
+      return res.status(400).json({ status: "error", message: "Invalid instructor id" });
     }
 
-    const {
-      instructor_code,
-      firstname,
-      lastname,
-      email,
-      contact_number,
-      specialization,
-      status,
-    } = req.body;
+    const { instructor_code, firstname, lastname, email, contact_number, specialization, status } = req.body;
 
     if (!instructor_code || !firstname || !lastname) {
       return res.status(400).json({
@@ -110,17 +102,10 @@ exports.updateInstructor = async (req, res) => {
       });
     }
 
-    // ✅ DO NOT UPDATE fullname (generated column)
     const [result] = await pool.execute(
       `UPDATE instructors
-       SET instructor_code = ?,
-           firstname = ?,
-           lastname = ?,
-           email = ?,
-           contact_number = ?,
-           specialization = ?,
-           status = ?,
-           updated_at = CURRENT_TIMESTAMP
+       SET instructor_code = ?, firstname = ?, lastname = ?, email = ?,
+           contact_number = ?, specialization = ?, status = ?, updated_at = CURRENT_TIMESTAMP
        WHERE instructor_id = ?`,
       [
         String(instructor_code).trim(),
@@ -135,24 +120,27 @@ exports.updateInstructor = async (req, res) => {
     );
 
     if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ status: "error", message: "Instructor not found" });
+      return res.status(404).json({ status: "error", message: "Instructor not found" });
+    }
+
+    // ✅ If set to inactive, remove all course assignments
+    if (status === "inactive") {
+      const assignTables = ["course_instructors", "driving_course_instructors"];
+      for (const tbl of assignTables) {
+        const [tblExists] = await pool.query("SHOW TABLES LIKE ?", [tbl]);
+        if (tblExists.length) {
+          await pool.execute(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [id]);
+        }
+      }
     }
 
     return res.json({ status: "success", message: "Instructor updated" });
   } catch (err) {
     console.error("[BACKEND] updateInstructor error:", err);
-
     if (err.code === "ER_DUP_ENTRY") {
-      return res
-        .status(409)
-        .json({ status: "error", message: "Instructor code already exists" });
+      return res.status(409).json({ status: "error", message: "Instructor code already exists" });
     }
-
-    return res
-      .status(500)
-      .json({ status: "error", message: "Failed to update instructor" });
+    return res.status(500).json({ status: "error", message: "Failed to update instructor" });
   }
 };
 

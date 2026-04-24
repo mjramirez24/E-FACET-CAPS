@@ -28,7 +28,8 @@ exports.getDrivingCourseInstructors = async (req, res) => {
         dci.course_id,
         dci.instructor_id,
         i.fullname AS instructor_name,
-        i.instructor_code
+        i.instructor_code,
+        i.status
       FROM driving_course_instructors dci
       JOIN instructors i ON i.instructor_id = dci.instructor_id
       ORDER BY dci.course_id ASC
@@ -46,7 +47,6 @@ exports.getDrivingCourseInstructors = async (req, res) => {
 };
 
 
-// ✅ POST assign instructor (overwrite if already exists)
 exports.upsertDrivingCourseInstructor = async (req, res) => {
   try {
     const { course_id, instructor_id } = req.body;
@@ -55,7 +55,15 @@ exports.upsertDrivingCourseInstructor = async (req, res) => {
       return res.status(400).json({ status: "error", message: "course_id and instructor_id are required" });
     }
 
-    // OPTION A: if your table has UNIQUE(course_id)
+    // ✅ GUARD: block inactive instructors
+    const [ins] = await pool.execute(
+      `SELECT status FROM instructors WHERE instructor_id = ? LIMIT 1`,
+      [instructor_id]
+    );
+    if (!ins.length || ins[0].status !== "active") {
+      return res.status(400).json({ status: "error", message: "Cannot assign: instructor is not active" });
+    }
+
     await pool.execute(
       `INSERT INTO driving_course_instructors (course_id, instructor_id)
        VALUES (?, ?)

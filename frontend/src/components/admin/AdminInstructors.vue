@@ -44,12 +44,6 @@
       <div v-if="activeTab === 'instructors'">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-lg font-bold text-green-800">👨‍🏫 Instructors Management</h2>
-          <button
-            @click="openAddModal"
-            class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
-          >
-            ➕ Add New Instructor
-          </button>
         </div>
 
         <div v-if="loading" class="text-center py-12">
@@ -227,12 +221,6 @@
       <div v-else-if="activeTab === 'trainers'">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-lg font-bold text-green-800">🧑‍🏫 Trainers Management</h2>
-          <button
-            @click="openAddTrainerModal"
-            class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
-          >
-            ➕ Add New Trainer
-          </button>
         </div>
 
         <div v-if="loadingTrainers" class="text-center py-12">
