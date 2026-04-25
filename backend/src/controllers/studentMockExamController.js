@@ -111,7 +111,6 @@ exports.saveAttempt = async (req, res) => {
       }
 
       await conn.commit();
-
       return res.status(201).json({
         status: 'success',
         data: {
@@ -263,6 +262,27 @@ exports.clearAllAttempts = async (req, res) => {
   } catch (err) {
     console.error('clearAllAttempts error:', err);
     return res.status(500).json({ status: 'error', message: 'Failed to clear results.' });
+  }
+};
+
+// DELETE /api/student/mock-exam/attempts/row/:rowId
+exports.deleteAttemptByRowId = async (req, res) => {
+  try {
+    const studentId = Number(req.session.user_id);
+    if (!studentId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+
+    const { rowId } = req.params;
+    if (!rowId) return res.status(400).json({ status: 'error', message: 'rowId is required.' });
+
+    await pool.execute(
+      `DELETE FROM student_exam_attempts WHERE id = ? AND student_id = ?`,
+      [rowId, studentId]
+    );
+
+    return res.json({ status: 'success', message: 'Attempt deleted.' });
+  } catch (err) {
+    console.error('deleteAttemptByRowId error:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to delete attempt.' });
   }
 };
 

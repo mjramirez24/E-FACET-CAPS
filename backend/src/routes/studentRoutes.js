@@ -253,6 +253,12 @@ router.get('/mock-exam/attempts', (req, res) => {
   return mockExamCtrl.getAttempts(req, res);
 });
 
+// Delete exactly one attempt row by its DB id
+router.delete('/mock-exam/attempts/row/:rowId', (req, res) => {
+  if (!requireUserRole(req, res)) return;
+  return mockExamCtrl.deleteAttemptByRowId(req, res);
+});
+
 // Delete results for one quiz   e.g. DELETE /api/student/mock-exam/attempts/quiz-3
 router.delete('/mock-exam/attempts/:examId', (req, res) => {
   if (!requireUserRole(req, res)) return;

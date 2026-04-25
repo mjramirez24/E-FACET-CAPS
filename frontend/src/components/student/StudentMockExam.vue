@@ -62,7 +62,7 @@
                 <div class="text-xs text-gray-500 mt-0.5">Avg Best Score</div>
               </div>
               <div class="bg-green-50 p-3 rounded-xl">
-                <div class="text-2xl font-bold text-green-700">{{ latestResultsPerQuiz.filter(r => r.bestScore >= 70).length }}</div>
+                <div class="text-2xl font-bold text-green-700">{{ passedQuizCount }}</div>
                 <div class="text-xs text-gray-500 mt-0.5">Passed</div>
               </div>
             </div>
@@ -245,7 +245,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="result in latestResultsPerQuiz" :key="result.exam_id" class="bg-white hover:bg-gray-50">
+              <tr v-for="result in latestResultsPerQuiz" :key="result._raw_id || result.exam_id" class="bg-white hover:bg-gray-50">
               <td class="py-3 px-4 border-t border-green-700">
                 <div class="font-medium text-gray-800">{{ result.exam_title.split('||')[0] }}</div>
                 <div v-if="result.exam_title.includes('||')" class="text-xs text-orange-500 font-semibold mt-0.5">
@@ -254,12 +254,12 @@
               </td>
                 <td class="py-3 px-4 border-t border-green-700 text-gray-500">{{ formatDate(result.completed_at) }}</td>
                 <td class="py-3 px-4 border-t border-green-700 font-bold" :class="getScoreColorClass(result.bestScore)">{{ result.bestScore }}%</td>
-                <td class="py-3 px-4 border-t border-green-700 text-gray-500">{{ result.attempts }}×</td>
+                <td class="py-3 px-4 border-t border-green-700 text-gray-500">{{ getOrdinal(result.attempts) }}</td>
                 <td class="py-3 px-4 border-t border-green-700">{{ getRemarks(result.bestScore) }}</td>
                 <td class="py-3 px-4 border-t border-green-700">
                   <div class="flex items-center gap-2">
                     <button @click="reviewExam(result.latestAttempt)" class="text-blue-600 hover:text-blue-800 font-semibold hover:underline text-xs">View</button>
-                    <button @click="confirmDeleteQuizResults(result.exam_id, result.exam_title)"
+                    <button @click="confirmDeleteQuizResults(result.exam_id, result.exam_title, result._raw_id, result.isRetake)"
                       class="text-red-500 hover:text-red-700 font-semibold text-xs border-l border-gray-300 pl-2">
                       🗑️ Delete
                     </button>
@@ -658,9 +658,10 @@ export default {
     const timeRemaining           = ref(0)
     const timerInterval           = ref(null)
 
-    const currentScore            = ref(0)
-    const currentWeaknessAnalysis = ref([])
-    const currentRecommendation   = ref('')
+    const currentScore              = ref(0)
+    const currentWeaknessAnalysis   = ref([])
+    const currentRecommendation     = ref('')
+    const cumulativeScoreForParent  = ref(null)
 
     const currentReviewAttempt    = ref(null)
     const currentReviewAnswers    = ref([])
@@ -817,12 +818,12 @@ export default {
 
     const latestResultsPerQuiz = computed(() => {
       const map = {}
+      const retakeRows = []
+
       examResults.value.forEach(r => {
-        // Use exam_id (which includes ||subcat for retakes) as the unique row key
-        const rowKey = r.exam_id
         const isRetakeRow = r.exam_id.includes('||')
         const realQuizId = isRetakeRow ? r.exam_id.split('||')[0] : r.exam_id
-        // For retakes, compute score based only on the subcategory questions
+
         let cumScore
         if (isRetakeRow) {
           const subcatName = r.exam_id.split('||')[1]
@@ -839,37 +840,70 @@ export default {
           } else {
             cumScore = r.score
           }
-        } else {
-          cumScore = getCumulativeScoreForQuiz(realQuizId)
-        }
 
-        if (!map[rowKey]) {
-          map[rowKey] = {
-            exam_id: r.exam_id,
-            real_quiz_id: realQuizId,
-            exam_title: r.exam_title,
-            bestScore: cumScore,
-            attempts: 1,
-            completed_at: r.completed_at,
+            retakeRows.push({
+            exam_id:       r.exam_id,
+            real_quiz_id:  realQuizId,
+            exam_title:    r.exam_title,
+            bestScore:     r.score,   // use the actual saved score, not cumulative
+            attempts:      null,
+            completed_at:  r.completed_at,
             latestAttempt: r,
-            isRetake: isRetakeRow,
-          }
-        } else {
-          map[rowKey].attempts++
-          if (cumScore > map[rowKey].bestScore) map[rowKey].bestScore = cumScore
-          if (new Date(r.completed_at) > new Date(map[rowKey].completed_at)) {
-            map[rowKey].completed_at = r.completed_at
-            map[rowKey].latestAttempt = r
-          }
-        }
+            isRetake:      true,
+            _raw_id:       r.id,
+          })
+    } else {
+              // Main quizzes: each attempt is its own row
+              cumScore = r.score
+              retakeRows.push({
+                exam_id:       r.exam_id,
+                real_quiz_id:  realQuizId,
+                exam_title:    r.exam_title,
+                bestScore:     cumScore,
+                attempts:      null,
+                completed_at:  r.completed_at,
+                latestAttempt: r,
+                isRetake:      false,
+                _raw_id:       r.id,
+              })
+            }
       })
-      return Object.values(map).slice(0, 20)
+
+// Assign attempt numbers chronologically per exam_id (covers both main and subtopic)
+      const attemptCounts = {}
+      const chronoRows = [...retakeRows].sort((a, b) =>
+        new Date(a.completed_at) - new Date(b.completed_at)
+      )
+      chronoRows.forEach(row => {
+        const key = row.exam_id
+        attemptCounts[key] = (attemptCounts[key] || 0) + 1
+        row.attempts = attemptCounts[key]
+      })
+
+      return retakeRows
+        .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))
+        .slice(0, 20)
     })
 
-    const uniqueExamsTaken = computed(() => new Set(examResults.value.map(r => r.exam_id)).size)
-    const overallAvgScore  = computed(() => {
-      if (!latestResultsPerQuiz.value.length) return 0
-      return Math.round(latestResultsPerQuiz.value.reduce((s, r) => s + r.bestScore, 0) / latestResultsPerQuiz.value.length)
+const uniqueExamsTaken = computed(() => {
+      const mainQuizIds = examResults.value
+        .map(r => r.exam_id.includes('||') ? r.exam_id.split('||')[0] : r.exam_id)
+      return new Set(mainQuizIds).size
+    })
+
+    const passedQuizCount = computed(() => {
+      const mainQuizIds = [...new Set(
+        examResults.value.map(r => r.exam_id.includes('||') ? r.exam_id.split('||')[0] : r.exam_id)
+      )]
+      return mainQuizIds.filter(qid => getCumulativeScoreForQuiz(qid) >= 70).length
+    })
+const overallAvgScore = computed(() => {
+      const mainQuizIds = [...new Set(
+        examResults.value.map(r => r.exam_id.includes('||') ? r.exam_id.split('||')[0] : r.exam_id)
+      )]
+      if (!mainQuizIds.length) return 0
+      const scores = mainQuizIds.map(qid => getCumulativeScoreForQuiz(qid))
+      return Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
     })
 
     // ── Computed ─────────────────────────────────────────────
@@ -992,12 +1026,12 @@ export default {
       return `You need significant practice in ${w.category}. Study basics thoroughly before retaking.`
     }
 
-      const confirmDeleteQuizResults = (quizId, quizTitle) => {
-        deleteMode.value    = 'single'
-        deleteQuizId.value  = quizId
-        deleteMessage.value = `Delete results for "${quizTitle.split('||')[0]}"${quizTitle.includes('||') ? ` › ${quizTitle.split('||')[1]}` : ''}? This cannot be undone.`
-        showDeleteModal.value = true
-      }
+    const confirmDeleteQuizResults = (quizId, quizTitle, rawId, isRetake) => {
+            deleteMode.value    = isRetake ? 'single-attempt' : 'single'
+            deleteQuizId.value  = isRetake ? rawId : quizId   // for retakes, use the DB row id
+            deleteMessage.value = `Delete results for "${quizTitle.split('||')[0]}"${quizTitle.includes('||') ? ` › ${quizTitle.split('||')[1]}` : ''}? This cannot be undone.`
+            showDeleteModal.value = true
+          }
     const confirmClearAllResults = () => {
       deleteMode.value    = 'all'
       deleteQuizId.value  = null
@@ -1005,12 +1039,15 @@ export default {
       showDeleteModal.value = true
     }
     const executeDelete = async () => {
-      try {
-        if (deleteMode.value === 'single' && deleteQuizId.value) {
-          await apiCall(`/student/mock-exam/attempts/${deleteQuizId.value}`, 'DELETE')
-        } else {
-          await apiCall('/student/mock-exam/attempts', 'DELETE')
-        }
+          try {
+            if (deleteMode.value === 'single-attempt' && deleteQuizId.value) {
+              // Delete only this one DB row by its id
+              await apiCall(`/student/mock-exam/attempts/row/${deleteQuizId.value}`, 'DELETE')
+            } else if (deleteMode.value === 'single' && deleteQuizId.value) {
+              await apiCall(`/student/mock-exam/attempts/${deleteQuizId.value}`, 'DELETE')
+            } else {
+              await apiCall('/student/mock-exam/attempts', 'DELETE')
+            }
         await fetchAttemptsFromDB()
         if (!hasTakenExams.value) {
           weaknessAnalysis.value  = []
@@ -1177,23 +1214,34 @@ export default {
         // Calculate score
         let scoreToSave = 0
         let correctCount = 0
-        if (isRetake && parentQuiz?.questions) {
-          // Merge retake answers into existing mastery to compute cumulative score
-          const tempMastery = { ...(masteryMap.value[parentQuizId] || {}) }
-          currentQuestions.value.forEach((q, i) => {
-            const ans = userAnswers.value[i]
-            if (ans !== null) {
-              tempMastery[q.id] = { answer: ans, correct: ans.toLowerCase() === q.correct_key?.toLowerCase() }
-            }
-          })
-          const totalCorrect = parentQuiz.questions.filter(q => tempMastery[q.id]?.correct).length
-          scoreToSave  = Math.round((totalCorrect / parentQuiz.questions.length) * 100)
-          correctCount = totalCorrect
-        } else {
-          correctCount = currentQuestions.value.filter((q, i) => userAnswers.value[i]?.toLowerCase() === q.correct_key?.toLowerCase()).length
-          scoreToSave  = Math.round((correctCount / currentQuestions.value.length) * 100)
-        }
+    if (isRetake && parentQuiz?.questions) {
+              // Score for THIS retake attempt only (subcategory questions only)
+              const subcatCorrect = currentQuestions.value.filter((q, i) =>
+                userAnswers.value[i]?.toLowerCase() === q.correct_key?.toLowerCase()
+              ).length
+              const subcatScore = Math.round((subcatCorrect / currentQuestions.value.length) * 100)
 
+              // Cumulative score for the parent quiz (used for mastery/weakness tracking)
+              const tempMastery = { ...(masteryMap.value[parentQuizId] || {}) }
+              currentQuestions.value.forEach((q, i) => {
+                const ans = userAnswers.value[i]
+                if (ans !== null) {
+                  tempMastery[q.id] = { answer: ans, correct: ans.toLowerCase() === q.correct_key?.toLowerCase() }
+                }
+              })
+              const totalCorrect = parentQuiz.questions.filter(q => tempMastery[q.id]?.correct).length
+
+              // Save subcategory score as the attempt score, cumulative for mastery
+              scoreToSave  = subcatScore
+              correctCount = subcatCorrect
+
+              // Store cumulative separately so the main topic score updates correctly
+              cumulativeScoreForParent.value = Math.round((totalCorrect / parentQuiz.questions.length) * 100)
+            } else {
+              correctCount = currentQuestions.value.filter((q, i) => userAnswers.value[i]?.toLowerCase() === q.correct_key?.toLowerCase()).length
+              scoreToSave  = Math.round((correctCount / currentQuestions.value.length) * 100)
+              cumulativeScoreForParent.value = null
+            }
         currentScore.value = scoreToSave
         loading.value      = true
 
@@ -1227,28 +1275,34 @@ export default {
       }
     }
 
-    const reviewExam = (attempt) => {
+const reviewExam = (attempt) => {
+      // attempt is the raw DB row (passed directly from template as result.latestAttempt)
       const isRetakeRow = attempt.exam_id.includes('||')
       const realQuizId = isRetakeRow ? attempt.exam_id.split('||')[0] : attempt.exam_id
       const subcatName = isRetakeRow ? attempt.exam_id.split('||')[1] : null
 
       const quiz = realQuizId === 'quiz-0'
         ? comprehensiveExam.value
-        : availableQuizzes.value.find(q => q.id === realQuizId) || availableQuizzes.value.find(q => q.title === attempt.exam_title.split('||')[0])
+        : availableQuizzes.value.find(q => q.id === realQuizId)
       if (!quiz) return
 
-      // For retakes, filter to only the questions from that subcategory
-      const questionsToReview = isRetakeRow
+      // Get the questions pool for this attempt
+      const allQuizQuestions = isRetakeRow
         ? quiz.questions.filter(q => getSubcategoryLabel(q.topic) === subcatName)
         : quiz.questions
 
-      const masterMap = getMasterAnswersForQuiz(realQuizId, questionsToReview)
+      // Use the saved answers from this specific attempt
+      const savedAnswers = attempt.answers || []
 
-      // For retakes, also pull answers saved under the full retake exam_id
-      const retakeMastery = isRetakeRow ? (masteryMap.value[attempt.exam_id] || {}) : {}
-      const reviewAnswers = questionsToReview.map(q => {
-        return masterMap[q.id]?.answer || retakeMastery[q.id]?.answer || null
-      })
+      // If retake_question_ids exist, use them to match questions to answers in order
+      const retakeIds = attempt.retake_question_ids
+      const questionsToReview = retakeIds
+        ? retakeIds.map(id => allQuizQuestions.find(q => String(q.id) === String(id))).filter(Boolean)
+        : allQuizQuestions
+
+      // Map saved answers to questions positionally
+      const reviewAnswers = questionsToReview.map((q, i) => savedAnswers[i] || null)
+
       const correctCount = questionsToReview.filter((q, i) =>
         reviewAnswers[i]?.toLowerCase() === q.correct_key?.toLowerCase()
       ).length
@@ -1286,6 +1340,12 @@ export default {
       }
     }
 
+    const getOrdinal = (n) => {
+      const s = ['th','st','nd','rd']
+      const v = n % 100
+      return n + (s[(v - 20) % 10] || s[v] || s[0]) + ' attempt'
+    }
+
     onMounted(() => loadInitialData())
 
     return {
@@ -1294,9 +1354,9 @@ export default {
       showDeleteModal, deleteMessage,
       weaknessAnalysis, aiRecommendations, aiSummary,
       currentExam, currentQuestions, currentQuestionIndex, userAnswers, timeRemaining,
-      currentScore, currentWeaknessAnalysis, currentRecommendation,
+      currentScore, currentWeaknessAnalysis, currentRecommendation, cumulativeScoreForParent,
       currentReviewAttempt, currentReviewAnswers, retakeLabel, retakeSubcategoryName,
-      allWeaknessGroups, totalWeakCount, latestResultsPerQuiz, uniqueExamsTaken, overallAvgScore,
+      allWeaknessGroups, totalWeakCount, latestResultsPerQuiz, uniqueExamsTaken, overallAvgScore, passedQuizCount,
       hasTakenExams, filteredQuizzes, currentQuestion, answeredCount, formattedTime, progressWidth,
       skippedQuestions, skippedIndices, isReviewingSkipped,
       getLocalizedText, getOptionText, getOptionReviewClass, isReviewCorrect,
@@ -1304,7 +1364,7 @@ export default {
       selectAnswer, previousQuestion, nextQuestion, submitExam, reviewExam, skipQuestion,
       updateUserLanguage, closeExamModal, scrollToQuizzes,
       getScoreColorClass, getStatusClass, getButtonClass, getButtonText, getExamStatus,
-      getCumulativeScoreForQuiz, formatDate, getRemarks, getResultMessage,
+      getCumulativeScoreForQuiz, formatDate, getRemarks, getResultMessage, getOrdinal,
       confirmDeleteQuizResults, confirmClearAllResults, executeDelete,
     }
   }
