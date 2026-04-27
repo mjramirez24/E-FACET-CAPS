@@ -93,7 +93,7 @@
         </div>
 
         <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-          <p class="text-sm text-purple-700 font-medium">🔮 Forecast (Enrollments)</p>
+          <p class="text-sm text-purple-700 font-medium">🔮 {{ forecastTitle }}</p>
           <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ forecast.nextForecast }}</h3>
           <p class="text-xs text-gray-500 mt-1">Predictive • Range: {{ forecast.low }}–{{ forecast.high }}</p>
         </div>
@@ -186,9 +186,13 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Forecast Horizon</label>
                 <select v-model="forecastHorizon" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="next">Next Period</option>
-                  <option value="next2">Next 2 Periods</option>
-                  <option value="next3">Next 3 Periods</option>
+                  <option
+                    v-for="option in forecastHorizonOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
                 </select>
               </div>
             </div>
@@ -406,7 +410,7 @@
               <h3 class="text-2xl font-bold text-green-800 mt-1">{{ revenueStats.verifiedCount }}</h3>
             </div>
             <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-              <p class="text-sm text-purple-700 font-medium">Forecast Revenue (Next)</p>
+              <p class="text-sm text-purple-700 font-medium">Forecast Revenue ({{ forecastPeriodLabel }})</p>
               <h3 class="text-2xl font-bold text-purple-800 mt-1">
                 {{ formatCurrency(revenueStats.forecastRevenuePeso) }}
               </h3>
@@ -1031,6 +1035,25 @@ export default {
     const trendPeriod = ref("month");
     const forecastHorizon = ref("next");
 
+    const forecastHorizonOptions = computed(() => {
+      const unit = trendPeriod.value;
+      const plural = `${unit}s`;
+      return [
+        { value: "next", label: `Next ${capitalize(unit)}` },
+        { value: "next2", label: `Next 2 ${capitalize(plural)}` },
+        { value: "next3", label: `Next 3 ${capitalize(plural)}` },
+      ];
+    });
+
+    const forecastPeriodLabel = computed(() => {
+      const count = forecastHorizon.value === "next3" ? 3 : forecastHorizon.value === "next2" ? 2 : 1;
+      const unit = trendPeriod.value;
+      const label = count === 1 ? unit : `${unit}s`;
+      return count === 1 ? `Next ${capitalize(label)}` : `Next ${count} ${capitalize(label)}`;
+    });
+
+    const forecastTitle = computed(() => `${forecastPeriodLabel.value} Enrollment Forecast`);
+
     // Data
     const courses = ref([]);
     const summary = reactive({
@@ -1180,6 +1203,17 @@ export default {
     });
 
     // Helpers
+    function capitalize(value) {
+      const s = String(value || "");
+      return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+    }
+
+    function getForecastMultiplier() {
+      if (forecastHorizon.value === "next2") return 2;
+      if (forecastHorizon.value === "next3") return 3;
+      return 1;
+    }
+
     function formatCurrency(amount) {
       const n = Number(amount || 0);
       return "₱" + n.toLocaleString("en-PH");
@@ -1289,12 +1323,11 @@ export default {
 
     function computeForecastAndRevenueModel() {
       const base = computeForecast(trend.values);
-      let f = base;
-      if (forecastHorizon.value === "next2") f = base * 2;
-      if (forecastHorizon.value === "next3") f = base * 3;
+      const multiplier = getForecastMultiplier();
+      const predictedTotal = base * multiplier;
 
-      forecast.nextForecast = f;
-      const band = forecastBand(trend.values, f);
+      forecast.nextForecast = predictedTotal;
+      const band = forecastBand(trend.values, predictedTotal);
       forecast.low = band.low;
       forecast.high = band.high;
 
@@ -1306,6 +1339,10 @@ export default {
       const avgFee = Number(revenueStats.avgFeePeso || 0);
       revenueStats.forecastRevenuePeso = avgFee > 0 ? Math.round(avgFee * forecast.nextForecast) : 0;
     }
+
+    watch(forecastHorizon, () => {
+      computeForecastAndRevenueModel();
+    });
 
     // API
     async function apiGet(url) {
@@ -1551,8 +1588,8 @@ export default {
       await loadDetailed();
     }
 
-    async function setTrendPeriod(p) {
-      trendPeriod.value = p;
+    async function setTrendPeriod(period) {
+      trendPeriod.value = period;
       await loadOverview();
       await nextTick();
       resizeCharts();
@@ -2350,6 +2387,9 @@ function runExport() {
       // config
       trendPeriod,
       forecastHorizon,
+      forecastHorizonOptions,
+      forecastPeriodLabel,
+      forecastTitle,
 
       // data
       courses,
