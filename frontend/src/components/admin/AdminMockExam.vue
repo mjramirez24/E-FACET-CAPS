@@ -684,6 +684,7 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import AdminLayout from './AdminLayout.vue'
 import axios from 'axios'
+import { API_URL } from "../../config/api"
 
 const TOPIC_MAP = {
   traffic_rules:'Traffic Rules', traffic_signs:'Traffic Signs', road_signs:'Road Signs',
@@ -763,7 +764,10 @@ export default {
   components: { AdminLayout },
 
   setup() {
-    const api = axios.create({ baseURL: '/api', withCredentials: true })
+   const api = axios.create({
+      baseURL: API_URL,
+      withCredentials: true,
+    })
 
     const activeTab = ref('monitor')
     const searchQuery = ref('')
@@ -775,26 +779,114 @@ export default {
     const attemptsFilter = ref('')
     const examStats = reactive({ totalExams: 0, totalStudents: 0, totalAttempts: 0, averageScore: 0 })
 
-    const fetchMonitor = async () => {
-      loadingMonitor.value = true
-      try {
-        const [examsRes, attemptsRes, statsRes] = await Promise.all([
-          api.get('/admin/mock-exam/exams'),
-          api.get('/admin/mock-exam/recent-attempts'),
-          api.get('/admin/mock-exam/stats'),
-        ])
-        exams.value = (examsRes.data?.data || []).map(e => ({
-          id: e.id, title: e.title,
-          totalAttempts: e.totalAttempts || 0, uniqueStudents: e.uniqueStudents || 0,
-          avgScore: e.avgScore || 0, highestScore: e.highestScore || 0, lastAttempt: e.lastAttempt,
-        }))
-        recentAttempts.value = attemptsRes.data?.data || []
-        const s = statsRes.data?.data || {}
-        examStats.totalExams = s.totalExams || 0; examStats.totalStudents = s.totalStudents || 0
-        examStats.totalAttempts = s.totalAttempts || 0; examStats.averageScore = s.averageScore || 0
-      } catch (err) { console.error('fetchMonitor error:', err) }
-      finally { loadingMonitor.value = false }
-    }
+    const getParentExamId = (examId) => {
+  return String(examId || "").includes("||")
+    ? String(examId).split("||")[0]
+    : String(examId || "");
+};
+
+const getParentExamTitle = (title) => {
+  return String(title || "").includes("||")
+    ? String(title).split("||")[0]
+    : String(title || "");
+};
+
+const fetchMonitor = async () => {
+  loadingMonitor.value = true;
+
+  try {
+    const [attemptsRes] = await Promise.all([
+      api.get("/admin/mock-exam/recent-attempts"),
+    ]);
+
+    const rawAttempts = attemptsRes.data?.data || [];
+
+    const attemptMap = {};
+
+    rawAttempts.forEach((a) => {
+      const parentId = getParentExamId(a.examId || a.exam_id);
+      if (!parentId) return;
+
+      const studentKey = a.studentId || a.student_id || a.user_id || a.studentName;
+      const key = `${studentKey}-${parentId}`;
+
+      if (!attemptMap[key] || new Date(a.date) > new Date(attemptMap[key].date)) {
+        attemptMap[key] = {
+          ...a,
+          examId: parentId,
+          examTitle: getParentExamTitle(a.examTitle || a.exam_title),
+          score: Number(a.score || 0),
+        };
+      }
+    });
+
+    const latestAttempts = Object.values(attemptMap);
+    recentAttempts.value = latestAttempts;
+
+    const examMap = {};
+
+    latestAttempts.forEach((a) => {
+      const parentId = a.examId;
+      const title = a.examTitle || parentId;
+
+      if (!examMap[parentId]) {
+        examMap[parentId] = {
+          id: parentId,
+          title,
+          students: new Set(),
+          scores: [],
+          highestScore: 0,
+          lastAttempt: null,
+        };
+      }
+
+      const studentKey = a.studentId || a.student_id || a.user_id || a.studentName;
+      const score = Number(a.score || 0);
+
+      examMap[parentId].students.add(studentKey);
+      examMap[parentId].scores.push(score);
+      examMap[parentId].highestScore = Math.max(examMap[parentId].highestScore, score);
+
+      if (
+        a.date &&
+        (!examMap[parentId].lastAttempt ||
+          new Date(a.date) > new Date(examMap[parentId].lastAttempt))
+      ) {
+        examMap[parentId].lastAttempt = a.date;
+      }
+    });
+
+    exams.value = Object.values(examMap).map((e) => ({
+      id: e.id,
+      title: e.title,
+      totalAttempts: e.scores.length,
+      uniqueStudents: e.students.size,
+      avgScore: e.scores.length
+        ? Math.round(e.scores.reduce((sum, score) => sum + score, 0) / e.scores.length)
+        : 0,
+      highestScore: e.highestScore,
+      lastAttempt: e.lastAttempt,
+    }));
+
+    const allStudents = new Set(
+      latestAttempts.map((a) => a.studentId || a.student_id || a.user_id || a.studentName)
+    );
+
+    const allScores = latestAttempts.map((a) => Number(a.score || 0));
+
+    examStats.totalExams = exams.value.length;
+    examStats.totalStudents = allStudents.size;
+    examStats.totalAttempts = latestAttempts.length;
+    examStats.averageScore = allScores.length
+      ? Math.round(allScores.reduce((sum, score) => sum + score, 0) / allScores.length)
+      : 0;
+
+  } catch (err) {
+    console.error("fetchMonitor error:", err);
+  } finally {
+    loadingMonitor.value = false;
+  }
+};
 
     const filteredExams = computed(() => {
       if (!searchQuery.value.trim()) return exams.value

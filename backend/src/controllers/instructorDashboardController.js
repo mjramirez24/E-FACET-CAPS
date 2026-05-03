@@ -50,20 +50,26 @@ exports.getInstructorDashboardSummary = async (req, res) => {
     const enrolled = enrolledStatuses();
 
     // ---------------- STATS ----------------
-    const [[assignedCourses]] = await pool.execute(
-      `SELECT COUNT(DISTINCT course_id) AS cnt
-       FROM schedules
-       WHERE instructor_id = ?`,
-      [instructorId],
-    );
+const [[assignedCourses]] = await pool.execute(
+  `SELECT COUNT(DISTINCT c.id) AS cnt
+   FROM driving_course_instructors dci
+   JOIN courses c ON c.id = dci.course_id
+   WHERE dci.instructor_id = ?
+     AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+     AND LOWER(COALESCE(c.status, 'active')) = 'active'`,
+  [instructorId],
+);
 
     const [[upcomingSchedules]] = await pool.execute(
       `SELECT COUNT(*) AS cnt
-       FROM schedules
-       WHERE instructor_id = ?
-         AND schedule_date IS NOT NULL
-         AND schedule_date >= CURDATE()
-         AND (status <> 'closed' OR status = '' OR status IS NULL)`,
+      FROM schedules s
+      JOIN driving_course_instructors dci
+        ON dci.course_id = s.course_id
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      WHERE s.schedule_date IS NOT NULL
+        AND s.schedule_date >= CURDATE()
+        AND (s.status <> 'closed' OR s.status = '' OR s.status IS NULL)`,
       [instructorId],
     );
 
@@ -71,7 +77,10 @@ exports.getInstructorDashboardSummary = async (req, res) => {
       `SELECT COUNT(*) AS cnt
        FROM schedule_reservations sr
        JOIN schedules s ON s.schedule_id = sr.schedule_id
-       WHERE s.instructor_id = ?
+       JOIN driving_course_instructors dci
+        ON dci.course_id = COALESCE(s.course_id, sr.course_id)
+      AND dci.instructor_id = ?
+      AND LOWER(COALESCE(dci.status, 'active')) = 'active'
          AND UPPER(sr.reservation_status) = 'PENDING'`,
       [instructorId],
     );
@@ -79,70 +88,82 @@ exports.getInstructorDashboardSummary = async (req, res) => {
     const inPlaceholders = enrolled.map(() => "?").join(",");
     const [[studentsHandled]] = await pool.execute(
       `SELECT COUNT(DISTINCT sr.student_id) AS cnt
-       FROM schedule_reservations sr
-       JOIN schedules s ON s.schedule_id = sr.schedule_id
-       WHERE s.instructor_id = ?
-         AND UPPER(sr.reservation_status) IN (${inPlaceholders})`,
+      FROM schedule_reservations sr
+      JOIN schedules s ON s.schedule_id = sr.schedule_id
+      JOIN driving_course_instructors dci
+        ON dci.course_id = COALESCE(s.course_id, sr.course_id)
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      WHERE UPPER(sr.reservation_status) IN (${inPlaceholders})`,
       [instructorId, ...enrolled],
     );
 
     // ---------------- RECENT RESERVATIONS (driving only for instructor) ----------------
     const [recent] = await pool.execute(
       `SELECT
-         sr.reservation_id AS id,
-         sr.created_at,
-         UPPER(sr.reservation_status) AS status,
-         u.fullname AS student_name,
-         c.course_name,
-         DATE(s.schedule_date) AS schedule_date,
-         s.start_time,
-         s.end_time
-       FROM schedule_reservations sr
-       JOIN schedules s ON s.schedule_id = sr.schedule_id
-       LEFT JOIN users u ON u.id = sr.student_id
-       LEFT JOIN courses c ON c.id = sr.course_id
-       WHERE s.instructor_id = ?
-       ORDER BY sr.created_at DESC
-       LIMIT 200`,
+        sr.reservation_id AS id,
+        sr.created_at,
+        UPPER(sr.reservation_status) AS status,
+        u.fullname AS student_name,
+        c.course_name,
+        DATE(s.schedule_date) AS schedule_date,
+        s.start_time,
+        s.end_time
+      FROM schedule_reservations sr
+      JOIN schedules s ON s.schedule_id = sr.schedule_id
+      JOIN driving_course_instructors dci
+        ON dci.course_id = COALESCE(s.course_id, sr.course_id)
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      LEFT JOIN users u ON u.id = sr.student_id
+      LEFT JOIN courses c ON c.id = COALESCE(s.course_id, sr.course_id)
+      ORDER BY sr.created_at DESC
+      LIMIT 200`,
       [instructorId],
     );
 
     // ---------------- TOP COURSES THIS MONTH ----------------
     const [topCourses] = await pool.execute(
       `SELECT
-         c.id AS course_id,
-         c.course_name,
-         COUNT(*) AS reservations
-       FROM schedule_reservations sr
-       JOIN schedules s ON s.schedule_id = sr.schedule_id
-       JOIN courses c ON c.id = sr.course_id
-       WHERE s.instructor_id = ?
-         AND sr.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-       GROUP BY c.id, c.course_name
-       ORDER BY reservations DESC, c.course_name ASC
-       LIMIT 5`,
+        c.id AS course_id,
+        c.course_name,
+        COUNT(*) AS reservations
+      FROM schedule_reservations sr
+      JOIN schedules s ON s.schedule_id = sr.schedule_id
+      JOIN driving_course_instructors dci
+        ON dci.course_id = COALESCE(s.course_id, sr.course_id)
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      JOIN courses c ON c.id = COALESCE(s.course_id, sr.course_id)
+      WHERE sr.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+      GROUP BY c.id, c.course_name
+      ORDER BY reservations DESC, c.course_name ASC
+      LIMIT 5`,
       [instructorId],
     );
 
     // ---------------- UPCOMING SCHEDULE LIST ----------------
     const [upcomingList] = await pool.execute(
       `SELECT
-         s.schedule_id,
-         s.course_id,
-         c.course_name,
-         s.schedule_date,
-         s.start_time,
-         s.end_time,
-         s.total_slots,
-         (SELECT COUNT(*) FROM schedule_reservations sr WHERE sr.schedule_id = s.schedule_id) AS reserved_count,
-         s.status
-       FROM schedules s
-       LEFT JOIN courses c ON c.id = s.course_id
-       WHERE s.instructor_id = ?
-         AND s.schedule_date IS NOT NULL
-         AND s.schedule_date >= CURDATE()
-       ORDER BY s.schedule_date ASC, s.start_time ASC
-       LIMIT 200`,
+        s.schedule_id,
+        s.course_id,
+        c.course_name,
+        s.schedule_date,
+        s.start_time,
+        s.end_time,
+        s.total_slots,
+        (SELECT COUNT(*) FROM schedule_reservations sr WHERE sr.schedule_id = s.schedule_id) AS reserved_count,
+        s.status
+      FROM schedules s
+      JOIN driving_course_instructors dci
+        ON dci.course_id = s.course_id
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      LEFT JOIN courses c ON c.id = s.course_id
+      WHERE s.schedule_date IS NOT NULL
+        AND s.schedule_date >= CURDATE()
+      ORDER BY s.schedule_date ASC, s.start_time ASC
+      LIMIT 200`,
       [instructorId],
     );
 
@@ -152,13 +173,16 @@ exports.getInstructorDashboardSummary = async (req, res) => {
 
     const [monthly] = await pool.execute(
       `SELECT ${monthKeyExpr("sr.created_at")} AS ym, COUNT(*) AS count
-       FROM schedule_reservations sr
-       JOIN schedules s ON s.schedule_id = sr.schedule_id
-       WHERE s.instructor_id = ?
-         AND sr.created_at >= ?
-         AND UPPER(sr.reservation_status) IN (${inPlaceholders})
-       GROUP BY ym
-       ORDER BY ym ASC`,
+      FROM schedule_reservations sr
+      JOIN schedules s ON s.schedule_id = sr.schedule_id
+      JOIN driving_course_instructors dci
+        ON dci.course_id = COALESCE(s.course_id, sr.course_id)
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      WHERE sr.created_at >= ?
+        AND UPPER(sr.reservation_status) IN (${inPlaceholders})
+      GROUP BY ym
+      ORDER BY ym ASC`,
       [instructorId, fromMonth, ...enrolled],
     );
 
@@ -169,10 +193,13 @@ exports.getInstructorDashboardSummary = async (req, res) => {
     // ---------------- STATUS BUCKETS ----------------
     const [statusRows] = await pool.execute(
       `SELECT UPPER(sr.reservation_status) AS status, COUNT(*) AS count
-       FROM schedule_reservations sr
-       JOIN schedules s ON s.schedule_id = sr.schedule_id
-       WHERE s.instructor_id = ?
-       GROUP BY UPPER(sr.reservation_status)`,
+      FROM schedule_reservations sr
+      JOIN schedules s ON s.schedule_id = sr.schedule_id
+      JOIN driving_course_instructors dci
+        ON dci.course_id = COALESCE(s.course_id, sr.course_id)
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      GROUP BY UPPER(sr.reservation_status)`,
       [instructorId],
     );
 

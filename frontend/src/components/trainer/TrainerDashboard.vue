@@ -319,6 +319,13 @@
 <script>
 import TrainerLayout from "./TrainerLayout.vue";
 import Chart from "chart.js/auto";
+import axios from "axios";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
 
 export default {
   name: "TrainerDashboard",
@@ -415,8 +422,8 @@ export default {
   methods: {
     async checkAuth() {
       try {
-        const response = await fetch("/api/auth/check", { credentials: "include" });
-        const data = await response.json();
+        const response = await api.get("/auth/check");
+        const data = response.data;
         if (data.status !== "success" || !data.authenticated) {
           this.$router.push("/login");
           return;
@@ -434,13 +441,27 @@ export default {
     async fetchDashboard() {
       this.loading = true;
       this.error = "";
+
       try {
-        const resp = await fetch("/api/trainer/dashboard/summary", { credentials: "include" });
-        const json = await resp.json();
-        if (!resp.ok || json.status !== "success") throw new Error(json.message || "Failed to load dashboard");
+        const resp = await api.get("/trainer/dashboard/summary");
+        const json = resp.data;
+
+        if (json.status !== "success") {
+          throw new Error(json.message || "Failed to load dashboard");
+        }
 
         const d = json.data || {};
+
         this.stats = d.stats || this.stats;
+
+        // ✅ same count from My Courses
+        const coursesResp = await api.get("/trainer/tesda/courses");
+        const coursesRows = Array.isArray(coursesResp.data?.data)
+          ? coursesResp.data.data
+          : [];
+
+        this.stats.assignedCourses = coursesRows.length;
+
         this.topCourses = Array.isArray(d.topCourses) ? d.topCourses : [];
         this.upcoming = Array.isArray(d.upcoming) ? d.upcoming : [];
         this.recent = Array.isArray(d.recent) ? d.recent : [];
@@ -454,7 +475,7 @@ export default {
         this.renderCharts();
       } catch (err) {
         console.error(err);
-        this.error = err.message || "Dashboard error";
+        this.error = err.response?.data?.message || err.message || "Dashboard error";
       } finally {
         this.loading = false;
       }

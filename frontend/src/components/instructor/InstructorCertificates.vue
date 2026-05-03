@@ -28,7 +28,7 @@
 
         <button
           @click="fetchRows"
-          class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          class="bg-green-800 hover:bg-gray-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
           🔄 Refresh
         </button>
@@ -81,7 +81,7 @@
 
           <button
             @click="exportCsv"
-            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            class="px-3 py-2 bg-green-800 text-white rounded-md hover:bg-green-700 text-sm font-medium"
           >
             Export CSV
           </button>
@@ -530,22 +530,28 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import InstructorLayout from "./InstructorLayout.vue";
+import { API_URL } from "../../config/api";
 
 export default {
   name: "InstructorCertificates",
   components: { InstructorLayout },
   setup() {
-    const API_BASE = "http://localhost:3000";
+    const API_BASE = API_URL;
+
+    const api = axios.create({
+      baseURL: API_URL,
+      withCredentials: true,
+    });
 
     const logoUrl = ref(`${API_BASE}/assets/logo.png`);
     const onLogoError = () => (logoUrl.value = "");
 
     // ✅ Instructor endpoints (DRIVING only) — matches backend routes
     const ENDPOINTS = {
-      list: `${API_BASE}/api/instructor/certificates/driving/completions`,
-      generate: `${API_BASE}/api/instructor/certificates/driving/generate`,
-      view: (id) => `${API_BASE}/api/instructor/certificates/driving/${id}/view`,
-      download: (id) => `${API_BASE}/api/instructor/certificates/driving/${id}/download`,
+      list: `/instructor/certificates/driving/completions`,
+      generate: `/instructor/certificates/driving/generate`,
+      view: (id) => `${API_BASE}/instructor/certificates/driving/${id}/view`,
+      download: (id) => `${API_BASE}/instructor/certificates/driving/${id}/download`,
     };
 
     // ✅ convert relative paths like "uploads/xxx.jpg" or "/uploads/xxx.jpg" to full URL
@@ -764,7 +770,7 @@ export default {
       loading.value = true;
       error.value = "";
       try {
-        const res = await axios.get(ENDPOINTS.list, { withCredentials: true });
+        const res = await api.get(ENDPOINTS.list);
         const data = res?.data?.data || [];
 
         // normalize/safety defaults
@@ -788,7 +794,7 @@ export default {
         const payload = { reservation_id: row.reservation_id };
         if (overrides) payload.overrides = overrides;
 
-        await axios.post(ENDPOINTS.generate, payload, { withCredentials: true });
+        await api.post(ENDPOINTS.generate, payload);
         await fetchRows();
         closeModals();
       } catch (e) {

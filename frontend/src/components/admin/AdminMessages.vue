@@ -112,11 +112,42 @@
         </div>
       </div>
 
+      <!-- Contacts Row -->
+      <div v-if="recentContacts.length > 0" class="mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="text-sm font-bold text-green-800 mb-3">Contacts</h3>
+
+        <div class="flex gap-3 overflow-x-auto pb-2">
+          <div
+            v-for="contact in recentContacts"
+            :key="contact.id"
+            @click="startConversation(contact)"
+            class="min-w-[90px] max-w-[90px] text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors shrink-0"
+          >
+            <div
+              class="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-sm font-medium"
+              :class="getUserBadgeClass(contact.role)"
+            >
+              {{ getInitials(contact.name) }}
+            </div>
+
+            <p class="text-xs font-medium text-gray-900 truncate">
+              {{ contact.name }}
+            </p>
+
+            <p class="text-[11px] text-gray-500 truncate capitalize">
+              {{ roleLabel(contact.role) }}
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <!-- Messages Container -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="flex h-[600px]">
+        <div class="flex h-[600px] relative">
           <!-- Left: Conversations List -->
-          <div class="w-1/3 border-r border-gray-200 bg-gray-50 flex flex-col">
+          <div
+            class="w-full md:w-1/3 border-r border-gray-200 bg-gray-50 flex flex-col"
+            :class="selectedConversation ? 'hidden md:flex' : 'flex'">
             <div class="p-4 bg-green-800 text-white">
               <div class="flex justify-between items-center">
                 <span class="font-semibold">Inbox</span>
@@ -185,13 +216,21 @@
           </div>
 
           <!-- Right: Chat Window -->
-          <div class="w-2/3 flex flex-col">
+          <div
+            class="w-full md:w-2/3 flex flex-col"
+            :class="selectedConversation ? 'flex' : 'hidden md:flex'">
             <!-- Chat Header -->
             <div
               v-if="selectedConversation"
               class="p-4 bg-green-800 text-white flex justify-between items-center"
             >
               <div class="flex items-center gap-3">
+              <button
+                @click="backToInbox"
+                class="md:hidden bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded text-xs"
+              >
+                ← Back
+              </button>
                 <div
                   class="w-8 h-8 bg-white text-green-800 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
                 >
@@ -271,30 +310,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Recent Contacts -->
-      <div v-if="recentContacts.length > 0" class="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold text-green-800">Contacts</h3>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
-          <div
-            v-for="contact in recentContacts"
-            :key="contact.id"
-            @click="startConversation(contact)"
-            class="text-center cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors"
-          >
-            <div
-              class="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-sm font-medium"
-              :class="getUserBadgeClass(contact.role)"
-            >
-              {{ getInitials(contact.name) }}
-            </div>
-            <p class="text-xs font-medium text-gray-900 truncate">{{ contact.name }}</p>
-            <p class="text-xs text-gray-500 truncate capitalize">{{ roleLabel(contact.role) }}</p>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- New Message Modal -->
@@ -367,6 +382,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import AdminLayout from './AdminLayout.vue'
+import { API_URL } from "../../config/api"
 
 export default {
   name: 'AdminMessages',
@@ -374,7 +390,7 @@ export default {
 
   setup() {
     const api = axios.create({
-      baseURL: 'http://localhost:3000',
+      baseURL: API_URL,
       withCredentials: true,
     })
 
@@ -404,12 +420,12 @@ export default {
 
     // ── API ────────────────────────────────────────────────────────────────────
     const fetchMe = async () => {
-      const res = await api.get('/api/auth/me')
+      const res = await api.get('/auth/me')
       myId.value = res.data.user.id
     }
 
     const fetchInbox = async () => {
-      const res = await api.get('/api/messages/inbox')
+      const res = await api.get('/messages/inbox')
       inbox.value = res.data
 
       messageStats.value.totalMessages = inbox.value.length
@@ -420,7 +436,7 @@ export default {
 
     const fetchContacts = async () => {
       try {
-        const res = await api.get('/api/messages/contacts')
+        const res = await api.get('/messages/contacts')
         allContacts.value = res.data
       } catch (err) {
         console.error('fetchContacts error:', err)
@@ -429,7 +445,7 @@ export default {
 
     const loadThread = async (user) => {
       selectedConversation.value = user
-      const res = await api.get(`/api/messages/thread/${user.id}`)
+      const res = await api.get(`/messages/thread/${user.id}`)
       messages.value = res.data
 
       // Reset unread locally
@@ -450,7 +466,7 @@ export default {
       if (!newMessage.value.trim() || !selectedConversation.value || sending.value) return
       sending.value = true
       try {
-        await api.post('/api/messages/send', {
+        await api.post('/messages/send', {
           receiver_id: selectedConversation.value.id,
           message: newMessage.value,
         })
@@ -466,7 +482,7 @@ export default {
       if (!newMessageRecipient.value || !newMessageContent.value.trim() || sending.value) return
       sending.value = true
       try {
-        await api.post('/api/messages/send', {
+        await api.post('/messages/send', {
           receiver_id: newMessageRecipient.value,
           message: newMessageContent.value,
         })
@@ -480,17 +496,25 @@ export default {
         sending.value = false
       }
     }
-            const deleteConversation = (conv) => {
-          if (confirm(`Delete conversation with ${conv.name}?`)) {
-            inbox.value = inbox.value.filter(c => c.id !== conv.id);
-            if (selectedConversation.value?.id === conv.id) {
-              selectedConversation.value = null;
-              messages.value = [];
-            }
-            messageStats.value.totalMessages = inbox.value.length;
-            messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length;
-          }
-        };
+  const deleteConversation = async (conv) => {
+    if (!confirm(`Delete conversation with ${conv.name}?`)) return;
+
+    try {
+      await api.delete(`/messages/conversation/${conv.id}`);
+
+      inbox.value = inbox.value.filter(c => c.id !== conv.id);
+
+      if (selectedConversation.value?.id === conv.id) {
+        selectedConversation.value = null;
+        messages.value = [];
+      }
+
+      await fetchInbox();
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert(err.response?.data?.message || "Failed to delete conversation");
+    }
+  };
 
     // ── Computed ───────────────────────────────────────────────────────────────
     const filteredConversations = computed(() => {
@@ -580,6 +604,10 @@ export default {
     }
 
     const selectConversation = (conv) => loadThread(conv)
+    const backToInbox = () => {
+      selectedConversation.value = null
+      messages.value = []
+    }
 
     const startNewMessage = () => {
       showNewMessageModal.value = true
@@ -628,6 +656,7 @@ export default {
       clearFilters,
       markAllAsRead,
       selectConversation,
+      backToInbox,
       sendMessage,
       startNewMessage,
       closeNewMessageModal,

@@ -1,4 +1,4 @@
-v<template>
+<template>
   <StudentLayout active-page="dashboard">
 
     <template #header-left>
@@ -262,9 +262,10 @@ v<template>
 <script>
 import StudentLayout from './StudentLayout.vue'
 import axios from 'axios'
+import { API_URL } from "../../config/api"
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: API_URL,
   withCredentials: true,
 })
 
@@ -405,29 +406,55 @@ export default {
       try {
         const res = await api.get('/student/mock-exam/attempts')
         const { attempts = [], mastery = {} } = res.data?.data || {}
-        if (!attempts.length) return
 
-        const quizIds  = [...new Set(attempts.map(a => a.exam_id))]
+        if (!attempts.length) {
+          this.examProgress = []
+          return
+        }
+
+        // ✅ Convert subcategory retakes back to parent quiz id
+        const getParentQuizId = (examId) => {
+          return String(examId || '').includes('||')
+            ? String(examId).split('||')[0]
+            : String(examId)
+        }
+
+        const parentQuizIds = [...new Set(attempts.map(a => getParentQuizId(a.exam_id)))]
         const progress = []
 
-        quizIds.forEach(qid => {
-          const quizAttempts = attempts.filter(a => a.exam_id === qid)
-          const quizMastery  = mastery[qid] || {}
+        parentQuizIds.forEach(parentId => {
+          const relatedAttempts = attempts.filter(a => getParentQuizId(a.exam_id) === parentId)
+
+          // ✅ main attempts only, not subcategory retakes
+          const mainAttempts = relatedAttempts.filter(a => !String(a.exam_id).includes('||'))
+
+          const quizMastery = mastery[parentId] || {}
           const totalCorrect = Object.values(quizMastery).filter(v => v.correct).length
-          const totalQ       = quizAttempts[0].total_questions || 0
-          const score        = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0
+
+          const totalQ =
+            relatedAttempts.find(a => Number(a.total_questions) > 0)?.total_questions || 0
+
+          const score = totalQ > 0
+            ? Math.round((totalCorrect / totalQ) * 100)
+            : 0
+
+          const mainTitle =
+            QUIZ_TITLES[parentId] ||
+            relatedAttempts[0]?.exam_title?.split('||')[0] ||
+            parentId
 
           progress.push({
-            exam_id:  qid,
-            title:    QUIZ_TITLES[qid] || quizAttempts[0].exam_title || qid,
+            exam_id: parentId,
+            title: mainTitle,
             score,
-            attempts: quizAttempts.length,
+            attempts: mainAttempts.length || relatedAttempts.length,
           })
         })
 
         this.examProgress = progress.sort((a, b) => a.score - b.score)
       } catch (err) {
         console.error('fetchExamProgress error:', err)
+        this.examProgress = []
       } finally {
         this.examLoading = false
       }

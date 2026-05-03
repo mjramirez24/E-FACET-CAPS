@@ -305,3 +305,40 @@ exports.getContacts = async (req, res) => {
     res.status(500).json({ status: "error", message: "Server error" });
   }
 };
+
+exports.deleteConversation = async (req, res) => {
+  try {
+    const userId = req.session.user_id;
+    const otherUserId = req.params.userId;
+
+    if (!userId) {
+      return res.status(401).json({ status: "error", message: "Not logged in" });
+    }
+
+    const [convRows] = await pool.query(
+      `SELECT c.id
+       FROM conversations c
+       JOIN conversation_participants cp1 
+         ON c.id = cp1.conversation_id AND cp1.user_id = ?
+       JOIN conversation_participants cp2 
+         ON c.id = cp2.conversation_id AND cp2.user_id = ?
+       LIMIT 1`,
+      [userId, otherUserId]
+    );
+
+    if (convRows.length === 0) {
+      return res.json({ status: "ok", message: "No conversation found" });
+    }
+
+    const conversationId = convRows[0].id;
+
+    await pool.query("DELETE FROM messages WHERE conversation_id = ?", [conversationId]);
+    await pool.query("DELETE FROM conversation_participants WHERE conversation_id = ?", [conversationId]);
+    await pool.query("DELETE FROM conversations WHERE id = ?", [conversationId]);
+
+    return res.json({ status: "ok", message: "Conversation deleted" });
+  } catch (err) {
+    console.error("deleteConversation error:", err);
+    return res.status(500).json({ status: "error", message: "Server error" });
+  }
+};

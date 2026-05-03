@@ -29,16 +29,26 @@
       <!-- ✅ Floating Totals (keep squares at top) -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-          <p class="text-sm text-gray-600">Total Schedules</p>
-          <h3 class="text-2xl font-bold text-green-800 mt-1">{{ schedulesTotal }}</h3>
+          <p class="text-sm text-gray-600">
+            {{ activeTab === 'schedules' ? 'Total Active Schedules' : 'Total Schedules' }}
+          </p>
+          <h3 class="text-2xl font-bold text-green-800 mt-1">
+            {{ activeTab === 'schedules' ? schedulesTotal : historyTotal }}
+          </h3>
         </div>
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
           <p class="text-sm text-gray-600">Loaded</p>
-          <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ schedules.length }}</h3>
+          <h3 class="text-2xl font-bold text-blue-800 mt-1">
+            {{ activeTab === 'schedules' ? schedules.length : history.length }}
+          </h3>
         </div>
         <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-          <p class="text-sm text-gray-600">Has Slots Dates</p>
-          <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ hasSlotsDates }}</h3>
+        <p class="text-sm text-gray-600">
+          {{ activeTab === 'schedules' ? 'Has Slots Dates' : 'History Dates' }}
+        </p>
+        <h3 class="text-2xl font-bold text-yellow-800 mt-1">
+          {{ activeTab === 'schedules' ? hasSlotsDates : historyDates }}
+        </h3>
         </div>
         <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
           <p class="text-sm text-gray-600">Full Dates</p>
@@ -303,7 +313,7 @@
 
             <div v-else class="overflow-x-auto">
               <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-                <thead class="bg-gray-800 text-white">
+                <thead class="bg-green-800 text-white">
                   <tr>
                     <th class="py-3 px-4 text-left font-medium">Course</th>
                     <th class="py-3 px-4 text-left font-medium">Date</th>
@@ -474,6 +484,7 @@
 <script>
 import { ref, computed, onMounted, watch } from "vue";
 import InstructorLayout from "./InstructorLayout.vue";
+import { API_URL } from "../../config/api";
 
 export default {
   name: "InstructorScheduleOnly",
@@ -567,7 +578,9 @@ export default {
 
     const fetchSchedules = async () => {
       try {
-        const res = await fetch(`/api/instructor/schedules/list?page=1&limit=200`, { credentials: "include" });
+        const res = await fetch(`${API_URL}/instructor/schedules/list?page=1&limit=200`, {
+          credentials: "include",
+        });
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
@@ -827,9 +840,10 @@ export default {
 
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`/api/instructor/schedules/history?page=${historyPage.value}&limit=${historyPageSize.value}`, {
-          credentials: "include",
-        });
+        const res = await fetch(
+          `${API_URL}/instructor/schedules/history?page=${historyPage.value}&limit=${historyPageSize.value}`,
+          { credentials: "include" }
+        );
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
@@ -867,6 +881,15 @@ export default {
     };
 
     const historyTotalPages = computed(() => Math.max(1, Math.ceil(historyTotal.value / historyPageSize.value)));
+
+    const historyDates = computed(() => {
+      const set = new Set(
+        history.value
+          .map((h) => toYMD(h.date))
+          .filter(Boolean)
+      );
+      return set.size;
+    });
 
     // ===================== header placeholder per tab =====================
     const headerPlaceholder = computed(() => {
@@ -957,6 +980,7 @@ export default {
       historyPage,
       historyPageSize,
       historyTotalPages,
+      historyDates,
       fetchHistory,
 
       // formatting

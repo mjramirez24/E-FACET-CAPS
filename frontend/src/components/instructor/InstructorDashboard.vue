@@ -319,6 +319,7 @@
 <script>
 import InstructorLayout from "./InstructorLayout.vue";
 import Chart from "chart.js/auto";
+import { API_URL } from "../../config/api";
 
 export default {
   name: "InstructorDashboard",
@@ -415,7 +416,7 @@ export default {
   methods: {
     async checkAuth() {
       try {
-        const response = await fetch("/api/auth/check", { credentials: "include" });
+        const response = await fetch(`${API_URL}/auth/check`, { credentials: "include" });
         const data = await response.json();
         if (data.status !== "success" || !data.authenticated) {
           this.$router.push("/login");
@@ -435,7 +436,7 @@ export default {
       this.loading = true;
       this.error = "";
       try {
-        const resp = await fetch("/api/instructor/dashboard/summary", { credentials: "include" });
+        const resp = await fetch(`${API_URL}/instructor/dashboard/summary`, { credentials: "include" });
         const json = await resp.json();
         if (!resp.ok || json.status !== "success") throw new Error(json.message || "Failed to load dashboard");
 

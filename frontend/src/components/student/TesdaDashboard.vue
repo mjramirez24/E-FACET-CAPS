@@ -322,6 +322,13 @@
 <script>
 import axios from "axios";
 import StudentLayoutTesda from "./StudentLayoutTesda.vue";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
+
 
 export default {
   name: "TesdaStudentDashboard",
@@ -444,9 +451,7 @@ export default {
 
     async fetchDashboard() {
       try {
-        const res = await axios.get("/api/tesda/dashboard/summary", {
-          withCredentials: true,
-        });
+      const res = await api.get("/tesda/dashboard/summary");
 
         if (res.data?.status !== "success") return;
 

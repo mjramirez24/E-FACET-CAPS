@@ -147,12 +147,18 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import StudentLayoutTesda from "./StudentLayoutTesda.vue";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
 
 export default {
   name: "TesdaCertificate",
   components: { StudentLayoutTesda },
   setup() {
-    const API_BASE = "http://localhost:3000";
+    const API_BASE = API_URL.replace("/api", "");
 
     const loading = ref(false);
     const error = ref("");
@@ -166,11 +172,9 @@ export default {
       error.value = "";
 
       try {
-        const res = await axios.get(`${API_BASE}/api/tesda/certificates`, {
-          withCredentials: true,
-        });
+      const res = await api.get("/tesda/certificates");
 
-        certificates.value = res?.data?.data || [];
+      certificates.value = res?.data?.data || [];
       } catch (e) {
         error.value =
           e?.response?.data?.message || e.message || "Failed to load TESDA certificates.";
@@ -228,12 +232,12 @@ export default {
 
     const viewCertificate = (c) => {
       if (!c?.certificate_id) return;
-      window.open(`${API_BASE}/api/tesda/certificates/${c.certificate_id}/view`, "_blank");
+      window.open(`${API_URL}/tesda/certificates/${c.certificate_id}/view`, "_blank");
     };
 
     const downloadCertificate = (c) => {
       if (!c?.certificate_id) return;
-      window.open(`${API_BASE}/api/tesda/certificates/${c.certificate_id}/download`, "_blank");
+      window.open(`${API_URL}/tesda/certificates/${c.certificate_id}/download`, "_blank");
     };
 
     onMounted(fetchCertificates);

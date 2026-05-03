@@ -4,7 +4,7 @@
       <input
         type="text"
         placeholder="Search trainings..."
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full md:w-1/3 p-2 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         v-model="searchQuery"
       />
     </template>
@@ -56,7 +56,7 @@
         </div>
       </div>
 
-      <div class="flex space-x-2 mb-6">
+      <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
         <button
           @click="activeTab = 'trainings'"
           :class="[
@@ -672,7 +672,14 @@
 </template>
 
 <script>
+import axios from "axios";
 import StudentLayoutTesda from "./StudentLayoutTesda.vue";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
 
 export default {
   name: "TesdaStudentEnroll",
@@ -1073,7 +1080,9 @@ export default {
     fullFileUrl(path) {
       const p = String(path || "");
       if (!p) return "";
-      return p.startsWith("http") ? p : `http://localhost:3000${p}`;
+      return p.startsWith("http")
+      ? p
+      : `${API_URL.replace(/\/api\/?$/, "")}${p.startsWith("/") ? p : "/" + p}`;
     },
 
     // =========================
@@ -1082,9 +1091,8 @@ export default {
     async fetchCourses() {
       this.loadingCourses = true;
       try {
-        const res = await fetch("http://localhost:3000/api/tesda/courses", { credentials: "include" });
-        const json = await res.json();
-        this.courses = Array.isArray(json?.data) ? json.data : [];
+        const res = await api.get("/tesda/courses");
+        this.courses = Array.isArray(res.data?.data) ? res.data.data : [];
       } catch (err) {
         console.error("fetchCourses error:", err);
         this.courses = [];
@@ -1113,10 +1121,8 @@ export default {
       this.schedules = [];
 
       try {
-        const url = `http://localhost:3000/api/tesda/schedules?course_id=${encodeURIComponent(courseId)}`;
-        const res = await fetch(url, { credentials: "include" });
-        const json = await res.json();
-        const rows = Array.isArray(json?.data) ? json.data : [];
+        const res = await api.get(`/tesda/schedules?course_id=${encodeURIComponent(courseId)}`);
+        const rows = Array.isArray(res.data?.data) ? res.data.data : [];
 
         this.schedules = rows.map((s) => {
           const rawDate = s?.date ?? s?.schedule_date ?? "";
@@ -1167,15 +1173,10 @@ export default {
       this.uploadMsg = "";
 
       try {
-        const res = await fetch("http://localhost:3000/api/tesda/reservations", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schedule_id: scheduleId, course_id: courseId }),
-        });
-
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message || "Reservation failed");
+      await api.post("/tesda/reservations", {
+        schedule_id: scheduleId,
+        course_id: courseId,
+      });
 
         await this.fetchMyReservations();
 
@@ -1244,10 +1245,11 @@ export default {
       if (!this.selectedCourse?.id || !this.selectedReservationId) return;
       this.uploadsLoading = true;
       try {
-        const url = `http://localhost:3000/api/tesda/requirements?course_id=${encodeURIComponent(this.selectedCourse.id)}&reservation_id=${encodeURIComponent(this.selectedReservationId)}`;
-        const res = await fetch(url, { credentials: "include" });
-        const json = await res.json();
-        this.myUploads = Array.isArray(json?.data) ? json.data : [];
+       const res = await api.get(
+  `/tesda/requirements?course_id=${encodeURIComponent(this.selectedCourse.id)}&reservation_id=${encodeURIComponent(this.selectedReservationId)}`
+    );
+
+    this.myUploads = Array.isArray(res.data?.data) ? res.data.data : [];
         this.buildUploadsByKey();
       } catch (err) {
         console.error("fetchMyUploads error:", err);
@@ -1287,14 +1289,9 @@ export default {
         fd.append("requirement_label", this.labelByKey(reqKey));
         fd.append("file", file);
 
-        const res = await fetch("http://localhost:3000/api/tesda/requirements/upload-one", {
-          method: "POST",
-          body: fd,
-          credentials: "include",
+        await api.post("/tesda/requirements/upload-one", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
-
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message || "Upload failed");
 
         await this.fetchMyUploads();
         this.uploadMsg = `✅ Uploaded: ${this.labelByKey(reqKey)}`;
@@ -1349,14 +1346,9 @@ export default {
         fd.append("requirement_label", String(u?.requirement_label || this.labelByKey(reqKey)));
         fd.append("file", file);
 
-        const res = await fetch("http://localhost:3000/api/tesda/requirements/upload-one", {
-          method: "POST",
-          body: fd,
-          credentials: "include",
+        await api.post("/tesda/requirements/upload-one", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
-
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message || "Replace failed");
 
         await this.fetchMyUploads();
         this.uploadMsg = `✅ Replaced: ${String(u?.requirement_label || this.labelByKey(reqKey))}`;
@@ -1386,13 +1378,7 @@ export default {
       this.uploadMsg = "";
 
       try {
-        const res = await fetch(`http://localhost:3000/api/tesda/requirements/${encodeURIComponent(sid)}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.message || "Delete failed");
+      await api.delete(`/tesda/requirements/${encodeURIComponent(sid)}`);
 
         await this.fetchMyUploads();
         this.uploadMsg = "✅ Deleted upload.";
@@ -1423,19 +1409,11 @@ export default {
       try {
         const requiredKeys = this.normalizedSelectedRequirements.map(r => r.key);
 
-        const res = await fetch("http://localhost:3000/api/tesda/requirements/submit", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            course_id: this.selectedCourse.id,
-            reservation_id: this.selectedReservationId,
-            required_keys: requiredKeys,
-          }),
-        });
-
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message || "Submit failed");
+      await api.post("/tesda/requirements/submit", {
+        course_id: this.selectedCourse.id,
+        reservation_id: this.selectedReservationId,
+        required_keys: requiredKeys,
+      });
 
         this.uploadMsg = "✅ All requirements complete. Submitted for verification.";
         await this.fetchMyUploads();
@@ -1451,9 +1429,8 @@ export default {
     async fetchMyReservations() {
       this.loadingMyReservations = true;
       try {
-        const res = await fetch("http://localhost:3000/api/tesda/my-reservations", { credentials: "include" });
-        const json = await res.json();
-        this.myReservations = Array.isArray(json?.data) ? json.data : [];
+      const res = await api.get("/tesda/my-reservations");
+      this.myReservations = Array.isArray(res.data?.data) ? res.data.data : [];
       } catch (err) {
         console.error("fetchMyReservations error:", err);
         this.myReservations = [];

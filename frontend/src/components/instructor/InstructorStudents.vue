@@ -14,12 +14,6 @@
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-lg font-bold text-green-800">👨‍🎓 My Students</h2>
-        <button
-          @click="openAddModal"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
-        >
-          ➕ Add New Student
-        </button>
       </div>
 
       <!-- Filters -->
@@ -30,25 +24,10 @@
             v-model="selectedCourse"
             class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
           >
-            <option value="">All Courses</option>
-            <option value="Driving NC II">Driving NC II</option>
-            <option value="ATDC NC I">ATDC NC I</option>
-            <option value="Electrical Installation NC II">Electrical Installation NC II</option>
-            <option value="Cookery NC II">Cookery NC II</option>
-            <option value="Bread & Pastry">Bread & Pastry</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-          <select
-            v-model="selectedStatus"
-            class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="inactive">Inactive</option>
+          <option value="">All Courses</option>
+          <option v-for="c in instructorCourses" :key="c" :value="c">
+            {{ c }}
+          </option>
           </select>
         </div>
 
@@ -200,34 +179,6 @@
                 >
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                <select
-                  v-model="formData.course"
-                  required
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                >
-                  <option value="" disabled>Select a course</option>
-                  <option value="Driving NC II">Driving NC II</option>
-                  <option value="ATDC NC I">ATDC NC I</option>
-                  <option value="Electrical Installation NC II">Electrical Installation NC II</option>
-                  <option value="Cookery NC II">Cookery NC II</option>
-                  <option value="Bread & Pastry">Bread & Pastry</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  v-model="formData.status"
-                  required
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-6">
@@ -283,6 +234,7 @@
 <script>
 import { ref, computed, onMounted, reactive } from 'vue'
 import InstructorLayout from './InstructorLayout.vue'
+import { API_URL } from "../../config/api"
 
 export default {
   name: 'InstructorStudents',
@@ -293,16 +245,12 @@ export default {
 
     const searchQuery = ref('')
     const selectedCourse = ref('')
-    const selectedStatus = ref('')
     const sortBy = ref('name')
 
     const showModal = ref(false)
     const showDeleteModal = ref(false)
     const isEditing = ref(false)
     const studentToDelete = ref(null)
-
-    // ✅ Change this if your backend is different port/host
-    const API_BASE = import.meta?.env?.VITE_API_BASE || 'http://localhost:3000'
 
     const formData = reactive({
       id: null,
@@ -327,10 +275,6 @@ export default {
 
       if (selectedCourse.value) {
         result = result.filter(s => (s.course || s.course_name) === selectedCourse.value)
-      }
-
-      if (selectedStatus.value) {
-        result = result.filter(s => s.status === selectedStatus.value)
       }
 
       result.sort((a, b) => {
@@ -378,7 +322,6 @@ export default {
     const clearFilters = () => {
       searchQuery.value = ''
       selectedCourse.value = ''
-      selectedStatus.value = ''
     }
 
     const resetForm = () => {
@@ -390,11 +333,6 @@ export default {
       formData.enrollmentDate = null
     }
 
-    const openAddModal = () => {
-      isEditing.value = false
-      resetForm()
-      showModal.value = true
-    }
 
     const editStudent = (student) => {
       isEditing.value = true
@@ -417,6 +355,16 @@ export default {
       showModal.value = false
       resetForm()
     }
+
+    const instructorCourses = computed(() => {
+        const set = new Set(
+          students.value
+            .map(s => s.course || s.course_name)
+            .filter(Boolean)
+        )
+
+        return Array.from(set).sort((a, b) => a.localeCompare(b))
+      })
 
     // NOTE: UI-only save (local), replace with POST/PUT later
     const saveStudent = () => {
@@ -468,7 +416,7 @@ export default {
     const fetchStudents = async () => {
       loading.value = true
       try {
-        const url = `${API_BASE}/api/instructor/students/list`
+        const url = `${API_URL}/instructor/students/list`
         const res = await fetch(url, {
           method: 'GET',
           credentials: 'include',
@@ -519,7 +467,6 @@ export default {
       loading,
       searchQuery,
       selectedCourse,
-      selectedStatus,
       sortBy,
       showModal,
       showDeleteModal,
@@ -533,7 +480,7 @@ export default {
       getStatusClass,
       formatStatus,
       clearFilters,
-      openAddModal,
+      instructorCourses,
       editStudent,
       viewStudent,
       closeModal,

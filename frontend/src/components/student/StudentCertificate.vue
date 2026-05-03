@@ -140,12 +140,16 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import StudentLayout from "./StudentLayout.vue";
+import { API_URL } from "../../config/api";
 
 export default {
   name: "StudentCertificate",
   components: { StudentLayout },
   setup() {
-    const API_BASE = "http://localhost:3000";
+    const api = axios.create({
+      baseURL: API_URL,
+      withCredentials: true,
+    });
 
     const loading = ref(false);
     const error = ref("");
@@ -158,9 +162,7 @@ export default {
       loading.value = true;
       error.value = "";
       try {
-        const res = await axios.get(`${API_BASE}/api/student/certificates`, {
-          withCredentials: true,
-        });
+        const res = await api.get("/student/certificates");
         certificates.value = res.data.data || [];
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to load.";
@@ -203,11 +205,11 @@ export default {
     };
 
     const viewCertificate = (c) => {
-      window.open(`${API_BASE}/api/student/certificates/${c.certificate_id}/view`, "_blank");
+      window.open(`${API_URL}/student/certificates/${c.certificate_id}/view`, "_blank");
     };
 
     const downloadCertificate = (c) => {
-      window.open(`${API_BASE}/api/student/certificates/${c.certificate_id}/download`, "_blank");
+      window.open(`${API_URL}/student/certificates/${c.certificate_id}/download`, "_blank");
     };
 
     onMounted(fetchCertificates);

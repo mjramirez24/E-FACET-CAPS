@@ -2,11 +2,11 @@
   <!-- Sidebar -->
   <aside 
     :class="[
-      'w-64 bg-white shadow-md flex flex-col justify-between rounded-r-2xl h-screen overflow-y-auto fixed transition-transform duration-300 z-50',
+      'w-64 bg-white shadow-md flex flex-col justify-between rounded-r-2xl fixed top-0 left-0 h-[100dvh] overflow-hidden transition-transform duration-300 z-50',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ]"
   >
-    <div>
+    <div class="flex-1 overflow-hidden">
       <!-- Logo -->
       <div class="flex items-center gap-2 p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
         <img src="/facet-logo.png" alt="FACET Logo" class="w-8 h-8 sm:w-10 sm:h-10">
@@ -109,7 +109,7 @@
     </div>
 
     <!-- Bottom User Info + Logout -->
-    <div class="sticky bottom-0 bg-white">
+    <div class="shrink-0 bg-white">
       <div class="border-t border-gray-200 p-4">
         <button
           @click="logout"
@@ -136,12 +136,13 @@
 
 <script>
 import { useRouter } from 'vue-router'
-import axios from "axios";
+import axios from 'axios'
+import { API_URL } from "../../config/api"
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
-});
+})
 
 export default {
   name: 'StudentSidebar',
@@ -204,7 +205,7 @@ export default {
 
     async logout() {
       try {
-        const response = await fetch('/api/auth/logout', { 
+        const response = await fetch(`${API_URL}/auth/logout`, { 
           credentials: 'include' 
         });
         const data = await response.json();

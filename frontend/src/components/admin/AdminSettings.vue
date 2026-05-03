@@ -523,9 +523,10 @@
 <script>
 import AdminLayout from './AdminLayout.vue'
 import axios from "axios";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 

@@ -381,11 +381,14 @@
 import { ref, computed, reactive, watch, onMounted } from "vue";
 import axios from "axios";
 import TrainerLayout from "./TrainerLayout.vue";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
+
+const API_BASE = API_URL.replace("/api", "");
 
 export default {
   name: "TrainerAttendance",
@@ -617,14 +620,14 @@ export default {
     const exportExcel = (dateOverride) => {
       const d = toYMD(dateOverride || selectedDate.value);
       window.open(
-        `http://localhost:3000/api/trainer/tesda/attendance/export/excel?date=${encodeURIComponent(d)}`,
+        `${API_BASE}/api/trainer/tesda/attendance/export/excel?date=${encodeURIComponent(d)}`,
         "_blank",
       );
     };
     const exportPdf = (dateOverride) => {
       const d = toYMD(dateOverride || selectedDate.value);
       window.open(
-        `http://localhost:3000/api/trainer/tesda/attendance/export/pdf?date=${encodeURIComponent(d)}`,
+        `${API_BASE}/api/trainer/tesda/attendance/export/pdf?date=${encodeURIComponent(d)}`,
         "_blank",
       );
     };

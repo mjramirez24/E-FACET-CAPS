@@ -717,11 +717,11 @@ import { ref, computed, onMounted, reactive } from "vue";
 import axios from "axios";
 import AdminLayout from "./AdminLayout.vue";
 
+import { API_URL } from "../../config/api";
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
-
 export default {
   name: "AdminCourses",
   components: { AdminLayout },

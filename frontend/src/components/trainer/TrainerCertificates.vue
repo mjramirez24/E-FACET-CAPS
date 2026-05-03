@@ -257,22 +257,27 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import TrainerLayout from "./TrainerLayout.vue";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
+
+const API_BASE = API_URL.replace("/api", "");
 
 export default {
   name: "TrainerCertificates",
   components: { TrainerLayout },
   setup() {
-    const API_BASE = "http://localhost:3000";
 
     const logoUrl = ref(`${API_BASE}/assets/logo.png`);
     const onLogoError = () => (logoUrl.value = "");
 
-    const ENDPOINTS = {
-      list: `${API_BASE}/api/trainer/certificates/tesda/completions`,
-      generate: `${API_BASE}/api/trainer/certificates/tesda/generate`,
-      view: (id) => `${API_BASE}/api/trainer/certificates/tesda/${id}/view`,
-      download: (id) => `${API_BASE}/api/trainer/certificates/tesda/${id}/download`,
-    };
+      const ENDPOINTS = {
+        view: (id) => `${API_BASE}/api/trainer/certificates/tesda/${id}/view`,
+        download: (id) => `${API_BASE}/api/trainer/certificates/tesda/${id}/download`,
+      };
 
     const rows = ref([]);
     const loading = ref(true);
@@ -379,7 +384,7 @@ export default {
       loading.value = true;
       error.value = "";
       try {
-        const res = await axios.get(ENDPOINTS.list, { withCredentials: true });
+        const res = await api.get("/trainer/certificates/tesda/completions");
         const data = res?.data?.data || [];
         rows.value = data.map((r) => ({
           ...r,
@@ -402,7 +407,9 @@ export default {
         const ok = confirm(`Generate TESDA certificate for ${row.student_name} (${row.course_name})?`);
         if (!ok) return;
 
-        await axios.post(ENDPOINTS.generate, { reservation_id: row.reservation_id }, { withCredentials: true });
+        await api.post("/trainer/certificates/tesda/generate", {
+          reservation_id: row.reservation_id,
+        });
         await fetchRows();
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to generate TESDA certificate.";

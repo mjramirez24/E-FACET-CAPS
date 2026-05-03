@@ -119,6 +119,7 @@
 
 <script>
 import { useRouter } from 'vue-router';
+import { API_URL } from "../../config/api";
 
 export default {
   name: 'InstructorSidebar',
@@ -166,7 +167,7 @@ export default {
     // ── User data ─────────────────────────────────────────────────────────
     async fetchUserData() {
       try {
-        const res  = await fetch('/api/settings/profile', { credentials: 'include' });
+        const res = await fetch(`${API_URL}/settings/profile`, { credentials: 'include' });
         const json = await res.json();
         if (json?.status === 'success' && json?.profile) {
           this.user = {
@@ -176,7 +177,7 @@ export default {
           };
         }
         // also get user id for localStorage scoping
-        const authRes  = await fetch('/api/auth/check', { credentials: 'include' });
+        const authRes = await fetch(`${API_URL}/auth/check`, { credentials: 'include' });
         const authJson = await authRes.json();
         if (authJson?.authenticated && authJson?.user?.id) {
           this.currentUserId = authJson.user.id;
@@ -208,8 +209,8 @@ export default {
     async fetchBadgeCounts() {
       try {
         const [certsRes, inboxRes] = await Promise.all([
-          fetch('/api/instructor/certificates/driving/completions', { credentials: 'include' }),
-          fetch('/api/messages/inbox', { credentials: 'include' }),
+        fetch(`${API_URL}/instructor/certificates/driving/completions`, { credentials: 'include' }),
+        fetch(`${API_URL}/messages/inbox`, { credentials: 'include' }),
         ]);
 
         if (certsRes.ok) {
@@ -244,7 +245,7 @@ export default {
     // ── Logout ────────────────────────────────────────────────────────────
     async logout() {
       try {
-        const res  = await fetch('/api/auth/logout', { credentials: 'include' });
+        const res = await fetch(`${API_URL}/auth/logout`, { credentials: 'include' });
         const data = await res.json();
         if (data.status === 'success') this.router.push('/login');
       } catch {

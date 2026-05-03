@@ -127,7 +127,7 @@
 
           <!-- Instructor Avatar -->
           <div class="w-8 h-8 sm:w-10 sm:h-10 bg-white text-green-800 rounded-full flex items-center justify-center text-base sm:text-xl cursor-pointer hover:bg-gray-100 transition-colors">
-            👨‍🏫
+          👤
           </div>
         </div>
       </header>

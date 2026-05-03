@@ -107,8 +107,11 @@ exports.getInstructorSchedulesList = async (req, res) => {
       `
       SELECT COUNT(*) AS total
       FROM schedules s
-      WHERE s.instructor_id = ?
-        AND s.schedule_date IS NOT NULL
+      INNER JOIN driving_course_instructors dci
+        ON dci.course_id = s.course_id
+      AND dci.instructor_id = ?
+      AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+      WHERE s.schedule_date IS NOT NULL
         AND DATE(s.schedule_date) >= CURDATE()
       `,
       [instructorId],
@@ -130,8 +133,12 @@ exports.getInstructorSchedulesList = async (req, res) => {
         LOWER(COALESCE(s.status, 'open')) AS schedule_status,
 
         COALESCE(b.booked, 0) AS booked
-      FROM schedules s
-      LEFT JOIN courses c ON c.id = s.course_id
+        FROM schedules s
+        LEFT JOIN courses c ON c.id = s.course_id
+
+        INNER JOIN driving_course_instructors dci 
+          ON dci.course_id = s.course_id
+          AND dci.instructor_id = ?
 
       LEFT JOIN (
         SELECT schedule_id, COUNT(*) AS booked
@@ -140,16 +147,15 @@ exports.getInstructorSchedulesList = async (req, res) => {
         GROUP BY schedule_id
       ) b ON b.schedule_id = s.schedule_id
 
-      WHERE s.instructor_id = ?
-        AND s.schedule_date IS NOT NULL
-        AND DATE(s.schedule_date) >= CURDATE()
+    WHERE s.schedule_date IS NOT NULL
+      AND DATE(s.schedule_date) >= CURDATE()
       ORDER BY s.schedule_date ASC, s.start_time ASC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
     const [rows] = await pool.execute(sql, [
-      ...OCCUPYING_STATUSES,
       instructorId,
+      ...OCCUPYING_STATUSES,
     ]);
 
     const data = (rows || []).map((r) => ({
@@ -217,19 +223,22 @@ exports.getInstructorSchedulesHistory = async (req, res) => {
     const placeholders = ph(OCCUPYING_STATUSES);
 
     // total count (past)
-    const [cntRows] = await pool.execute(
-      `
-      SELECT COUNT(*) AS total
-      FROM schedules s
-      WHERE s.instructor_id = ?
-        AND s.schedule_date IS NOT NULL
-        AND (
-          DATE(s.schedule_date) < CURDATE()
-          OR (DATE(s.schedule_date) = CURDATE() AND s.end_time IS NOT NULL AND s.end_time < CURTIME())
-        )
-      `,
-      [instructorId],
-    );
+      const [cntRows] = await pool.execute(
+        `
+        SELECT COUNT(*) AS total
+        FROM schedules s
+        INNER JOIN driving_course_instructors dci
+          ON dci.course_id = s.course_id
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+        WHERE s.schedule_date IS NOT NULL
+          AND (
+            DATE(s.schedule_date) < CURDATE()
+            OR (DATE(s.schedule_date) = CURDATE() AND s.end_time IS NOT NULL AND s.end_time < CURTIME())
+          )
+        `,
+        [instructorId],
+      );
     const total = Number(cntRows?.[0]?.total || 0);
 
     const sql = `
@@ -246,8 +255,12 @@ exports.getInstructorSchedulesHistory = async (req, res) => {
         LOWER(COALESCE(s.status, 'open')) AS schedule_status,
 
         COALESCE(b.booked, 0) AS booked
-      FROM schedules s
-      LEFT JOIN courses c ON c.id = s.course_id
+        FROM schedules s
+        LEFT JOIN courses c ON c.id = s.course_id
+
+        INNER JOIN driving_course_instructors dci 
+          ON dci.course_id = s.course_id
+          AND dci.instructor_id = ?
 
       LEFT JOIN (
         SELECT schedule_id, COUNT(*) AS booked
@@ -256,8 +269,7 @@ exports.getInstructorSchedulesHistory = async (req, res) => {
         GROUP BY schedule_id
       ) b ON b.schedule_id = s.schedule_id
 
-      WHERE s.instructor_id = ?
-        AND s.schedule_date IS NOT NULL
+      WHERE s.schedule_date IS NOT NULL
         AND (
           DATE(s.schedule_date) < CURDATE()
           OR (DATE(s.schedule_date) = CURDATE() AND s.end_time IS NOT NULL AND s.end_time < CURTIME())
@@ -267,8 +279,8 @@ exports.getInstructorSchedulesHistory = async (req, res) => {
     `;
 
     const [rows] = await pool.execute(sql, [
-      ...OCCUPYING_STATUSES,
       instructorId,
+      ...OCCUPYING_STATUSES,
     ]);
 
     const data = (rows || []).map((r) => ({

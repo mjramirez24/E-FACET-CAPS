@@ -403,9 +403,10 @@
 import axios from "axios";
 import { computed, onMounted, ref, watch } from "vue";
 import StudentLayoutTesda from "./StudentLayoutTesda.vue";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 

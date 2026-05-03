@@ -233,7 +233,7 @@
       v-if="showModal"
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
     >
-      <div class="bg-white w-full max-w-xl rounded-xl shadow-lg p-6">
+      <div class="bg-white w-full max-w-xl rounded-xl shadow-lg p-6 max-h-[90vh] overflow-y-auto">
         <h3 class="text-lg font-bold text-green-800 mb-4">
           {{ isEditing ? "Edit User" : "Add User" }}
         </h3>
@@ -444,10 +444,11 @@
 <script>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import axios from "axios";
+import { API_URL } from "../../config/api";
 import AdminLayout from "./AdminLayout.vue";
 
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 

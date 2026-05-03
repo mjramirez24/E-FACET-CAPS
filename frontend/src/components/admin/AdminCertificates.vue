@@ -26,7 +26,7 @@
 
         <button
           @click="fetchRows"
-          class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
+          class="bg-green-800 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm"
         >
           🔄 Refresh
         </button>
@@ -719,12 +719,16 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import AdminLayout from "./AdminLayout.vue";
+import { API_URL, API_BASE } from "../../config/api";
 
 export default {
   name: "AdminCertificates",
   components: { AdminLayout },
   setup() {
-    const API_BASE = "http://localhost:3000";
+    const api = axios.create({
+      baseURL: API_URL,
+      withCredentials: true,
+    });
 
     const normalizeTrack = (t) => String(t || "").trim().toLowerCase();
 
@@ -972,7 +976,7 @@ export default {
       loading.value = true;
       error.value = "";
       try {
-        const res = await axios.get(`${API_BASE}/api/admin/certificates/completions`, { withCredentials: true });
+        const res = await api.get(`/admin/certificates/completions`);
         rows.value = res.data.data || [];
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to load.";
@@ -990,7 +994,7 @@ export default {
         const payload = { reservation_id: row.reservation_id };
         if (overrides) payload.overrides = overrides;
 
-        await axios.post(ENDPOINTS.drivingGenerate, payload, { withCredentials: true });
+        await api.post(`/admin/certificates/driving/generate`, payload);
         await fetchRows();
         closeModals();
       } catch (e) {
@@ -1004,7 +1008,9 @@ export default {
         const ok = confirm(`Generate TESDA certificate for ${row.student_name} (${row.course_name})?`);
         if (!ok) return;
 
-        await axios.post(ENDPOINTS.tesdaGenerate, { reservation_id: row.reservation_id }, { withCredentials: true });
+        await api.post(`/admin/certificates/tesda/generate`, {
+          reservation_id: row.reservation_id,
+        });
         await fetchRows();
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to generate TESDA certificate.";
@@ -1021,7 +1027,7 @@ export default {
         const certId = getActiveCertId(row);
         if (!certId) return (error.value = "No Driving certificate id found.");
 
-        await axios.patch(ENDPOINTS.drivingRevoke(certId), {}, { withCredentials: true });
+        await api.patch(`/admin/certificates/driving/${certId}/revoke`, {});
         await fetchRows();
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to revoke DRIVING.";
@@ -1038,7 +1044,7 @@ export default {
         const certId = getActiveCertId(row);
         if (!certId) return (error.value = "No TESDA certificate id found.");
 
-        await axios.patch(ENDPOINTS.tesdaRevoke(certId), {}, { withCredentials: true });
+        await api.patch(`/admin/certificates/tesda/${certId}/revoke`, {});
         await fetchRows();
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to revoke TESDA.";

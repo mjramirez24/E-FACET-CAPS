@@ -562,9 +562,10 @@
 import { ref, computed, onMounted, watch } from "vue";
 import axios from "axios";
 import TrainerLayout from "./TrainerLayout.vue";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 

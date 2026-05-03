@@ -141,59 +141,73 @@
         </div>
 
         <!-- Calendar Navigation -->
-        <div class="flex justify-between items-center mb-4">
-          <button
-            @click="prevMonth"
-            class="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium"
-          >
-            ◀ Prev
-          </button>
-          <h3 class="text-lg font-semibold text-green-800">{{ currentMonthName }} {{ currentYear }}</h3>
-          <button
-            @click="nextMonth"
-            class="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium"
-          >
-            Next ▶
-          </button>
-        </div>
+          <div class="flex justify-between items-center mb-4">
+            <button
+              @click="prevMonth"
+              class="p-2 text-green-700 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
+              title="Previous month"
+            >
+              &lt;
+            </button>
 
-        <!-- Calendar Grid -->
-        <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium text-gray-600 mb-2">
-          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-        </div>
+            <h3 class="font-semibold text-green-800 text-center">
+              {{ currentMonthName }} {{ currentYear }}
+            </h3>
 
-        <div class="grid grid-cols-7 gap-2">
+            <button
+              @click="nextMonth"
+              class="p-2 text-green-700 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
+              title="Next month"
+            >
+              &gt;
+            </button>
+          </div>
+
+          <!-- Calendar Grid -->
+          <div class="grid grid-cols-7 text-center text-sm font-medium text-gray-700 gap-1">
+            <div class="font-bold text-green-800 py-2 text-xs">Su</div>
+            <div class="font-bold text-green-800 py-2 text-xs">Mo</div>
+            <div class="font-bold text-green-800 py-2 text-xs">Tu</div>
+            <div class="font-bold text-green-800 py-2 text-xs">We</div>
+            <div class="font-bold text-green-800 py-2 text-xs">Th</div>
+            <div class="font-bold text-green-800 py-2 text-xs">Fr</div>
+            <div class="font-bold text-green-800 py-2 text-xs">Sa</div>
+
+            <div
+              v-for="date in calendarDates"
+              :key="date.key"
+              :class="[
+                'py-2 border rounded text-center cursor-pointer text-sm transition-colors relative',
+                date.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400',
+                date.isToday ? 'border-green-500' : 'border-gray-200',
+                getDateClass(date),
+              ]"
+              @click="openDayModal(date.date)"
+            >
+              <div class="font-medium">{{ date.day }}</div>
+
+              <div v-if="activeTrack !== 'tesda' && date.slotCount !== null" class="text-[10px] mt-1">
+                <span :class="date.slotCount === 0 ? 'text-red-600' : 'text-green-700'">
+                  {{ date.slotCount === 0 ? 'Full' : `${date.slotCount}` }}
+                </span>
+              </div>
+
           <div
-            v-for="date in calendarDates"
-            :key="date.key"
-            :class="[
-              'p-3 border rounded text-center cursor-pointer transition-colors relative',
-              date.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400',
-              date.isToday ? 'border-green-500' : 'border-gray-200',
-              getDateClass(date),
-            ]"
-            @click="openDayModal(date.date)"
+            v-if="activeTrack === 'tesda' && date.hasTesdaRange"
+            class="flex justify-center mt-1"
           >
-            <div class="font-medium">{{ date.day }}</div>
-
-            <!-- ✅ DRIVING: show slots like before -->
-            <div v-if="activeTrack !== 'tesda' && date.slotCount !== null" class="text-xs mt-1">
-              <span :class="date.slotCount === 0 ? 'text-red-600' : 'text-green-700'">
-                {{ date.slotCount === 0 ? 'Full' : `${date.slotCount} Slots` }}
-              </span>
-            </div>
-
-            <!-- ✅ TESDA: show batch start marker (not slots) -->
-            <div v-if="activeTrack === 'tesda' && date.isTesdaStart" class="text-xs mt-1">
-              <span class="text-green-700 font-semibold">Batch Start</span>
-            </div>
-
-            <div v-if="activeTrack === 'tesda' && !date.isTesdaStart && date.isTesdaEnd" class="text-xs mt-1">
-              <span class="text-gray-700 font-semibold">END</span>
+            <span
+              :class="[
+                'w-2 h-2 rounded-full block',
+                date.isTesdaStart ? 'bg-green-700' :
+                date.isTesdaEnd ? 'bg-gray-600' :
+                'bg-green-500'
+              ]"
+            ></span>
+          </div>
             </div>
           </div>
-        </div>
-
+          
         <!-- Legend -->
         <div class="mt-4 flex gap-4 text-sm text-gray-600">
           <span class="flex items-center gap-2">
@@ -860,9 +874,10 @@
 import { ref, computed, onMounted, reactive, watch } from "vue";
 import AdminLayout from "./AdminLayout.vue";
 import axios from "axios";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 
@@ -1350,22 +1365,31 @@ export default {
       return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
-    const getDateClass = (dateCell) => {
-      const dateStr = toLocalYMD(dateCell.date);
-      const matched = baseFilteredSchedules.value.filter((s) => scheduleCoversDate(s, dateStr));
-      if (matched.length === 0) return "";
+      const getDateClass = (dateCell) => {
+        const dateStr = toLocalYMD(dateCell.date)
 
-      if (activeTrack.value !== "tesda") {
-        const uniq = new Map();
-        for (const r of matched) if (r?.id) uniq.set(r.id, r);
-        const totalAvailable = Array.from(uniq.values()).reduce((sum, s) => sum + Number(s.availableSlots || 0), 0);
-        return totalAvailable === 0 ? "bg-red-50" : "bg-green-50";
-      }
+        const matched = baseFilteredSchedules.value.filter((s) =>
+          scheduleCoversDate(s, dateStr)
+        )
 
-      if (dateCell.isTesdaStart) return "bg-green-100 border-2 border-green-600";
-      if (dateCell.isTesdaEnd) return "bg-gray-100 border-2 border-gray-400";
-      return "tesda-dot tesda-dot-green";
-    };
+        if (matched.length === 0) return ""
+
+        // DRIVING: same as before
+        if (activeTrack.value !== "tesda") {
+          return "bg-green-100 border-green-400 font-semibold"
+        }
+
+        // TESDA: no full background, bullet/dot lang
+        if (dateCell.isTesdaStart) {
+          return "bg-white border-2 border-green-600 font-semibold"
+        }
+
+        if (dateCell.isTesdaEnd) {
+          return "bg-white border-2 border-gray-500 font-semibold"
+        }
+
+        return "bg-white border-gray-200"
+      };
 
     const getStatusClass = (schedule) => {
       const status = schedule.computedStatus || (Number(schedule.availableSlots) === 0 ? "Full" : "Open");

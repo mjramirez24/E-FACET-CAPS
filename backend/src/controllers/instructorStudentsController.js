@@ -27,53 +27,61 @@ async function getInstructorIdFromSession(req) {
  * Unique list of students handled by instructor (driving)
  * Based on schedules + schedule_reservations + users
  */
-exports.getInstructorStudentsListOnly = async (req, res) => {
-  try {
-    const { instructorId, error } = await getInstructorIdFromSession(req);
-    if (error)
-      return res
-        .status(error.code)
-        .json({ status: "error", message: error.message });
+      exports.getInstructorStudentsListOnly = async (req, res) => {
+        try {
+          const { instructorId, error } = await getInstructorIdFromSession(req);
+          if (error)
+            return res
+              .status(error.code)
+              .json({ status: "error", message: error.message });
 
-    const [rows] = await pool.execute(
-      `
-      SELECT DISTINCT
-        u.id AS id,
-        COALESCE(u.fullname, u.username, u.email, '(no name)') AS name,
-        u.email AS email,
+          const [rows] = await pool.execute(
+        `
+        SELECT DISTINCT
+          u.id AS id,
+          COALESCE(u.fullname, u.username, u.email, '(no name)') AS name,
+          u.email AS email,
 
-        -- latest course name for this student under this instructor
-        (
-          SELECT COALESCE(c2.course_name, '(unknown course)')
-          FROM schedule_reservations r2
-          JOIN schedules s2 ON s2.schedule_id = r2.schedule_id
-          LEFT JOIN courses c2 ON c2.id = COALESCE(s2.course_id, r2.course_id)
-          WHERE s2.instructor_id = ?
-            AND r2.student_id = u.id
-            AND UPPER(COALESCE(r2.reservation_status,'')) != 'CANCELLED'
-          ORDER BY r2.created_at DESC
-          LIMIT 1
-        ) AS course,
+          (
+            SELECT COALESCE(c2.course_name, '(unknown course)')
+            FROM schedule_reservations r2
+            JOIN schedules s2 ON s2.schedule_id = r2.schedule_id
+            JOIN driving_course_instructors dci2
+              ON dci2.course_id = COALESCE(s2.course_id, r2.course_id)
+            AND dci2.instructor_id = ?
+            AND LOWER(COALESCE(dci2.status, 'active')) = 'active'
+            LEFT JOIN courses c2 ON c2.id = COALESCE(s2.course_id, r2.course_id)
+            WHERE r2.student_id = u.id
+              AND UPPER(COALESCE(r2.reservation_status,'')) != 'CANCELLED'
+            ORDER BY r2.created_at DESC
+            LIMIT 1
+          ) AS course,
 
-        -- latest reservation status for filtering (active/pending/inactive mapping happens in frontend)
-        (
-          SELECT LOWER(UPPER(COALESCE(r3.reservation_status,'pending')))
-          FROM schedule_reservations r3
-          JOIN schedules s3 ON s3.schedule_id = r3.schedule_id
-          WHERE s3.instructor_id = ?
-            AND r3.student_id = u.id
-          ORDER BY r3.created_at DESC
-          LIMIT 1
-        ) AS status
-      FROM schedules s
-      JOIN schedule_reservations r ON r.schedule_id = s.schedule_id
-      JOIN users u ON u.id = r.student_id
-      WHERE s.instructor_id = ?
-        AND UPPER(COALESCE(r.reservation_status,'')) != 'CANCELLED'
-      ORDER BY name ASC
-      `,
-      [instructorId, instructorId, instructorId],
-    );
+          (
+            SELECT LOWER(COALESCE(r3.reservation_status,'pending'))
+            FROM schedule_reservations r3
+            JOIN schedules s3 ON s3.schedule_id = r3.schedule_id
+            JOIN driving_course_instructors dci3
+              ON dci3.course_id = COALESCE(s3.course_id, r3.course_id)
+            AND dci3.instructor_id = ?
+            AND LOWER(COALESCE(dci3.status, 'active')) = 'active'
+            WHERE r3.student_id = u.id
+            ORDER BY r3.created_at DESC
+            LIMIT 1
+          ) AS status
+
+        FROM schedule_reservations r
+        JOIN schedules s ON s.schedule_id = r.schedule_id
+        JOIN driving_course_instructors dci
+          ON dci.course_id = COALESCE(s.course_id, r.course_id)
+        AND dci.instructor_id = ?
+        AND LOWER(COALESCE(dci.status, 'active')) = 'active'
+        JOIN users u ON u.id = r.student_id
+        WHERE UPPER(COALESCE(r.reservation_status,'')) != 'CANCELLED'
+        ORDER BY name ASC
+        `,
+        [instructorId, instructorId, instructorId],
+      );
 
     return res.json({
       status: "success",

@@ -243,83 +243,61 @@
         </div>
 
         <!-- Calendar -->
-        <div class="border-2 border-green-700 rounded-xl p-6 mb-8">
-          <div class="flex justify-between items-center mb-6">
-            <button
-              @click="previousMonth"
-              class="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
-            >
-              ◀ Previous
-            </button>
-            <h3 class="text-xl font-bold text-green-800">{{ currentMonth }} {{ currentYear }}</h3>
-            <button
-              @click="nextMonth"
-              class="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
-            >
-              Next ▶
-            </button>
-          </div>
+<div class="border-2 border-green-700 rounded-xl p-4 mb-8">
+  <div class="flex justify-between items-center mb-4">
+    <button
+      @click="previousMonth"
+      class="p-2 text-green-700 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
+      title="Previous month"
+    >
+      &lt;
+    </button>
 
-          <div class="grid grid-cols-7 gap-2">
-            <div
-              v-for="day in daysOfWeek"
-              :key="day"
-              class="text-center font-medium text-gray-700 py-2"
-            >
-              {{ day }}
-            </div>
+    <h3 class="font-semibold text-green-800 text-center">
+      {{ currentMonth }} {{ currentYear }}
+    </h3>
 
-            <div
-              v-for="day in calendarDays"
-              :key="day.key"
-              :class="[
-                'p-3 text-center rounded-lg border transition-all',
-                isDayDisabled(day) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-                !day.isCurrentMonth
-                  ? 'border-gray-200 bg-gray-50 text-gray-400'
-                  : isPastDate(day.date)
-                    ? 'border-red-300 bg-red-50 text-red-700'
-                    : day.available
-                      ? 'border-green-200 bg-green-50 hover:bg-green-100'
-                      : day.available === false && day.slots === 0
-                        ? 'border-red-200 bg-red-50 hover:bg-red-100'
-                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100',
-                day.isSelected ? 'ring-2 ring-green-500 ring-offset-2' : ''
-              ]"
-              @click="selectDate(day)"
-            >
-              <div class="font-medium">{{ day.day }}</div>
+    <button
+      @click="nextMonth"
+      class="p-2 text-green-700 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
+      title="Next month"
+    >
+      &gt;
+    </button>
+  </div>
 
-              <div
-                v-if="day.isCurrentMonth && isPastDate(day.date)"
-                class="text-xs mt-1 text-red-600"
-              >
-                Past
-              </div>
+  <div class="grid grid-cols-7 text-center text-sm font-medium text-gray-700 gap-1">
+    <div
+      v-for="day in daysOfWeek"
+      :key="day"
+      class="font-bold text-green-800 py-2 text-xs"
+    >
+      {{ day.substring(0, 2) }}
+    </div>
 
-              <div
-                v-else-if="day.isCurrentMonth && !isPastDate(day.date) && day.available && day.slots > 0"
-                class="text-xs mt-1 text-green-700"
-              >
-                {{ day.slots }} slot{{ day.slots !== 1 ? "s" : "" }}
-              </div>
-
-              <div
-                v-else-if="day.isCurrentMonth && !isPastDate(day.date) && day.available === false && day.slots === 0"
-                class="text-xs mt-1 text-red-600"
-              >
-                Full
-              </div>
-
-              <div
-                v-else-if="day.isCurrentMonth && day.available === null"
-                class="text-xs mt-1 text-gray-500"
-              >
-                -
-              </div>
-            </div>
-          </div>
-        </div>
+    <div
+      v-for="day in calendarDays"
+      :key="day.key"
+      :class="[
+        'py-2 border rounded cursor-pointer text-sm transition-colors',
+        isDayDisabled(day) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+        !day.isCurrentMonth
+          ? 'text-gray-400 border-gray-200 bg-gray-50'
+          : isPastDate(day.date)
+            ? 'text-red-700 border-red-300 bg-red-50'
+            : day.available
+              ? 'bg-green-600 text-white font-semibold border-green-700'
+              : day.available === false && day.slots === 0
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300',
+        day.isSelected ? 'bg-green-100 text-green-800 border-green-300 font-semibold ring-2 ring-green-400' : ''
+      ]"
+      @click="selectDate(day)"
+    >
+      {{ day.day }}
+    </div>
+  </div>
+</div>
 
         <div v-if="selectedDate && selectedDate.isCurrentMonth" class="mb-8">
           <h3 class="text-lg font-bold text-gray-800 mb-3">
@@ -670,11 +648,11 @@
     <!-- GCash QRPH Modal -->
     <!-- ===================== -->
     <div v-if="showGcashModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div class="w-full max-w-4xl rounded-2xl bg-white shadow-xl border overflow-hidden">
+      <div class="w-full max-w-4xl max-h-[90vh] rounded-2xl bg-white shadow-xl border overflow-hidden flex flex-col">
         <!-- Header -->
         <div class="flex items-start justify-between gap-4 p-5 border-b bg-white">
           <div>
-            <h3 class="text-lg md:text-xl font-bold text-green-800">Pay with GCash (QRPH)</h3>
+            <h3 class="text-lg md:text-xl font-bold text-green-800">Pay with GCash (QRPH)</h3><div class="p-5 max-h-[80vh] overflow-y-auto"></div>
             <div class="mt-1 text-sm text-gray-600 space-y-0.5">
               <div>
                 Course: <span class="font-medium">{{ selectedCourse?.course_name }}</span>
@@ -702,7 +680,7 @@
         </div>
 
         <!-- Body -->
-        <div class="p-5 max-h-[80vh] overflow-y-auto">
+        <div class="p-4 md:p-5 overflow-y-auto flex-1">
           <div v-if="gcashError" class="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
             {{ gcashError }}
           </div>
@@ -845,9 +823,10 @@
 <script>
 import StudentLayout from "./StudentLayout.vue";
 import axios from "axios";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 

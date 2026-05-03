@@ -2050,64 +2050,110 @@ function exportPdf(table, filename, options = {}) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 28;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("DETAILED REPORT", pageWidth / 2, 28, { align: "center" });
+  const img = new Image();
+  img.src = "/facet-logo.png";
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(filename, pageWidth / 2, 44, { align: "center" });
+  img.onload = () => {
+    // 🔹 HEADER FUNCTION (reuse sa lahat ng page)
+    function drawHeader() {
+      // LOGO
+      doc.addImage(img, "PNG", margin, 20, 50, 50);
 
-  doc.setFontSize(8);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - margin, 28, {
-    align: "right",
-  });
+      // TEXT
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(
+        "First Asian Cognizance Executive Training Institute (FACET Institute) Corp.",
+        pageWidth / 2,
+        28,
+        { align: "center", maxWidth: pageWidth - 120 }
+      );
 
-  autoTable(doc, {
-    startY: 58,
-    head: [table.headers],
-    body: table.rows,
-    margin: { top: 58, right: margin, bottom: 28, left: margin },
-    theme: "grid",
-    styles: {
-      font: "helvetica",
-      fontSize: layout.fontSize,
-      cellPadding: layout.cellPadding,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
-      textColor: [0, 0, 0],
-      overflow: "linebreak",
-      valign: "middle",
-      fillColor: [255, 255, 255],
-    },
-    headStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-      lineColor: [0, 0, 0],
-      lineWidth: 0.25,
-      fontStyle: "bold",
-    },
-    bodyStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-    },
-    alternateRowStyles: {
-      fillColor: [255, 255, 255],
-    },
-    didDrawPage: () => {
-      const currentPage = doc.internal.getNumberOfPages();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(
+        "Holy Spirit, Barcenaga, Naujan, Oriental Mindoro",
+        pageWidth / 2,
+        42,
+        { align: "center" }
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        "LTO ACCREDITATION NUMBER: DS-2022-00002-04",
+        pageWidth / 2,
+        54,
+        { align: "center" }
+      );
+
+      // DATE (RIGHT)
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text(
-        `Page ${currentPage}`,
+        `Generated: ${new Date().toLocaleString()}`,
         pageWidth - margin,
-        pageHeight - 10,
-        { align: "right" },
+        28,
+        { align: "right" }
       );
-    },
-  });
 
-  doc.save(`${filename}.pdf`);
+      // LINE
+      doc.line(margin, 78, pageWidth - margin, 78);
+    }
+
+    // 🔹 FIRST PAGE HEADER
+    drawHeader();
+
+    // 🔹 TABLE
+    autoTable(doc, {
+      startY: 90, // ⬅️ IMPORTANT (para di mag-overlap)
+      head: [table.headers],
+      body: table.rows,
+      margin: { top: 90, right: margin, bottom: 28, left: margin },
+      theme: "grid",
+      styles: {
+        font: "helvetica",
+        fontSize: layout.fontSize,
+        cellPadding: layout.cellPadding,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.25,
+        textColor: [0, 0, 0],
+        overflow: "linebreak",
+        valign: "middle",
+        fillColor: [255, 255, 255],
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.25,
+        fontStyle: "bold",
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      alternateRowStyles: {
+        fillColor: [255, 255, 255],
+      },
+
+      // 🔥 HEADER EVERY PAGE
+      didDrawPage: () => {
+        drawHeader();
+
+        const currentPage = doc.internal.getNumberOfPages();
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${currentPage}`,
+          pageWidth - margin,
+          pageHeight - 10,
+          { align: "right" }
+        );
+      },
+    });
+
+    doc.save(`${filename}.pdf`);
+  };
 }
 
 function exportSingle(table, filename, target = null) {

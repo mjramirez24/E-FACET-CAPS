@@ -374,6 +374,13 @@
 
 <script>
 import StudentLayoutTesda from "./StudentLayoutTesda.vue";
+import axios from "axios";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
 
 const CONFIRMED_LIKE = new Set(["CONFIRMED", "APPROVED", "ACTIVE"]);
 
@@ -654,12 +661,8 @@ export default {
     async fetchMyReservations() {
       this.loading = true;
       try {
-        const res = await fetch("http://localhost:3000/api/tesda/training-schedule", {
-          credentials: "include",
-        });
-        const json = await res.json();
-        this.rows = Array.isArray(json?.data) ? json.data : [];
-
+      const res = await api.get("/tesda/training-schedule");
+      this.rows = Array.isArray(res.data?.data) ? res.data.data : [];
         const todayStr = toYMD(new Date());
         if (!this.selectedDateStr) {
           const hasToday = this.rows.some((r) => this.isDateInReservation(todayStr, r));

@@ -627,8 +627,10 @@ import { ref, computed, onMounted, nextTick, watch } from "vue";
 import AdminLayout from "./AdminLayout.vue";
 import axios from "axios";
 
+import { API_URL, API_BASE } from "../../config/api";
+
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 
@@ -672,7 +674,7 @@ export default {
     const proofFullUrl = computed(() => {
       const url = String(proofUrl.value || "");
       if (!url) return "";
-      return url.startsWith("http") ? url : `http://localhost:3000${url}`;
+      return url.startsWith("http") ? url : `${API_BASE}${url}`;
     });
 
     const formatManilaDateOnly = (value) => {

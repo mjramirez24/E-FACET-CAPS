@@ -181,8 +181,8 @@
       <!-- Quizzes Table -->
       <section class="bg-white rounded-xl shadow p-6 border border-green-200 quizzes-section">
         <h2 class="text-lg font-bold text-green-800 mb-4">Available Quizzes</h2>
-        <div class="overflow-hidden rounded-xl border border-green-700">
-          <table class="w-full border-collapse text-sm text-left">
+        <div class="overflow-x-auto rounded-xl border border-green-700">
+          <table class="min-w-[850px] w-full border-collapse text-sm text-left">
             <thead class="bg-green-700 text-white">
               <tr>
                 <th class="py-3 px-4 border-r border-green-600">Quiz Title</th>
@@ -232,8 +232,8 @@
             <span class="text-sm text-gray-500">{{ latestResultsPerQuiz.length }} quiz{{ latestResultsPerQuiz.length !== 1 ? 'zes' : '' }}</span>
           </div>
         </div>
-        <div class="overflow-hidden rounded-xl border border-green-700">
-          <table class="w-full border-collapse text-sm text-left">
+        <div class="overflow-x-auto rounded-xl border border-green-700">
+          <table class="min-w-[750px] w-full border-collapse text-sm text-left">
             <thead class="bg-green-700 text-white">
               <tr>
                 <th class="py-3 px-4 border-r border-green-600">Quiz Title</th>
@@ -544,7 +544,13 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import StudentLayout from './StudentLayout.vue'
-import axios from 'axios'
+import axios from "axios";
+import { API_URL } from "../../config/api";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
 
 const TOPIC_LABEL = {
   traffic_rules:'Traffic Rules',traffic_signs:'Traffic Signs',road_signs:'Traffic Signs',
@@ -618,10 +624,9 @@ export default {
 
   setup() {
     const api = axios.create({
-      baseURL: 'http://localhost:3000/api',
+      baseURL: API_URL,
       withCredentials: true,
-    })
-
+    });
     // ── State ────────────────────────────────────────────────
     const user               = ref({ id: null, name: '', email: '', preferred_language: 'en' })
     const currentLanguage    = ref('en')

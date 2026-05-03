@@ -25,7 +25,7 @@
       </div>
 
       <!-- Settings Tabs -->
-      <div class="flex space-x-1 mb-6 p-1 bg-gray-100 rounded-lg">
+      <div class="flex space-x-1 mb-6 p-1 bg-gray-100 rounded-lg overflow-x-auto">
         <button
           v-for="tab in tabs"
           :key="tab.id"
@@ -469,9 +469,10 @@
 <script>
 import InstructorLayout from './InstructorLayout.vue'
 import axios from "axios";
+import { API_URL } from "../../config/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: API_URL,
   withCredentials: true,
 });
 

@@ -20,14 +20,17 @@ const allowedOrigins = new Set([
 app.use("/assets", express.static(path.join(__dirname, "assets")));
 
 function isAllowedOrigin(origin) {
-  if (!origin) return true; // Postman / curl
+  if (!origin) return true;
+
   if (allowedOrigins.has(origin)) return true;
 
-  // allow Vite localhost ports like 5173..5199
   if (/^http:\/\/localhost:51\d{2}$/.test(origin)) return true;
-
-  // allow 127.0.0.1 too
   if (/^http:\/\/127\.0\.0\.1:51\d{2}$/.test(origin)) return true;
+
+  // allow any local WiFi IP
+  if (/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:51\d{2}$/.test(origin)) return true;
+  if (/^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:51\d{2}$/.test(origin)) return true;
+  if (/^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}:51\d{2}$/.test(origin)) return true;
 
   return false;
 }
@@ -235,8 +238,8 @@ app.use((err, req, res, next) => {
 // Start server
 // ==============================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Backend running at http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Backend running at http://0.0.0.0:${PORT}`);
 });
 
 

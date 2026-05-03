@@ -1,5 +1,5 @@
 // src/utils/http.js
-const API_URL = 'http://localhost:3000/api';
+import { API_URL } from "@/config/api";
 
 async function request(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
