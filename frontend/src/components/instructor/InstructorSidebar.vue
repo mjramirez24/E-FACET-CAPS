@@ -95,7 +95,7 @@
     <div class="sticky bottom-0 bg-white">
       <div class="border-t border-gray-200 p-4">
         <button
-          @click="logout"
+          @click="openLogoutModal"
           class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 rounded-md transition text-sm sm:text-base"
         >
           🚪 Logout
@@ -115,6 +115,66 @@
       </div>
     </div>
   </aside>
+
+  <!-- Logout Confirmation Modal -->
+  <div
+    v-if="showLogoutModal"
+    class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4"
+    @click.self="closeLogoutModal"
+  >
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+      <div class="p-5 border-b border-gray-100">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl">
+            🚪
+          </div>
+
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Confirm Logout</h3>
+            <p class="text-sm text-gray-500">Instructor account session</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-5">
+        <p class="text-sm text-gray-700 leading-relaxed">
+          Are you sure you want to log out from your instructor account?
+        </p>
+
+        <div
+          v-if="logoutError"
+          class="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"
+        >
+          {{ logoutError }}
+        </div>
+
+        <div class="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            @click="closeLogoutModal"
+            :disabled="logoutLoading"
+            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-60"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            @click="confirmLogout"
+            :disabled="logoutLoading"
+            class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 text-sm font-medium disabled:opacity-60 flex items-center gap-2"
+          >
+            <span
+              v-if="logoutLoading"
+              class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+            ></span>
+            <span>{{ logoutLoading ? "Logging out..." : "Logout" }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <script>
@@ -133,6 +193,9 @@ export default {
     return {
       user: { fullname: '', username: '', email: '' },
       isMobileMenuOpen: false,
+      showLogoutModal: false,
+      logoutLoading: false,
+      logoutError: '',
 
       // mirrors what InstructorLayout tracks — populated via window events
       unseenCertCount: 0,
@@ -243,12 +306,33 @@ export default {
     },
 
     // ── Logout ────────────────────────────────────────────────────────────
-    async logout() {
+    openLogoutModal() {
+      this.logoutError = '';
+      this.showLogoutModal = true;
+      this.isMobileMenuOpen = false;
+    },
+
+    closeLogoutModal() {
+      if (this.logoutLoading) return;
+      this.showLogoutModal = false;
+      this.logoutError = '';
+    },
+
+    async confirmLogout() {
+      this.logoutLoading = true;
+      this.logoutError = '';
+
       try {
-        const res = await fetch(`${API_URL}/auth/logout`, { credentials: 'include' });
-        const data = await res.json();
-        if (data.status === 'success') this.router.push('/login');
-      } catch {
+        await fetch(`${API_URL}/auth/logout`, { credentials: 'include' });
+      } catch (err) {
+        console.error('Logout error:', err);
+      } finally {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+
+        this.logoutLoading = false;
+        this.showLogoutModal = false;
         this.router.push('/login');
       }
     },

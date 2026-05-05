@@ -6,28 +6,30 @@ function getSessionUserId(req) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-// statuses considered active / blocking duplicates
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "APPROVED", "ACTIVE"];
+const COMPLETED_STATUSES = [
+  "DONE",
+  "COMPLETED",
+  "FINISHED",
+  "CERTIFICATE_ISSUED",
+];
 
 function isPositiveInt(x) {
   const n = Number(x);
   return Number.isFinite(n) && n > 0 && Number.isInteger(n);
 }
 
-/**
- * CREATE RESERVATION (Batch-Based)
- * Accepts:
- *  - { course_id }       -> pooling batch (schedule_id NULL)
- *  - { schedule_id }     -> scheduled (derive course_id from schedule)
- */
 exports.createReservation = async (req, res) => {
   const conn = await pool.getConnection();
+
   try {
     const studentId = getSessionUserId(req);
+
     if (!studentId) {
-      return res
-        .status(401)
-        .json({ status: "error", message: "Not authenticated" });
+      return res.status(401).json({
+        status: "error",
+        message: "Not authenticated",
+      });
     }
 
     const bodyCourseId = Number(req.body.course_id || 0);
@@ -48,15 +50,14 @@ exports.createReservation = async (req, res) => {
     let courseId = null;
     let scheduleId = null;
 
-    // If schedule_id is provided, derive course_id from tesda_schedules
     if (hasSchedule) {
-      scheduleId = Number(bodyScheduleId);
+      scheduleId = bodyScheduleId;
 
       const [schedRows] = await conn.execute(
         `
-        SELECT s.schedule_id, s.course_id
-        FROM tesda_schedules s
-        WHERE s.schedule_id = ?
+        SELECT schedule_id, course_id, schedule_date
+        FROM tesda_schedules
+        WHERE schedule_id = ?
         LIMIT 1
         `,
         [scheduleId],
@@ -64,61 +65,123 @@ exports.createReservation = async (req, res) => {
 
       if (!schedRows.length) {
         await conn.rollback();
-        return res
-          .status(404)
-          .json({ status: "error", message: "Schedule not found" });
+        return res.status(404).json({
+          status: "error",
+          message: "Schedule not found",
+        });
       }
 
       courseId = Number(schedRows[0].course_id);
+
       if (!isPositiveInt(courseId)) {
         await conn.rollback();
-        return res
-          .status(400)
-          .json({ status: "error", message: "Invalid schedule course_id" });
+        return res.status(400).json({
+          status: "error",
+          message: "Invalid schedule course_id",
+        });
+      }
+
+      if (schedRows[0].schedule_date) {
+        const schedDate = new Date(schedRows[0].schedule_date);
+        const today = new Date();
+
+        schedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        if (schedDate < today) {
+          await conn.rollback();
+          return res.status(400).json({
+            status: "error",
+            message: "Cannot enroll. This schedule has already passed.",
+          });
+        }
       }
     } else {
-      // pooling by course_id
-      courseId = Number(bodyCourseId);
+      courseId = bodyCourseId;
 
       const [courseRows] = await conn.execute(
-        `SELECT id FROM tesda_courses WHERE id = ? LIMIT 1`,
+        `
+        SELECT id
+        FROM tesda_courses
+        WHERE id = ?
+        LIMIT 1
+        `,
         [courseId],
       );
 
       if (!courseRows.length) {
         await conn.rollback();
-        return res
-          .status(404)
-          .json({ status: "error", message: "Course not found" });
+        return res.status(404).json({
+          status: "error",
+          message: "Course not found",
+        });
       }
 
-      // pooling has no schedule_id yet
-      scheduleId = null; // IMPORTANT: requires DB nullable schedule_id
+      scheduleId = null;
     }
 
-    // Prevent duplicate active reservation for same course
-    const [existing] = await conn.execute(
+    // ✅ GLOBAL BLOCK:
+    // bawal mag-enroll sa kahit anong TESDA course
+    // kapag may ongoing reservation pa.
+    const [activeRows] = await conn.execute(
       `
-      SELECT r.reservation_id
+      SELECT
+        r.reservation_id,
+        r.reservation_status,
+        b.course_id,
+        c.course_name
+      FROM tesda_schedule_reservations r
+      JOIN tesda_batches b ON b.batch_id = r.batch_id
+      JOIN tesda_courses c ON c.id = b.course_id
+      WHERE r.student_id = ?
+        AND UPPER(r.reservation_status) IN ('PENDING','CONFIRMED','APPROVED','ACTIVE')
+      ORDER BY r.reservation_id DESC
+      LIMIT 1
+      `,
+      [studentId],
+    );
+
+    if (activeRows.length) {
+      await conn.rollback();
+
+      const active = activeRows[0];
+
+      return res.status(400).json({
+        status: "error",
+        message: `You already have an ongoing enrollment in ${active.course_name}. Finish or cancel it first before enrolling again.`,
+        active_reservation_id: active.reservation_id,
+        active_course_id: active.course_id,
+        active_course_name: active.course_name,
+        active_status: active.reservation_status,
+      });
+    }
+
+    // ✅ Previous reservations for SAME course only
+    // Ginagamit lang ito para malaman kung RETAKE.
+    const [previousRows] = await conn.execute(
+      `
+      SELECT
+        r.reservation_id,
+        r.reservation_status
       FROM tesda_schedule_reservations r
       JOIN tesda_batches b ON b.batch_id = r.batch_id
       WHERE r.student_id = ?
         AND b.course_id = ?
-        AND UPPER(r.reservation_status) IN ('PENDING','CONFIRMED','APPROVED','ACTIVE')
-      LIMIT 1
+      ORDER BY r.reservation_id DESC
       `,
       [studentId, courseId],
     );
 
-    if (existing.length) {
-      await conn.rollback();
-      return res.status(400).json({
-        status: "error",
-        message: "You already have an active reservation for this course.",
-      });
-    }
+    const completedCount = previousRows.filter((r) =>
+      COMPLETED_STATUSES.includes(
+        String(r.reservation_status || "").toUpperCase(),
+      ),
+    ).length;
 
-    // Find OPEN batch (lock row)
+    const isRetake = completedCount > 0;
+    const attemptNo = completedCount + 1;
+
+    // ✅ Find open batch
     const [openBatch] = await conn.execute(
       `
       SELECT batch_id, batch_no, capacity, reserved_count, status
@@ -140,7 +203,6 @@ exports.createReservation = async (req, res) => {
       batchId = openBatch[0].batch_id;
       batchNo = openBatch[0].batch_no;
     } else {
-      // Create new batch (lock max batch_no)
       const [maxBatch] = await conn.execute(
         `
         SELECT COALESCE(MAX(batch_no), 0) AS maxNo
@@ -165,18 +227,21 @@ exports.createReservation = async (req, res) => {
       batchId = newBatch.insertId;
     }
 
-    // Insert reservation
-    // NOTE: schedule_id NULL allowed for pooling (TBA)
+    const notes = isRetake
+      ? `RETAKE enrollment. Attempt #${attemptNo}`
+      : `FIRST enrollment. Attempt #${attemptNo}`;
+
+    // ✅ Insert reservation
     const [insertRes] = await conn.execute(
       `
       INSERT INTO tesda_schedule_reservations
         (schedule_id, student_id, batch_id, reservation_source, reservation_status, notes)
-      VALUES (?, ?, ?, 'ONLINE', 'PENDING', NULL)
+      VALUES (?, ?, ?, 'ONLINE', 'PENDING', ?)
       `,
-      [scheduleId, studentId, batchId],
+      [scheduleId, studentId, batchId, notes],
     );
 
-    // Increment batch counter
+    // ✅ Update batch count
     await conn.execute(
       `
       UPDATE tesda_batches
@@ -194,47 +259,41 @@ exports.createReservation = async (req, res) => {
 
     return res.json({
       status: "success",
-      message: scheduleId
-        ? `Reservation assigned to Batch ${batchNo} (Scheduled)`
-        : `Reservation assigned to Batch ${batchNo} (Schedule TBA)`,
-      batch_no: batchNo,
+      message: isRetake
+        ? `Retake reservation created. Assigned to Batch ${batchNo}.`
+        : `Reservation created. Assigned to Batch ${batchNo}.`,
       reservation_id: insertRes.insertId,
-      schedule_id: scheduleId, // can be null if pooling
+      schedule_id: scheduleId,
       course_id: courseId,
+      batch_no: batchNo,
+      is_retake: isRetake,
+      attempt_no: attemptNo,
     });
   } catch (err) {
     try {
       await conn.rollback();
     } catch {}
-    console.error("createReservation error:", err);
 
-    if (String(err.code) === "ER_DUP_ENTRY") {
-      return res.status(400).json({
-        status: "error",
-        message: "Duplicate reservation.",
-      });
-    }
+    console.error("createReservation error:", err);
 
     return res.status(500).json({
       status: "error",
-      message: err.sqlMessage || err.message,
+      message: err.sqlMessage || err.message || "Failed to create reservation",
     });
   } finally {
     conn.release();
   }
 };
 
-/**
- * MY RESERVATIONS
- * Shows schedule if assigned, otherwise TBA
- */
 exports.myReservations = async (req, res) => {
   try {
     const studentId = getSessionUserId(req);
+
     if (!studentId) {
-      return res
-        .status(401)
-        .json({ status: "error", message: "Not authenticated" });
+      return res.status(401).json({
+        status: "error",
+        message: "Not authenticated",
+      });
     }
 
     const [rows] = await pool.execute(
@@ -243,6 +302,7 @@ exports.myReservations = async (req, res) => {
         r.reservation_id,
         r.reservation_status,
         r.created_at,
+        r.notes,
 
         b.batch_no,
         b.status AS batch_status,
@@ -271,11 +331,18 @@ exports.myReservations = async (req, res) => {
       schedule_date: r.schedule_date || "TBA",
       startTime: r.startTime || "TBA",
       endTime: r.endTime || "",
+      is_retake: String(r.notes || "")
+        .toUpperCase()
+        .includes("RETAKE"),
     }));
 
-    return res.json({ status: "success", data: formatted });
+    return res.json({
+      status: "success",
+      data: formatted,
+    });
   } catch (err) {
     console.error("myReservations error:", err);
+
     return res.status(500).json({
       status: "error",
       message: "Failed to load reservations",

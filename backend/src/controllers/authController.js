@@ -118,7 +118,7 @@ const login = async (req, res) => {
         if (dbTrack && dbTrack !== requestedTrack) {
           return res.status(403).json({
             status: "error",
-            message: `This account is registered for ${dbTrack.toUpperCase()} portal. Please login using the correct portal.`,
+            message: `Unable to log in. Please check your credentials or use the correct portal.`,
           });
         }
       }

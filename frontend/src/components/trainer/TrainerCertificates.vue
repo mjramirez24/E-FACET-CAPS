@@ -219,21 +219,15 @@
                     ➕ Generate
                   </button>
 
+
                   <button
                     v-if="row.certificate_id"
                     @click="viewCertificate(row)"
                     class="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 hover:bg-blue-50 rounded"
                   >
-                    View
+                    👁️ View
                   </button>
 
-                  <button
-                    v-if="row.certificate_id"
-                    @click="downloadCertificate(row)"
-                    class="text-purple-600 hover:text-purple-800 text-sm font-medium px-2 py-1 hover:bg-purple-50 rounded"
-                  >
-                    Download
-                  </button>
                 </div>
               </td>
             </tr>
@@ -249,13 +243,80 @@
           </tbody>
         </table>
       </div>
+
+      <!-- TESDA View Modal -->
+      <div
+        v-if="tesdaModalOpen"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        @click.self="closeTesdaPreview"
+      >
+        <div class="bg-white w-full max-w-7xl rounded-2xl shadow-xl overflow-hidden max-h-[92vh] flex flex-col">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-gray-900">TESDA Certificate View</h3>
+              <p class="text-sm text-gray-600">{{ modalRow?.student_name }} — {{ modalRow?.course_name }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="downloadVisibleCertificate('png')" class="px-3 py-2 text-sm rounded-md bg-purple-700 text-white hover:bg-purple-800">⬇ PNG</button>
+              <button @click="downloadVisibleCertificate('pdf')" class="px-3 py-2 text-sm rounded-md bg-blue-700 text-white hover:bg-blue-800">⬇ PDF</button>
+              <button @click="printPreview" class="px-3 py-2 text-sm rounded-md bg-gray-800 text-white hover:bg-gray-900">🖨️ Print</button>
+              <button @click="closeTesdaPreview" class="px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50">✖ Close</button>
+            </div>
+          </div>
+
+          <div class="overflow-y-auto bg-gray-100 p-4">
+            <div class="mx-auto w-full overflow-auto">
+              <div id="tesda-preview" class="relative bg-white overflow-hidden text-[#111827] shadow-sm" style="width: 11in; height: 8.5in; font-family: Arial, Helvetica, sans-serif;">
+                <img src="/tesda-logo.png" alt="TESDA Watermark" class="absolute pointer-events-none select-none" style="left: 1.15in; top: 1.55in; width: 5.2in; height: 5.2in; object-fit: contain; opacity: 0.055;" />
+
+                <div class="absolute" style="left: .32in; top: .20in; width: 1.05in; height: 1.05in;">
+                  <img src="/tesda-logo.png" alt="TESDA Logo" style="width: 100%; height: 100%; object-fit: contain;" />
+                </div>
+
+                <div class="absolute leading-tight" style="left: 1.55in; top: .22in; width: 8.9in;">
+                  <div style="font-size: 22px; font-weight: 500; letter-spacing: .2px;">TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY</div>
+                  <div style="font-size: 13.5px; margin-top: 4px; font-weight: 500;">NATIONAL INSTITUTE FOR TECHNICAL EDUCATION AND SKILLS DEVELOPMENT (NITESD)</div>
+                  <div style="font-size: 13.5px; margin-top: 2px; font-weight: 500;">EAST SERVICE ROAD, SOUTH LUZON EXPRESSWAY (SLEX), FORT BONIFACIO, TAGUIG CITY</div>
+                  <div style="height: 9px; background: #003cff; width: 7.9in; margin-top: 8px;"></div>
+                </div>
+
+                <div class="absolute" style="left: 1.55in; top: 1.55in; width: 8.7in; text-align: left;">
+                  <div style="font-size: 41px; line-height: 1; font-weight: 900; letter-spacing: 2px;">CERTIFICATE OF COMPLETION</div>
+                  <div style="margin-top: 31px; font-size: 17px; font-weight: 700; letter-spacing: .5px;">THIS IS TO CERTIFY THAT</div>
+                  <div style="margin-top: 23px; font-size: 38px; line-height: 1.05; font-weight: 400;">{{ modalRow?.student_name || '—' }}</div>
+                  <div style="margin-top: 18px; font-size: 17px; font-weight: 700; letter-spacing: .5px;">HAS COMPLETED THE COURSE</div>
+                  <div style="margin-top: 18px; font-size: 34px; line-height: 1.12; font-weight: 400; max-width: 8.8in;">{{ modalRow?.course_name || '—' }}</div>
+                  <div style="margin-top: 46px; font-size: 17px; font-weight: 500;"><b>ON</b> {{ modalRow?.done_at ? formatDate(modalRow.done_at) : '—' }}</div>
+                </div>
+
+                <div class="absolute" style="left: .47in; bottom: .48in; font-size: 17px; line-height: 1.25; font-weight: 600;">
+                  <div>This is a computer generated certificate,</div>
+                  <div>it is valid even without a signature.</div>
+                  <br />
+                  <div>For verification purposes, contact:</div>
+                  <div>eTESDA Division</div>
+                  <div>tesdaonlineprogram@tesda.gov.ph (02) 8893 - 8297</div>
+                </div>
+
+                <div class="absolute text-right" style="right: .47in; bottom: .46in; font-size: 13px; line-height: 1.1;">
+                  <div style="width: .95in; height: .95in; border-radius: 999px; background: #1aa0e8; color: white; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 900; font-size: 14px; line-height: 1.05; margin-left: auto; margin-bottom: 8px; transform: rotate(-7deg);">TESDA<br />Online<br />PROGRAM</div>
+                  <div>{{ modalRow?.certificate_code || 'TESDA-CODE' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </TrainerLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import axios from "axios";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import TrainerLayout from "./TrainerLayout.vue";
 import { API_URL } from "../../config/api";
 
@@ -271,7 +332,7 @@ export default {
   components: { TrainerLayout },
   setup() {
 
-    const logoUrl = ref(`${API_BASE}/assets/logo.png`);
+    const logoUrl = ref("/tesda-logo.png");
     const onLogoError = () => (logoUrl.value = "");
 
       const ENDPOINTS = {
@@ -288,6 +349,8 @@ export default {
     const selectedStatus = ref("");
     const selectedDate = ref("");
     const sortBy = ref("dateDesc");
+    const tesdaModalOpen = ref(false);
+    const modalRow = ref(null);
 
     const rowsBase = computed(() => rows.value);
 
@@ -417,15 +480,151 @@ export default {
     };
 
     const viewCertificate = (row) => {
-      if (!row?.certificate_id) return;
-      window.open(ENDPOINTS.view(row.certificate_id), "_blank");
+      openTesdaPreview(row);
     };
 
     const downloadCertificate = (row) => {
-      if (!row?.certificate_id) return;
-      window.open(ENDPOINTS.download(row.certificate_id), "_blank");
+      viewCertificate(row);
     };
 
+    const getDownloadFileName = (format) => {
+      const code = modalRow.value?.certificate_code || "TESDA-certificate";
+      return `${String(code).replace(/[^a-z0-9_-]/gi, "_")}.${format}`;
+    };
+
+    const downloadVisibleCertificate = async (format = "png") => {
+      error.value = "";
+      await nextTick();
+
+      const target = document.getElementById("tesda-preview");
+      if (!target) {
+        error.value = "No certificate is currently visible.";
+        return;
+      }
+
+      try {
+        const canvas = await html2canvas(target, {
+          backgroundColor: "#ffffff",
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (format === "png") {
+          const a = document.createElement("a");
+          a.href = imgData;
+          a.download = getDownloadFileName("png");
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        const pdf = new jsPDF({
+          orientation: "landscape",
+          unit: "in",
+          format: [11, 8.5],
+        });
+
+        pdf.addImage(imgData, "PNG", 0, 0, 11, 8.5);
+        pdf.save(getDownloadFileName("pdf"));
+      } catch (e) {
+        console.error("downloadVisibleCertificate error:", e);
+        error.value = e?.message || "Failed to download visible certificate.";
+      }
+    };
+
+    const openTesdaPreview = (row) => {
+      modalRow.value = row;
+      tesdaModalOpen.value = true;
+    };
+
+    const closeTesdaPreview = () => {
+      tesdaModalOpen.value = false;
+      modalRow.value = null;
+    };
+
+    const getHeadStylesHtml = () => {
+      const nodes = Array.from(document.head.querySelectorAll('link[rel="stylesheet"], style'));
+      return nodes.map((n) => n.outerHTML).join("\n");
+    };
+
+    const printPreview = () => {
+      const target = document.getElementById("tesda-preview");
+      if (!target) return;
+
+      const cloned = target.cloneNode(true);
+
+      // ✅ Important: gawing absolute URL ang logos/watermark para hindi mawala sa print window/PDF
+      cloned.querySelectorAll("img").forEach((img) => {
+        const src = img.getAttribute("src") || "";
+        if (src.startsWith("/")) img.setAttribute("src", `${window.location.origin}${src}`);
+      });
+
+      const w = window.open("", "_blank", "width=1300,height=850");
+      if (!w) return;
+
+      const styles = getHeadStylesHtml();
+
+      w.document.open();
+      w.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print TESDA Certificate</title>
+            ${styles}
+            <style>
+              * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              html, body { width: 11in; height: 8.5in; margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+              @page { size: letter landscape; margin: 0; }
+              .wrap { width: 11in; height: 8.5in; margin: 0; padding: 0; overflow: hidden; background: #fff; }
+              #tesda-preview { width: 11in !important; height: 8.5in !important; margin: 0 !important; border: 0 !important; box-shadow: none !important; transform: none !important; }
+              img { max-width: none !important; }
+              @media print {
+                html, body { width: 11in; height: 8.5in; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+                .wrap { width: 11in !important; height: 8.5in !important; }
+              }
+            </style>
+          </head>
+          <body><div class="wrap">${cloned.outerHTML}</div></body>
+        </html>
+      `);
+      w.document.close();
+
+      const waitForImagesThenPrint = () => {
+        const imgs = Array.from(w.document.images || []);
+        if (!imgs.length) {
+          w.focus();
+          w.print();
+          return;
+        }
+
+        let loaded = 0;
+        const done = () => {
+          loaded += 1;
+          if (loaded >= imgs.length) {
+            setTimeout(() => {
+              w.focus();
+              w.print();
+            }, 350);
+          }
+        };
+
+        imgs.forEach((img) => {
+          if (img.complete) done();
+          else {
+            img.onload = done;
+            img.onerror = done;
+          }
+        });
+      };
+
+      w.onload = waitForImagesThenPrint;
+      w.onafterprint = () => w.close();
+    };
     onMounted(fetchRows);
 
     return {
@@ -460,6 +659,12 @@ export default {
       generateTesda,
       viewCertificate,
       downloadCertificate,
+      downloadVisibleCertificate,
+      tesdaModalOpen,
+      modalRow,
+      openTesdaPreview,
+      closeTesdaPreview,
+      printPreview,
     };
   },
 };

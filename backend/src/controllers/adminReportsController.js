@@ -1001,36 +1001,141 @@ exports.getAttendanceReport = async (req, res) => {
   try {
     const mode = getReportMode(req);
     const { from, to } = getDateRange(req);
+
     const courseId = safeStr(req.query.course_id);
+    const trainerId = safeStr(req.query.trainer_id);
+    const status = safeStr(req.query.status).toLowerCase();
+    const q = safeStr(req.query.q);
+
+    // =====================
+    // TESDA ATTENDANCE (FULL FIX)
+    // =====================
+    if (mode === "tesda") {
+      try {
+        let where = `WHERE 1=1`;
+        const params = [];
+
+        // OPTIONAL DATE FILTER (hindi na mawawala data)
+        if (req.query.from && req.query.to) {
+          where += ` AND a.attendance_date >= ? AND a.attendance_date < ?`;
+          params.push(from, to);
+        }
+
+        // FILTERS
+        if (courseId) {
+          where += ` AND a.course_id = ?`;
+          params.push(courseId);
+        }
+
+        if (trainerId) {
+          where += ` AND a.trainer_id = ?`;
+          params.push(trainerId);
+        }
+
+        if (["present", "late", "absent"].includes(status)) {
+          where += ` AND LOWER(a.status) = ?`;
+          params.push(status);
+        }
+
+        if (q) {
+          const like = `%${safeLike(q)}%`;
+          where += `
+        AND (
+          u.fullname LIKE ?
+          OR a.course_name LIKE ?
+          OR a.course_code LIKE ?
+          OR CONCAT_WS(' ', tr.firstname, tr.lastname) LIKE ?
+        )
+      `;
+          params.push(like, like, like, like);
+        }
+
+        const [rows] = await pool.execute(
+          `
+      SELECT
+        a.attendance_id,
+        a.trainer_id,
+        a.student_id,
+
+        -- ✅ FIXED STUDENT NAME
+COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS student_name,
+COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
+
+        u.gender,
+        u.birthday,
+
+        a.course_id,
+        a.course_name,
+        a.course_code,
+
+        -- ✅ FIXED TRAINER NAME
+        CONCAT_WS(' ', tr.firstname, tr.lastname) AS trainer_name,
+
+        DATE_FORMAT(a.attendance_date, '%Y-%m-%d') AS attendance_date,
+        LOWER(a.status) AS status,
+        COALESCE(a.remarks, '') AS remarks,
+
+        a.created_at,
+        a.updated_at
+
+      FROM tesda_trainer_attendance a
+      LEFT JOIN users u ON u.id = a.student_id
+      LEFT JOIN trainers tr ON tr.trainer_id = a.trainer_id
+
+      ${where}
+
+      ORDER BY trainer_name ASC, a.attendance_date DESC
+      `,
+          params,
+        );
+
+        // ✅ SUMMARY FIX
+        const totalStudents = new Set(rows.map((r) => r.student_id)).size;
+
+        const present = rows.filter((r) => r.status === "present").length;
+        const late = rows.filter((r) => r.status === "late").length;
+        const absent = rows.filter((r) => r.status === "absent").length;
+
+        const totalRows = rows.length;
+        const attendanceRate = totalRows
+          ? Math.round(((present + late) / totalRows) * 100)
+          : 0;
+
+        return res.json({
+          status: "success",
+          data: rows,
+          summary: {
+            totalStudents,
+            present,
+            late,
+            absent,
+            totalRows,
+            attendanceRate,
+          },
+          meta: { from, to, mode },
+        });
+      } catch (err) {
+        console.error("TESDA Attendance error:", err);
+        return res.status(500).json({
+          status: "error",
+          message: "TESDA attendance failed",
+          debug: err.message,
+        });
+      }
+    }
+
+    // =====================================================
+    // DRIVING ATTENDANCE - original behavior retained
+    // =====================================================
     const enrolled = enrolledStatuses();
 
     const params = [from, to, ...enrolled];
     let courseFilter = "";
+
     if (courseId) {
       courseFilter = " AND s.course_id = ?";
       params.push(courseId);
     }
-
-    const sqlTesda = `
-      SELECT
-        s.schedule_id,
-        DATE(s.course_start) AS schedule_date,
-        c.course_name,
-        COUNT(DISTINCT r.student_id) AS enrolled_count,
-        COUNT(DISTINCT a.student_id) AS present_count
-      FROM tesda_schedules s
-      LEFT JOIN tesda_courses c ON c.id = s.course_id
-      LEFT JOIN tesda_schedule_reservations r
-        ON r.schedule_id = s.schedule_id
-       AND r.reservation_status IN (${sqlInPlaceholders(enrolled)})
-      LEFT JOIN attendance a
-        ON a.schedule_id = s.schedule_id
-      WHERE s.course_start >= ? AND s.course_start < ?
-        ${courseFilter}
-      GROUP BY s.schedule_id, schedule_date, c.course_name
-      ORDER BY schedule_date DESC, c.course_name ASC
-      LIMIT 500
-    `;
 
     const sqlDriving = `
       SELECT
@@ -1040,23 +1145,22 @@ exports.getAttendanceReport = async (req, res) => {
         COUNT(DISTINCT r.student_id) AS enrolled_count,
         COUNT(DISTINCT a.student_id) AS present_count
       FROM schedules s
-      LEFT JOIN courses c ON c.id = s.course_id
+      LEFT JOIN courses c
+        ON c.id = s.course_id
       LEFT JOIN schedule_reservations r
         ON r.schedule_id = s.schedule_id
        AND r.reservation_status IN (${sqlInPlaceholders(enrolled)})
       LEFT JOIN attendance a
         ON a.schedule_id = s.schedule_id
-      WHERE s.schedule_date >= ? AND s.schedule_date < ?
+      WHERE s.schedule_date >= ?
+        AND s.schedule_date < ?
         ${courseFilter}
       GROUP BY s.schedule_id, schedule_date, c.course_name
       ORDER BY schedule_date DESC, c.course_name ASC
       LIMIT 500
     `;
 
-    const [rows] = await pool.execute(
-      mode === "tesda" ? sqlTesda : sqlDriving,
-      params,
-    );
+    const [rows] = await pool.execute(sqlDriving, params);
 
     return res.json({
       status: "success",
@@ -1065,7 +1169,11 @@ exports.getAttendanceReport = async (req, res) => {
     });
   } catch (err) {
     console.error("getAttendanceReport error:", err);
-    return res.status(500).json({ status: "error", message: "Server error" });
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to load attendance report",
+      debug: err.sqlMessage || err.message,
+    });
   }
 };
 
@@ -2011,3 +2119,298 @@ exports.exportAll = async (req, res) => {
     });
   }
 };
+
+// GET /api/admin/reports/certificates-summary?month=2025-10
+exports.getIssuedCertificatesSummary = async (req, res) => {
+  try {
+    const monthInput = safeStr(req.query.month);
+
+    const now = new Date();
+    const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(monthInput)
+      ? monthInput
+      : defaultMonth;
+
+    const [year, m] = month.split("-").map(Number);
+    const from = `${year}-${String(m).padStart(2, "0")}-01`;
+    const nextYear = m === 12 ? year + 1 : year;
+    const nextMonth = m === 12 ? 1 : m + 1;
+    const to = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+
+    const monthLabel = new Date(year, m - 1, 1)
+      .toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      .toUpperCase();
+
+    const report = {
+      month,
+      monthLabel,
+      tdcTotal: 0,
+      pdcTotal: 0,
+      tdc: {
+        sex: { Male: 0, Female: 0 },
+      },
+      pdc: {
+        sex: { Male: 0, Female: 0 },
+      },
+      trainingPurposeRows: [
+        { label: "Application for new Driver's License", count: 0 },
+        { label: "Application for Additional DL Code", count: 0 },
+      ],
+      dlCodeRows: [
+        { label: "A", count: 0 },
+        { label: "A1", count: 0 },
+        { label: "B", count: 0 },
+        { label: "B1", count: 0 },
+        { label: "B2", count: 0 },
+        { label: "BE", count: 0 },
+        { label: "C", count: 0 },
+        { label: "D", count: 0 },
+        { label: "CE", count: 0 },
+      ],
+      dlCodeTotal: 0,
+    };
+
+    const [rows] = await pool.execute(
+      `
+      SELECT
+        cert.certificate_id,
+        cert.issued_at,
+
+        sr.training_purpose,
+
+        u.gender,
+
+        c.course_name,
+        c.course_code,
+
+        CASE
+          WHEN c.course_code LIKE 'PDC-%' THEN SUBSTRING_INDEX(c.course_code, '-', -1)
+          ELSE c.course_code
+        END AS dl_code
+      FROM certificates cert
+      JOIN schedule_reservations sr
+        ON sr.reservation_id = cert.reservation_id
+      LEFT JOIN users u
+        ON u.id = sr.student_id
+      LEFT JOIN courses c
+        ON c.id = sr.course_id
+      WHERE cert.certificate_type = 'DRIVING'
+        AND cert.status = 'issued'
+        AND cert.issued_at >= ?
+        AND cert.issued_at < ?
+      ORDER BY cert.issued_at DESC
+      `,
+      [from, to],
+    );
+
+    const purposeMap = new Map(
+      report.trainingPurposeRows.map((row) => [row.label, row]),
+    );
+
+    const dlMap = new Map(report.dlCodeRows.map((row) => [row.label, row]));
+
+    function normalizeGenderLocal(gender) {
+      const s = String(gender || "").trim().toLowerCase();
+      if (s === "male" || s === "m") return "Male";
+      if (s === "female" || s === "f") return "Female";
+      return "";
+    }
+
+    function isTdc(courseCode, courseName) {
+      const text = `${courseCode || ""} ${courseName || ""}`.toUpperCase();
+      return text.includes("TDC") || text.includes("THEORETICAL");
+    }
+
+    function isPdc(courseCode, courseName) {
+      const text = `${courseCode || ""} ${courseName || ""}`.toUpperCase();
+      return text.includes("PDC") || text.includes("PRACTICAL");
+    }
+
+    function normalizePurposeLocal(v) {
+      const s = String(v || "").trim();
+      if (!s) return "Unspecified";
+
+      const up = s.toUpperCase();
+      if (up.includes("NEW")) return "Application for new Driver's License";
+      if (up.includes("ADDITIONAL")) return "Application for Additional DL Code";
+
+      return s;
+    }
+
+    function parseDlCodes(row) {
+      const text = `${row.course_code || ""} ${row.course_name || ""} ${row.dl_code || ""}`.toUpperCase();
+      const codes = new Set();
+
+      if (/\bAB\b/.test(text) || /PDC\s*[-(]?\s*AB\b/.test(text)) {
+        codes.add("A");
+        codes.add("B");
+      }
+
+      const allCodes = ["A1", "B1", "B2", "BE", "CE", "A", "B", "C", "D"];
+      for (const code of allCodes) {
+        const re = new RegExp(`\\b${code}\\b`, "i");
+        if (re.test(text)) codes.add(code);
+      }
+
+      return Array.from(codes);
+    }
+
+    for (const row of rows) {
+      const gender = normalizeGenderLocal(row.gender);
+      const rowIsTdc = isTdc(row.course_code, row.course_name);
+      const rowIsPdc = isPdc(row.course_code, row.course_name);
+
+      if (rowIsTdc && !rowIsPdc) {
+        report.tdcTotal += 1;
+
+        if (gender && report.tdc.sex[gender] !== undefined) {
+          report.tdc.sex[gender] += 1;
+        }
+
+        continue;
+      }
+
+      report.pdcTotal += 1;
+
+      if (gender && report.pdc.sex[gender] !== undefined) {
+        report.pdc.sex[gender] += 1;
+      }
+
+      const purpose = normalizePurposeLocal(row.training_purpose);
+
+      if (!purposeMap.has(purpose)) {
+        const newRow = { label: purpose, count: 0 };
+        report.trainingPurposeRows.push(newRow);
+        purposeMap.set(purpose, newRow);
+      }
+
+      purposeMap.get(purpose).count += 1;
+
+      const dlCodes = parseDlCodes(row);
+
+      for (const code of dlCodes) {
+        if (!dlMap.has(code)) {
+          const newRow = { label: code, count: 0 };
+          report.dlCodeRows.push(newRow);
+          dlMap.set(code, newRow);
+        }
+
+        dlMap.get(code).count += 1;
+      }
+    }
+
+    report.dlCodeTotal = report.dlCodeRows.reduce(
+      (sum, row) => sum + safeInt(row.count, 0),
+      0,
+    );
+
+    return res.json({
+      status: "success",
+      data: report,
+    });
+  } catch (err) {
+    console.error("getIssuedCertificatesSummary error:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to load issued certificates summary",
+      debug: err.sqlMessage || err.message,
+    });
+  }
+};
+
+// ========================================
+// FORECAST (DRIVING ONLY)
+// GET /api/admin/reports/forecast
+// ========================================
+exports.getForecast = async (req, res) => {
+  try {
+    const mode = String(req.query.report_mode || "driving").toLowerCase();
+
+    // ❌ TESDA walang forecast
+    if (mode === "tesda") {
+      return res.json({
+        status: "success",
+        data: { message: "Forecast not available for TESDA" }
+      });
+    }
+
+    // Kunin last 3 months data
+    const [rows] = await pool.execute(`
+      SELECT 
+        DATE_FORMAT(sr.created_at, '%Y-%m') AS month,
+        c.course_name,
+        COUNT(*) AS total
+      FROM schedule_reservations sr
+      LEFT JOIN courses c ON c.id = sr.course_id
+      WHERE sr.created_at >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+      GROUP BY month, sr.course_id
+      ORDER BY month ASC
+    `);
+
+    // Group by course
+    const courseMap = {};
+
+    rows.forEach(r => {
+      if (!courseMap[r.course_name]) {
+        courseMap[r.course_name] = [];
+      }
+      courseMap[r.course_name].push(Number(r.total));
+    });
+
+    const result = [];
+
+    Object.keys(courseMap).forEach(course => {
+      const data = courseMap[course];
+
+      const m1 = data[data.length - 1] || 0;
+      const m2 = data[data.length - 2] || 0;
+      const m3 = data[data.length - 3] || 0;
+
+      // Weighted Moving Average
+      let forecast = (m1 * 0.5) + (m2 * 0.3) + (m3 * 0.2);
+
+      // Trend Adjustment
+      let trend = "Stable";
+      let adjustment = 0;
+
+      if (m1 > m2) {
+        trend = "Increasing";
+        adjustment = 0.1 * forecast;
+      } else if (m1 < m2) {
+        trend = "Decreasing";
+        adjustment = -0.1 * forecast;
+      }
+
+      const finalForecast = Math.round(forecast + adjustment);
+
+      result.push({
+        course,
+        m1,
+        m2,
+        m3,
+        forecast: finalForecast,
+        trend,
+        explanation:
+          trend === "Increasing"
+            ? "Enrollment trend is increasing based on recent months."
+            : trend === "Decreasing"
+            ? "Enrollment trend is decreasing based on recent months."
+            : "Enrollment is stable."
+      });
+    });
+
+    return res.json({
+      status: "success",
+      data: result
+    });
+
+  } catch (err) {
+    console.error("getForecast error:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to load forecast",
+      debug: err.message
+    });
+  }
+};
+

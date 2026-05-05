@@ -122,6 +122,13 @@
                 Enrolled ({{ String(courseOngoingReservation(course.id)?.reservation_status || "PENDING").toUpperCase() }})
               </span>
               <span
+                v-else-if="courseCompletedReservation(course.id)"
+                class="text-xs font-semibold bg-purple-100 text-purple-800 px-2 py-1 rounded"
+              >
+                Completed • Retake Available
+              </span>
+
+              <span
                 v-else
                 class="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded"
               >
@@ -252,6 +259,15 @@
                       <div v-if="courseOngoingReservation(course.id)" class="text-[11px] text-yellow-700 mt-1">
                         ⚠️ You already enrolled in this training. Continue upload in “Requirements Upload”.
                       </div>
+                      <div v-else-if="anyOngoingReservation()" class="text-[11px] text-yellow-700 mt-1">
+                        ⚠️ You still have an ongoing enrollment in {{ anyOngoingReservation()?.course_name || 'another training' }}. Finish or cancel it first.
+                      </div>
+                      <div v-else-if="isPastSchedule(s)" class="text-[11px] text-red-700 mt-1">
+                        ⚠️ This batch is already closed because the schedule date has passed.
+                      </div>
+                      <div v-else-if="courseCompletedReservation(course.id)" class="text-[11px] text-purple-700 mt-1">
+                        ✅ You already completed this training. You can enroll again as retake.
+                      </div>
                       <div v-else class="text-[11px] text-gray-500 mt-1">
                         *Enroll will assign you to the batch and bring you to Upload Requirements.
                       </div>
@@ -266,12 +282,7 @@
                       @click="reserveSchedule(course, s)"
                       type="button"
                     >
-                      <template v-if="courseOngoingReservation(course.id)">
-                        Enrolled
-                      </template>
-                      <template v-else>
-                        {{ reserving ? "..." : "Enroll" }}
-                      </template>
+                      {{ enrollButtonText(course, s) }}
                     </button>
                   </div>
                 </div>
@@ -545,7 +556,7 @@
                     >
                       <option value="">— (Optional / Extra file)</option>
                       <option
-                        v-for="r in normalizedSelectedRequirements"
+                        v-for="r in availableRequirementsForFile(idx)"
                         :key="reqKey(r)"
                         :value="reqKey(r)"
                       >
@@ -718,6 +729,7 @@ export default {
       deletingUploadId: "",
 
       ONGOING_STATUSES: ["PENDING", "APPROVED", "CONFIRMED", "ACTIVE"],
+      COMPLETED_STATUSES: ["DONE", "COMPLETED", "FINISHED", "CERTIFICATE_ISSUED"],
     };
   },
 
@@ -852,6 +864,23 @@ export default {
       return this.ONGOING_STATUSES.includes(s);
     },
 
+    hasAnyOngoingReservation() {
+      return (this.myReservations || []).some(r =>
+        this.isOngoingStatus(r?.reservation_status)
+      );
+    },
+
+    anyOngoingReservation() {
+      return (this.myReservations || [])
+        .filter(r => this.isOngoingStatus(r?.reservation_status))
+        .sort((a, b) => Number(b?.reservation_id || 0) - Number(a?.reservation_id || 0))[0] || null;
+    },
+
+    isCompletedStatus(st) {
+      const s = String(st || "").toUpperCase();
+      return this.COMPLETED_STATUSES.includes(s);
+    },
+
     courseOngoingReservation(courseId) {
       const rows = (this.myReservations || [])
         .filter(r =>
@@ -861,6 +890,43 @@ export default {
         .sort((a, b) => Number(b?.reservation_id || 0) - Number(a?.reservation_id || 0));
       return rows[0] || null;
     },
+
+    courseCompletedReservation(courseId) {
+      const rows = (this.myReservations || [])
+        .filter(r =>
+          Number(r?.course_id) === Number(courseId) &&
+          this.isCompletedStatus(r?.reservation_status)
+        )
+        .sort((a, b) => Number(b?.reservation_id || 0) - Number(a?.reservation_id || 0));
+
+      return rows[0] || null;
+    },
+
+    isPastSchedule(s) {
+      if (!this.isScheduled(s)) return false;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const schedDate = new Date(`${s.date}T00:00:00`);
+      schedDate.setHours(0, 0, 0, 0);
+
+      return schedDate < today;
+    },
+
+    enrollButtonText(course, s) {
+  const ongoing = this.anyOngoingReservation();
+
+  if (ongoing) {
+    if (Number(ongoing.course_id) === Number(course?.id)) return "Enrolled";
+    return "Locked";
+  }
+
+  if (this.isScheduled(s) && this.isPastSchedule(s)) return "Closed";
+  if (this.courseCompletedReservation(course?.id)) return this.reserving ? "..." : "Retake";
+
+  return this.reserving ? "..." : "Enroll";
+},
 
     reservationPreview(r) {
       const d = String(r?.schedule_date || "").trim();
@@ -874,7 +940,7 @@ export default {
         ? `${batchNo} • TBA (Pooling) ${a}-${b}`
         : `${batchNo} • ${d} ${a}-${b}`;
 
-      return `${name} • ${batchText} • ${st}`;
+      return `${name} • ${batchText} • ${st}${r?.is_retake ? " • RETAKE" : ""}`;
     },
 
     async openUploadFromReservation(r) {
@@ -914,6 +980,20 @@ export default {
     labelByKey(k) {
       const hit = (this.normalizedSelectedRequirements || []).find(r => r.key === k);
       return hit?.label || k;
+    },
+
+    availableRequirementsForFile(idx) {
+      const currentKey = String(this.fileReqMap[idx] || "");
+
+      return (this.normalizedSelectedRequirements || []).filter((r) => {
+        const key = this.reqKey(r);
+
+        // keep current selected value visible while editing the same file
+        if (currentKey && key === currentKey) return true;
+
+        // hide requirements that are already uploaded
+        return !this.uploadsByKey[key];
+      });
     },
 
     buildUploadsByKey() {
@@ -1053,11 +1133,21 @@ export default {
     },
 
     canReserveSchedule(course, s) {
-      if (this.courseOngoingReservation(course?.id)) return false;
-      const st = String(this.displayStatus(s) || "").toLowerCase();
-      const avail = Number(s?.availableSlots || 0);
-      return st === "open" && avail > 0 && !this.reserving;
-    },
+  if (this.hasAnyOngoingReservation()) return false;
+
+  const st = String(this.displayStatus(s) || "").toLowerCase();
+  const avail = Number(s?.availableSlots || 0);
+
+  // ✅ TBA is allowed if open and has slots
+  if (!this.isScheduled(s)) {
+    return st === "open" && avail > 0 && !this.reserving;
+  }
+
+  // ❌ only dated schedules are checked for past date
+  if (this.isPastSchedule(s)) return false;
+
+  return st === "open" && avail > 0 && !this.reserving;
+},
 
     displayScheduleForStudent(r) {
       const st = String(r?.reservation_status || "").toUpperCase();
@@ -1158,9 +1248,11 @@ export default {
     },
 
     async reserveSchedule(course, sched) {
-      if (this.courseOngoingReservation(course?.id)) {
-        alert("May existing reservation ka na sa training na ito. Continue upload na lang.");
-        await this.openUploadFromReservation(this.courseOngoingReservation(course?.id));
+      const ongoing = this.anyOngoingReservation();
+
+      if (ongoing) {
+        alert(`May ongoing enrollment ka pa sa ${ongoing.course_name || "another training"}. Tapusin or i-cancel muna bago mag-enroll ulit.`);
+        await this.openUploadFromReservation(ongoing);
         return;
       }
 
@@ -1184,7 +1276,7 @@ export default {
         this.uploadMsg = "✅ Enrolled. Upload your requirements now.";
       } catch (err) {
         console.error(err);
-        alert(err.message || "Failed to enroll");
+        alert(err.response?.data?.message || err.message || "Failed to enroll");
       } finally {
         this.reserving = false;
       }

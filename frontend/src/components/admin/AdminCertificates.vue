@@ -16,8 +16,8 @@
           <h2 class="text-lg font-bold text-green-800">🎓 Certificate Management</h2>
 
           <img
-            v-if="logoUrl"
-            :src="logoUrl"
+            v-if="drivingLogo"
+            :src="drivingLogo"
             alt="Logo"
             class="h-10 w-auto object-contain"
             @error="onLogoError"
@@ -106,12 +106,6 @@
             Clear
           </button>
 
-          <button
-            @click="exportCsvActiveTab"
-            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-          >
-            Export CSV
-          </button>
         </div>
       </div>
 
@@ -270,7 +264,8 @@
                   </button>
 
                   <button
-                    @click="activeTab === 'driving' ? openDrivingPreview(row) : openTesdaPreview(row)"
+                    v-if="activeTab === 'driving'"
+                    @click="openDrivingPreview(row)"
                     class="text-gray-700 hover:text-gray-900 text-sm font-medium px-2 py-1 hover:bg-gray-100 rounded"
                   >
                     👁️ Preview / Edit
@@ -281,11 +276,11 @@
                     @click="viewActiveCertificate(row)"
                     class="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 hover:bg-blue-50 rounded"
                   >
-                    View
+                    👁️ View
                   </button>
 
                   <button
-                    v-if="getActiveCertId(row)"
+                    v-if="activeTab === 'driving' && getActiveCertId(row)"
                     @click="downloadActiveCertificate(row)"
                     class="text-purple-600 hover:text-purple-800 text-sm font-medium px-2 py-1 hover:bg-purple-50 rounded"
                   >
@@ -440,6 +435,7 @@
 
             <!-- PREVIEW -->
             <div class="p-4">
+              <!-- Preview/Edit design is always used here, even for issued certificates. -->
               <div
                 id="driving-preview"
                 class="relative w-full border border-gray-200 rounded-xl overflow-hidden bg-white"
@@ -452,7 +448,7 @@
                       <div
                         class="w-14 h-14 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center"
                       >
-                        <img v-if="logoUrl" :src="logoUrl" class="w-full h-full object-contain" />
+                        <img v-if="drivingLogo" :src="drivingLogo" class="w-full h-full object-contain" />
                         <div v-else class="text-[10px] text-gray-500">LOGO</div>
                       </div>
 
@@ -578,27 +574,31 @@
         </div>
       </div>
 
-      <!-- TESDA Modal (keep as is, omitted for brevity in this reply) -->
-       <!-- TESDA Modal -->
+      <!-- TESDA View Modal -->
       <div
         v-if="tesdaModalOpen"
         class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
         @click.self="closeModals"
       >
-        <div class="bg-white w-full max-w-6xl rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-white w-full max-w-7xl rounded-2xl shadow-xl overflow-hidden max-h-[92vh] flex flex-col">
           <div class="p-4 border-b border-gray-200 flex items-center justify-between">
             <div>
-              <h3 class="font-bold text-gray-900">TESDA Certificate Preview</h3>
+              <h3 class="font-bold text-gray-900">TESDA Certificate View</h3>
               <p class="text-sm text-gray-600">{{ modalRow?.student_name }} — {{ modalRow?.course_name }}</p>
             </div>
 
             <div class="flex items-center gap-2">
               <button
-                v-if="modalRow && getActiveStatus(modalRow) === 'ready'"
-                @click="generateTesda(modalRow)"
+                @click="downloadVisibleCertificate('png')"
+                class="px-3 py-2 text-sm rounded-md bg-purple-700 text-white hover:bg-purple-800"
+              >
+                ⬇ PNG
+              </button>
+              <button
+                @click="downloadVisibleCertificate('pdf')"
                 class="px-3 py-2 text-sm rounded-md bg-blue-700 text-white hover:bg-blue-800"
               >
-                ✅ Generate from Preview
+                ⬇ PDF
               </button>
               <button
                 @click="printPreview('tesda')"
@@ -615,109 +615,86 @@
             </div>
           </div>
 
-          <div class="overflow-y-auto">
-            <div class="p-4">
+          <div class="overflow-y-auto bg-gray-100 p-4">
+            <div class="mx-auto w-full overflow-auto">
+              <!-- View design is always used here. -->
               <div
                 id="tesda-preview"
-                class="relative w-full border border-gray-200 rounded-xl overflow-hidden bg-white"
-                style="aspect-ratio: 8.5 / 11"
+                class="relative bg-white overflow-hidden text-[#111827] shadow-sm"
+                style="width: 11in; height: 8.5in; font-family: Arial, Helvetica, sans-serif;"
               >
-                <!-- subtle watermark -->
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div class="text-[180px] font-black text-gray-100 opacity-70 tracking-widest">TESDA</div>
+                <!-- faint TESDA watermark -->
+                <img
+                  src="/tesda-logo.png"
+                  alt="TESDA Watermark"
+                  class="absolute pointer-events-none select-none"
+                  style="left: 1.15in; top: 1.55in; width: 5.2in; height: 5.2in; object-fit: contain; opacity: 0.055;"
+                />
+
+                <!-- Header -->
+                <div class="absolute" style="left: .32in; top: .20in; width: 1.05in; height: 1.05in;">
+                  <img src="/tesda-logo.png" alt="TESDA Logo" style="width: 100%; height: 100%; object-fit: contain;" />
                 </div>
 
-                <div class="absolute inset-0 p-8">
-                  <!-- Header -->
-                  <div class="flex items-start gap-4">
-                    <div class="w-16 h-16 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center">
-                      <img v-if="logoUrl" :src="logoUrl" class="w-full h-full object-contain" />
-                      <div v-else class="text-[10px] text-gray-500">LOGO</div>
-                    </div>
+                <div class="absolute leading-tight" style="left: 1.55in; top: .22in; width: 8.9in;">
+                  <div style="font-size: 22px; font-weight: 500; letter-spacing: .2px;">TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY</div>
+                  <div style="font-size: 13.5px; margin-top: 4px; font-weight: 500;">NATIONAL INSTITUTE FOR TECHNICAL EDUCATION AND SKILLS DEVELOPMENT (NITESD)</div>
+                  <div style="font-size: 13.5px; margin-top: 2px; font-weight: 500;">EAST SERVICE ROAD, SOUTH LUZON EXPRESSWAY (SLEX), FORT BONIFACIO, TAGUIG CITY</div>
+                  <div style="height: 9px; background: #003cff; width: 7.9in; margin-top: 8px;"></div>
+                </div>
 
-                    <div class="flex-1">
-                      <div class="text-center leading-tight">
-                        <div class="text-sm font-extrabold text-gray-900">
-                          TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY
-                        </div>
-                        <div class="text-[11px] text-gray-700 font-semibold">
-                          NATIONAL INSTITUTE FOR TECHNICAL EDUCATION AND SKILLS DEVELOPMENT (NITESD)
-                        </div>
-                        <div class="text-[10px] text-gray-600">
-                          EAST SERVICE ROAD, SOUTH LUZON EXPRESSWAY (SLEX), FORT BONIFACIO, TAGUIG CITY
-                        </div>
-                      </div>
+                <!-- Body like sample -->
+                <div class="absolute" style="left: 1.55in; top: 1.55in; width: 8.7in; text-align: left;">
+                  <div style="font-size: 41px; line-height: 1; font-weight: 900; letter-spacing: 2px;">CERTIFICATE OF COMPLETION</div>
 
-                      <div class="mt-3 h-2 bg-blue-700 rounded"></div>
-                    </div>
+                  <div style="margin-top: 31px; font-size: 17px; font-weight: 700; letter-spacing: .5px;">THIS IS TO CERTIFY THAT</div>
+
+                  <div style="margin-top: 23px; font-size: 38px; line-height: 1.05; font-weight: 400;">
+                    {{ modalRow?.student_name || '—' }}
                   </div>
 
-                  <!-- Code -->
-                  <div class="mt-4 flex justify-end">
-                    <div class="text-right">
-                      <div class="text-[10px] text-gray-500">Certificate Code</div>
-                      <div class="text-xs font-mono font-bold text-gray-900">
-                        {{ getActiveCertCode(modalRow) || 'TESDA-YYYY-XXXXXX' }}
-                      </div>
-                    </div>
+                  <div style="margin-top: 18px; font-size: 17px; font-weight: 700; letter-spacing: .5px;">HAS COMPLETED THE COURSE</div>
+
+                  <div style="margin-top: 18px; font-size: 34px; line-height: 1.12; font-weight: 400; max-width: 8.8in;">
+                    {{ modalRow?.course_name || '—' }}
                   </div>
 
-                  <!-- Title -->
-                  <div class="mt-10 text-center">
-                    <div class="text-3xl font-extrabold text-gray-900">CERTIFICATE OF COMPLETION</div>
+                  <div style="margin-top: 46px; font-size: 17px; font-weight: 500;">
+                    <b>ON</b> {{ modalRow?.done_at ? formatDate(modalRow.done_at) : '—' }}
                   </div>
+                </div>
 
-                  <div class="mt-6 text-center text-xs text-gray-600 font-semibold tracking-wide">
-                    THIS IS TO CERTIFY THAT
-                  </div>
+                <!-- Footer -->
+                <div class="absolute" style="left: .47in; bottom: .48in; font-size: 17px; line-height: 1.25; font-weight: 600;">
+                  <div>This is a computer generated certificate,</div>
+                  <div>it is valid even without a signature.</div>
+                  <br />
+                  <div>For verification purposes, contact:</div>
+                  <div>eTESDA Division</div>
+                  <div>tesdaonlineprogram@tesda.gov.ph (02) 8893 - 8297</div>
+                </div>
 
-                  <div class="mt-3 text-center">
-                    <div class="text-4xl font-black text-gray-900">
-                      {{ modalRow?.student_name || '—' }}
-                    </div>
+                <div class="absolute text-right" style="right: .47in; bottom: .46in; font-size: 13px; line-height: 1.1;">
+                  <div style="width: .95in; height: .95in; border-radius: 999px; background: #1aa0e8; color: white; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 900; font-size: 14px; line-height: 1.05; margin-left: auto; margin-bottom: 8px; transform: rotate(-7deg);">
+                    TESDA<br />Online<br />PROGRAM
                   </div>
-
-                  <div class="mt-6 text-center text-xs text-gray-600 font-semibold tracking-wide">
-                    HAS COMPLETED THE COURSE
-                  </div>
-
-                  <div class="mt-3 text-center">
-                    <div class="text-2xl font-bold text-gray-900">
-                      {{ modalRow?.course_name || '—' }}
-                    </div>
-                  </div>
-
-                  <div class="mt-6 text-center text-sm text-gray-800">
-                    ON {{ modalRow?.done_at ? formatDate(modalRow.done_at) : '—' }}
-                  </div>
-
-                  <!-- Footer -->
-                  <div class="absolute left-8 bottom-8 text-[11px] text-gray-700">
-                    <div>This is a computer generated certificate,</div>
-                    <div>it is valid even without a signature.</div>
-                  </div>
-
-                  <div class="absolute right-8 bottom-8 text-[11px] text-gray-700 text-right">
-                    <div class="font-semibold">For verification purposes, contact:</div>
-                    <div>eTESDA Division</div>
-                    <div>tesdaonlineprogram@tesda.gov.ph</div>
-                    <div>(02) 8893 - 8297</div>
-                  </div>
+                  <div>{{ getActiveCertCode(modalRow) || 'TESDA-CODE' }}</div>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
-      <!-- You can keep your existing TESDA modal code unchanged -->
+      
     </div>
   </AdminLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import axios from "axios";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import AdminLayout from "./AdminLayout.vue";
 import { API_URL, API_BASE } from "../../config/api";
 
@@ -732,8 +709,12 @@ export default {
 
     const normalizeTrack = (t) => String(t || "").trim().toLowerCase();
 
-    const logoUrl = ref(`${API_BASE}/assets/logo.png`);
-    const onLogoError = () => (logoUrl.value = "");
+    const drivingLogo = ref(`${API_BASE}/assets/lto-logo.png`);
+    const tesdaLogo = ref("/tesda-logo.png");
+    const onLogoError = () => {
+      drivingLogo.value = "";
+      tesdaLogo.value = "";
+    };
 
     const ENDPOINTS = {
       drivingGenerate: `${API_BASE}/api/admin/certificates/driving/generate`,
@@ -887,6 +868,19 @@ export default {
       return row.tesda_certificate_id || row.certificate_id || null;
     };
 
+    const getCertificateViewUrl = (row, type = activeTab.value) => {
+      if (!row) return "";
+      const certId =
+        type === "tesda"
+          ? row.tesda_certificate_id || row.certificate_id || null
+          : row.driving_certificate_id || row.certificate_id || null;
+
+      if (!certId) return "";
+      return type === "tesda" ? ENDPOINTS.tesdaView(certId) : ENDPOINTS.drivingView(certId);
+    };
+
+    const hasGeneratedCertificate = (row, type = activeTab.value) => !!getCertificateViewUrl(row, type);
+
     const activeRowsFiltered = computed(() => {
       let result = [...activeRowsBase.value];
 
@@ -1012,6 +1006,7 @@ export default {
           reservation_id: row.reservation_id,
         });
         await fetchRows();
+        closeModals();
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to generate TESDA certificate.";
       }
@@ -1052,15 +1047,84 @@ export default {
     };
 
     const viewActiveCertificate = (row) => {
+      if (activeTab.value === "tesda") {
+        openTesdaPreview(row);
+        return;
+      }
+
       const certId = getActiveCertId(row);
       if (!certId) return;
-      window.open(activeTab.value === "driving" ? ENDPOINTS.drivingView(certId) : ENDPOINTS.tesdaView(certId), "_blank");
+      window.open(ENDPOINTS.drivingView(certId), "_blank");
     };
 
     const downloadActiveCertificate = (row) => {
       const certId = getActiveCertId(row);
       if (!certId) return;
-      window.open(activeTab.value === "driving" ? ENDPOINTS.drivingDownload(certId) : ENDPOINTS.tesdaDownload(certId), "_blank");
+
+      if (activeTab.value === "tesda") {
+        openTesdaPreview(row);
+        return;
+      }
+
+      window.open(ENDPOINTS.drivingDownload(certId), "_blank");
+    };
+
+    const getVisibleCertificateElement = () => {
+      const elId = activeTab.value === "driving" ? "driving-preview" : "tesda-preview";
+      return document.getElementById(elId);
+    };
+
+    const getDownloadFileName = (format) => {
+      const code = getActiveCertCode(modalRow.value) || `${activeTab.value}-certificate`;
+      return `${String(code).replace(/[^a-z0-9_-]/gi, "_")}.${format}`;
+    };
+
+    const downloadVisibleCertificate = async (format = "png") => {
+      error.value = "";
+      await nextTick();
+
+      const target = getVisibleCertificateElement();
+      if (!target) {
+        error.value = "No certificate is currently visible.";
+        return;
+      }
+
+      try {
+        const canvas = await html2canvas(target, {
+          backgroundColor: "#ffffff",
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (format === "png") {
+          const a = document.createElement("a");
+          a.href = imgData;
+          a.download = getDownloadFileName("png");
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        const orientation = canvas.width >= canvas.height ? "landscape" : "portrait";
+        const pdf = new jsPDF({
+          orientation,
+          unit: "in",
+          format: orientation === "landscape" ? [11, 8.5] : [8.5, 11],
+        });
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH);
+        pdf.save(getDownloadFileName("pdf"));
+      } catch (e) {
+        console.error("downloadVisibleCertificate error:", e);
+        error.value = e?.message || "Failed to download visible certificate.";
+      }
     };
 
     const openDrivingPreview = (row) => {
@@ -1093,65 +1157,77 @@ export default {
       const target = document.getElementById(elId);
       if (!target) return;
 
-      const w = window.open("", "_blank", "width=1200,height=800");
+      const cloned = target.cloneNode(true);
+
+      // ✅ Important: gawing absolute URL ang logos/watermark para hindi mawala sa print window/PDF
+      cloned.querySelectorAll("img").forEach((img) => {
+        const src = img.getAttribute("src") || "";
+        if (src.startsWith("/")) img.setAttribute("src", `${window.location.origin}${src}`);
+      });
+
+      const w = window.open("", "_blank", "width=1300,height=850");
       if (!w) return;
 
       const styles = getHeadStylesHtml();
 
       w.document.open();
       w.document.write(`
+        <!DOCTYPE html>
         <html>
           <head>
             <title>Print Certificate</title>
             ${styles}
             <style>
-              * { box-sizing: border-box; }
-              body { margin: 0; padding: 24px; font-family: Arial, sans-serif; background: #fff; }
-              .wrap { width: 100%; }
-              @media print { body { padding: 0; } }
+              * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              html, body { width: 11in; height: 8.5in; margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+              @page { size: letter landscape; margin: 0; }
+              .wrap { width: 11in; height: 8.5in; margin: 0; padding: 0; overflow: hidden; background: #fff; }
+              #tesda-preview { width: 11in !important; height: 8.5in !important; margin: 0 !important; border: 0 !important; box-shadow: none !important; transform: none !important; }
+              #driving-preview { margin: 0 !important; box-shadow: none !important; }
+              img { max-width: none !important; }
+              @media print {
+                html, body { width: 11in; height: 8.5in; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+                .wrap { width: 11in !important; height: 8.5in !important; }
+              }
             </style>
           </head>
           <body>
-            <div class="wrap">${target.outerHTML}</div>
+            <div class="wrap">${cloned.outerHTML}</div>
           </body>
         </html>
       `);
       w.document.close();
 
-      w.onload = () => {
-        w.focus();
-        w.print();
-        w.onafterprint = () => w.close();
+      const waitForImagesThenPrint = () => {
+        const imgs = Array.from(w.document.images || []);
+        if (!imgs.length) {
+          w.focus();
+          w.print();
+          return;
+        }
+
+        let loaded = 0;
+        const done = () => {
+          loaded += 1;
+          if (loaded >= imgs.length) {
+            setTimeout(() => {
+              w.focus();
+              w.print();
+            }, 350);
+          }
+        };
+
+        imgs.forEach((img) => {
+          if (img.complete) done();
+          else {
+            img.onload = done;
+            img.onerror = done;
+          }
+        });
       };
-    };
 
-    const exportCsvActiveTab = () => {
-      const headers = ["Student", "Email", "Course", "Course Code", "Track", "Done At", "Certificate Code", "Status", "Tab"];
-      const lines = activeRowsFiltered.value.map((r) => {
-        const arr = [
-          r.student_name,
-          r.student_email,
-          r.course_name,
-          r.course_code || "",
-          r.track || "",
-          (r.done_at || "").slice(0, 10),
-          getActiveCertCode(r) || "",
-          getActiveStatus(r) || "",
-          activeTab.value,
-        ];
-        return arr.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
-      });
-
-      const csv = [headers.join(","), ...lines].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${activeTab.value}-certificates.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      w.onload = waitForImagesThenPrint;
+      w.onafterprint = () => w.close();
     };
 
     onMounted(fetchRows);
@@ -1159,7 +1235,8 @@ export default {
     return {
       API_BASE,
       ENDPOINTS,
-      logoUrl,
+      drivingLogo,
+      tesdaLogo,
       onLogoError,
 
       rows,
@@ -1192,6 +1269,8 @@ export default {
       getActiveStatus,
       getActiveCertCode,
       getActiveCertId,
+      getCertificateViewUrl,
+      hasGeneratedCertificate,
 
       isPDC,
       leftDlCodes,
@@ -1210,7 +1289,7 @@ export default {
       revokeTesda,
       viewActiveCertificate,
       downloadActiveCertificate,
-      exportCsvActiveTab,
+      downloadVisibleCertificate,
 
       drivingModalOpen,
       tesdaModalOpen,
