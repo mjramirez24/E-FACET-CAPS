@@ -2134,7 +2134,42 @@ export default {
       return c?.course_name || "-";
     }
 
-    // Forecast helpers: defense-ready Weighted Moving Average + Trend Adjustment
+    // Forecast helpers: chronological Weighted Moving Average + Trend Adjustment
+    // ✅ Important fix: month labels are sorted oldest → newest before forecasting.
+    // Before, labels like 2026-04, 2026-03, 2026-02 were treated as if February was the latest month,
+    // so the forecast went up even when the actual trend was going down.
+    function parseForecastPeriodKey(label) {
+      const raw = String(label || "").trim();
+      if (!raw || raw === "-") return Number.MAX_SAFE_INTEGER;
+
+      // Supports: 2026-04, 2026-4, 2026/04
+      const ym = raw.match(/^(\d{4})[-/](\d{1,2})$/);
+      if (ym) return Number(ym[1]) * 100 + Number(ym[2]);
+
+      // Supports date-like labels: 2026-04-15
+      const dateLike = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (dateLike) {
+        return Number(dateLike[1]) * 10000 + Number(dateLike[2]) * 100 + Number(dateLike[3]);
+      }
+
+      // Supports labels that Date can parse, fallback for Month names.
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.getFullYear() * 10000 + (parsed.getMonth() + 1) * 100 + parsed.getDate();
+      }
+
+      return Number.MAX_SAFE_INTEGER;
+    }
+
+    function sortForecastLabels(labels = []) {
+      return [...labels].sort((a, b) => {
+        const ak = parseForecastPeriodKey(a);
+        const bk = parseForecastPeriodKey(b);
+        if (ak !== bk) return ak - bk;
+        return String(a).localeCompare(String(b));
+      });
+    }
+
     function normalizeForecastRows() {
       const map = new Map();
       const rows = Array.isArray(courseMonthlyPreview.value) ? courseMonthlyPreview.value : [];
@@ -2166,12 +2201,15 @@ export default {
       normalizeForecastRows().forEach((periodMap) => {
         periodMap.forEach((_, period) => labels.add(period));
       });
-      return Array.from(labels).slice(-6);
+
+      // ✅ Oldest → newest. Example: 2026-02, 2026-03, 2026-04.
+      return sortForecastLabels(Array.from(labels)).slice(-6);
     });
 
     const forecastHistoryMatrix = computed(() => {
       const labels = forecastHistoryLabels.value;
       const map = normalizeForecastRows();
+
       return Array.from(map.entries()).map(([course, periodMap]) => {
         const values = {};
         labels.forEach((label) => {
@@ -2182,22 +2220,52 @@ export default {
     });
 
     function weightedForecast(values) {
-      const v = (values || []).map((x) => Number(x || 0)).filter((x) => Number.isFinite(x));
-      if (!v.length) return { point: 0, low: 0, high: 0, trend: "No Data", confidence: "Low" };
+      const v = (values || [])
+        .map((x) => Number(x || 0))
+        .filter((x) => Number.isFinite(x));
 
+      if (!v.length) {
+        return { point: 0, low: 0, high: 0, trend: "No Data", confidence: "Low" };
+      }
+
+      // Values must already be chronological: oldest → newest.
       const last3 = v.slice(-3);
       let weighted = 0;
-      if (last3.length === 1) weighted = last3[0];
-      else if (last3.length === 2) weighted = last3[1] * 0.6 + last3[0] * 0.4;
-      else weighted = last3[2] * 0.5 + last3[1] * 0.3 + last3[0] * 0.2;
+
+      if (last3.length === 1) {
+        weighted = last3[0];
+      } else if (last3.length === 2) {
+        // latest gets stronger weight
+        weighted = last3[1] * 0.65 + last3[0] * 0.35;
+      } else {
+        // latest month gets strongest weight, oldest gets weakest
+        weighted = last3[2] * 0.55 + last3[1] * 0.30 + last3[0] * 0.15;
+      }
 
       const first = last3[0] || 0;
       const latest = last3[last3.length - 1] || 0;
-      const trendAdjustment = last3.length >= 2 ? (latest - first) / Math.max(1, last3.length - 1) : 0;
+      const middle = last3.length >= 3 ? last3[1] : null;
+
+      const slope = last3.length >= 2 ? (latest - first) / Math.max(1, last3.length - 1) : 0;
+
+      // ✅ Stronger downward correction when the latest month is lower than the older month.
+      // This prevents an old spike like February from inflating next month's forecast.
+      const trendAdjustment = slope < 0 ? slope * 1.15 : slope * 0.75;
       const point = Math.max(0, Math.round(weighted + trendAdjustment));
 
-      const spread = Math.max(1, Math.round(Math.abs(trendAdjustment) + Math.sqrt(Math.max(1, latest))));
-      const trend = latest > first ? "Increasing" : latest < first ? "Decreasing" : "Stable";
+      const spread = Math.max(
+        1,
+        Math.round(Math.abs(slope) + Math.sqrt(Math.max(1, latest)))
+      );
+
+      let trend = "Stable";
+      if (latest < first) trend = "Decreasing";
+      else if (latest > first) trend = "Increasing";
+
+      // If three periods consistently go down, force decreasing.
+      if (middle !== null && first > middle && middle > latest) trend = "Decreasing";
+      if (middle !== null && first < middle && middle < latest) trend = "Increasing";
+
       const confidence = v.length >= 6 ? "High" : v.length >= 3 ? "Medium" : "Low";
 
       return {
@@ -2222,11 +2290,12 @@ export default {
         const high = result.high * multiplier;
         const history = values.slice(-3);
         const historyLabel = history.length ? history.join(" → ") : "0";
+
         const explanation =
           result.trend === "Increasing"
-            ? `${row.course} is forecasted higher because recent enrollment is increasing based on the latest periods.`
+            ? `${row.course} is forecasted higher because the latest enrollment periods are increasing.`
             : result.trend === "Decreasing"
-              ? `${row.course} is forecasted lower because recent enrollment is decreasing based on the latest periods.`
+              ? `${row.course} is forecasted lower because the latest enrollment periods are decreasing.`
               : `${row.course} is expected to remain stable because recent enrollment has minimal movement.`;
 
         return {
