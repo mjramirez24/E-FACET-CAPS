@@ -1,4 +1,5 @@
 const transporter = require('../config/email.config');
+const pool = require('../config/database'); // ← ADD THIS
 
 /**
  * Send reservation confirmation email to student
@@ -619,6 +620,7 @@ const sendReminderEmail = async (emailData) => {
 
   try {
     const transporter = require('../config/email.config');
+    const pool = require('../config/database');
     const info = await transporter.sendMail(mailOptions);
     console.log('✅ Reminder email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
@@ -628,9 +630,107 @@ const sendReminderEmail = async (emailData) => {
   }
 };
 
-// ADD THIS TO THE MODULE.EXPORTS AT THE BOTTOM:
+const sendNewCourseAnnouncement = async (courseData, track = 'driving') => {
+  const { course_name, course_code, duration, description } = courseData;
+
+  const isTesda = track === 'tesda';
+  const primaryColor = isTesda ? '#1d4ed8' : '#15803d';
+  const primaryDark  = isTesda ? '#1e40af' : '#166534';
+  const trackLabel   = isTesda ? 'TESDA Training' : 'Driving Course';
+  const emoji        = isTesda ? '🛠️' : '🚦';
+
+  const [students] = await pool.query(
+    `SELECT u.email, u.fullname 
+     FROM users u
+     JOIN tracks t ON t.track_id = u.track_id
+     WHERE u.role = 'user' 
+       AND t.track_code = ?`,
+    [track]
+  );
+
+  if (!students.length) return { sent: 0 };
+
+  let sent = 0;
+  for (const student of students) {
+    try {
+      await transporter.sendMail({
+        from: `"E-FACET" <${process.env.EMAIL_USER}>`,
+        to: student.email,
+        subject: `📢 New Course Available - ${course_name}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, ${primaryColor}, ${primaryDark}); color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; }
+              .info-box { background: white; border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0; border-radius: 5px; }
+              .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+              .info-row:last-child { border-bottom: none; }
+              .label { font-weight: 600; color: #374151; }
+              .value { color: ${primaryColor}; font-weight: 500; }
+              .footer { background: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; border-radius: 0 0 10px 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1 style="margin:0; font-size:28px;">${emoji} New Course Available!</h1>
+              <p style="margin:5px 0 0 0; font-size:20px;">📢</p>
+              <p style="margin:10px 0 0 0; opacity:0.95;">A new ${trackLabel} course has been added</p>
+            </div>
+            <div class="content">
+              <p>Dear <strong>${student.fullname}</strong>,</p>
+              <p>We're excited to announce a new course is now available for enrollment!</p>
+              <div class="info-box">
+                <h3 style="margin-top:0; color:${primaryColor};">📚 Course Details</h3>
+                <div class="info-row">
+                  <span class="label">Course Name:</span>
+                  <span class="value">${course_name}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Course Code:</span>
+                  <span class="value">${course_code}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Duration:</span>
+                  <span class="value">${duration}</span>
+                </div>
+                ${description ? `
+                <div class="info-row">
+                  <span class="label">Description:</span>
+                  <span class="value">${description}</span>
+                </div>` : ''}
+              </div>
+              <div style="margin:30px 0; padding:20px; background:#ecfdf5; border-radius:8px; text-align:center;">
+                <p style="margin:0; font-size:16px; color:${primaryDark}; font-weight:600;">
+                  Log in to your account to enroll now!
+                </p>
+              </div>
+              <p style="color:#6b7280; font-size:14px;">If you have any questions, feel free to contact us.</p>
+            </div>
+            <div class="footer">
+              <p style="margin:0 0 10px 0;">This is an automated message. Please do not reply.</p>
+              <p style="margin:0;">&copy; ${new Date().getFullYear()} E-FACET Enrollment System. All rights reserved.</p>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+      sent++;
+    } catch (err) {
+      console.error(`❌ Failed to send to ${student.email}:`, err.message);
+    }
+  }
+
+  console.log(`✅ New course announcement sent to ${sent}/${students.length} students`);
+  return { sent, total: students.length };
+};
+
 module.exports = {
   sendReservationConfirmation,
   sendAdminNotification,
-  sendReminderEmail,  // ← ADD THIS LINE
+  sendReminderEmail,
+  sendNewCourseAnnouncement, // ← NEW
 };

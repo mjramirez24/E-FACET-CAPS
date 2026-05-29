@@ -1,4 +1,6 @@
+// REPLACE WITH
 const pool = require("../config/database");
+const { sendNewCourseAnnouncement } = require("../services/emailService");
 
 // helpers
 function parseRequirements(reqValue) {
@@ -73,6 +75,12 @@ async function createTesdaCourse(req, res) {
         reqJson,
         status ? String(status).trim() : "active",
       ]
+    );
+
+// REPLACE WITH
+    console.log('🔥 About to send TESDA announcement');
+    sendNewCourseAnnouncement(req.body, 'tesda').catch(err =>
+      console.error('❌ TESDA announcement error:', err)
     );
 
     return res.status(201).json({

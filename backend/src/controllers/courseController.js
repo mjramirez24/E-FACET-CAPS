@@ -1,5 +1,6 @@
 // src/controllers/courseController.js
 const pool = require("../config/database");
+const { sendNewCourseAnnouncement } = require("../services/emailService");
 
 /**
  * Normalize requirements input into an array of strings
@@ -151,7 +152,12 @@ exports.createCourse = async (req, res) => {
       );
     }
 
-    await conn.commit();
+await conn.commit();
+
+    console.log('🔥 About to send Driving announcement');
+    sendNewCourseAnnouncement(req.body, 'driving').catch(err =>
+      console.error('❌ Driving announcement error:', err)
+    );
 
     res.status(201).json({
       status: "success",
