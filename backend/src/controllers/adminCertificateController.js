@@ -239,6 +239,10 @@ async function generateDrivingPdf({
   const logoAbs = path.join(APP_ROOT, "assets", "logo.png");
   const sealAbs = path.join(APP_ROOT, "assets", "seal.png");
 
+  const micahSignAbs = path.join(APP_ROOT, "src", "assets", "micah.png");
+
+  const jezreelSignAbs = path.join(APP_ROOT, "src", "assets", "jezreel.png");
+
   // outer border
   drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
 
@@ -542,32 +546,123 @@ async function generateDrivingPdf({
     y = y + dlBoxH + 10;
   }
 
-  // footer statement + QR placeholder
-  const footerTop = pageH - 170;
-  doc.save().fillColor("#111827").font("Helvetica").fontSize(9);
+  /* =====================================================
+   CERTIFICATE NOTICE
+===================================================== */
+
+  const footerTop = pageH - 175;
+
+  doc.save();
+  doc.fillColor("#111827");
+  doc.font("Helvetica");
+  doc.fontSize(9);
+
   doc.text(
     `This Certificate with Control Number ${certificate_code} has been issued in compliance with the applicable LTO training requirements.`,
     boxX,
     footerTop,
-    { width: boxW - 110, align: "left" },
+    {
+      width: boxW,
+      align: "justify",
+    },
   );
+
+  doc.moveDown(0.5);
+
+  doc.fontSize(8);
+
+  doc.text(
+    "IMPORTANT NOTICE: This document serves only as proof that the student has successfully completed the required Theoretical Driving Course (TDC) or Practical Driving Course (PDC). The certificate holder may still be required to claim or present the official certificate and comply with all applicable Land Transportation Office (LTO) requirements before proceeding with driver's license application, renewal, or other related transactions.",
+    {
+      width: boxW,
+      align: "justify",
+    },
+  );
+
   doc.restore();
 
-  const sigY = pageH - 85;
-  doc.save().strokeColor("#9ca3af").lineWidth(1);
-  doc.moveTo(70, sigY).lineTo(245, sigY).stroke();
-  doc.moveTo(295, sigY).lineTo(470, sigY).stroke();
+  /* =====================================================
+   SIGNATURES
+===================================================== */
+
+  const sigY = pageH - 60;
+
+  const leftLineX1 = 70;
+  const leftLineX2 = 245;
+
+  const rightLineX1 = 295;
+  const rightLineX2 = 470;
+
+  /* -------------------------
+   Micah E-Sign
+------------------------- */
+
+  if (fileExists(micahSignAbs)) {
+    doc.image(micahSignAbs, 85, sigY - 50, {
+      width: 160,
+      height: 60,
+    });
+  }
+
+  /* -------------------------
+   Jezreel E-Sign
+------------------------- */
+
+  if (fileExists(jezreelSignAbs)) {
+    doc.image(jezreelSignAbs, 320, sigY - 50, {
+      width: 160,
+      height: 60,
+    });
+  }
+
+  /* -------------------------
+   Signature Lines
+------------------------- */
+
+  doc.save();
+  doc.strokeColor("#9ca3af");
+  doc.lineWidth(1);
+
+  doc.moveTo(leftLineX1, sigY).lineTo(leftLineX2, sigY).stroke();
+
+  doc.moveTo(rightLineX1, sigY).lineTo(rightLineX2, sigY).stroke();
+
   doc.restore();
 
-  doc.save().fillColor("#374151").font("Helvetica").fontSize(8);
-  doc.text("Authorized Representative", 70, sigY + 6, {
+  /* -------------------------
+   Names
+------------------------- */
+
+  doc.save();
+
+  doc.font("Helvetica-Bold");
+  doc.fontSize(9);
+  doc.fillColor("#111827");
+
+  doc.text("MICAH M. MARQUINEZ", 70, sigY - 10, {
     width: 175,
     align: "center",
   });
-  doc.text("Training Institute", 295, sigY + 6, {
+
+  doc.text("JEZREEL S. MARQUINEZ", 295, sigY - 10, {
     width: 175,
     align: "center",
   });
+
+  doc.font("Helvetica");
+  doc.fontSize(8);
+  doc.fillColor("#374151");
+
+  doc.text("Authorized Representative", 70, sigY + 5, {
+    width: 175,
+    align: "center",
+  });
+
+  doc.text("Training Institute", 295, sigY + 5, {
+    width: 175,
+    align: "center",
+  });
+
   doc.restore();
 
   doc.end();
