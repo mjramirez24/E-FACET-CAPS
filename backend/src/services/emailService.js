@@ -677,7 +677,6 @@ const sendNewCourseAnnouncement = async (courseData, track = 'driving') => {
           <body>
             <div class="header">
               <h1 style="margin:0; font-size:28px;">${emoji} New Course Available!</h1>
-              <p style="margin:5px 0 0 0; font-size:20px;">📢</p>
               <p style="margin:10px 0 0 0; opacity:0.95;">A new ${trackLabel} course has been added</p>
             </div>
             <div class="content">
@@ -728,9 +727,68 @@ const sendNewCourseAnnouncement = async (courseData, track = 'driving') => {
   return { sent, total: students.length };
 };
 
+const sendPasswordResetCode = async (email, fullname, code) => {
+  const mailOptions = {
+    from: `"E-FACET" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `🔐 Password Reset Code - E-FACET`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #15803d 0%, #166534 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; }
+          .code-box { background: white; border: 2px dashed #15803d; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center; }
+          .code { font-size: 42px; font-weight: bold; color: #15803d; letter-spacing: 10px; font-family: monospace; }
+          .warning { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 15px 0; border-radius: 5px; }
+          .footer { background: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; border-radius: 0 0 10px 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 style="margin:0; font-size:28px;">🔐 Password Reset</h1>
+          <p style="margin:10px 0 0 0; opacity:0.95;">You requested a password reset</p>
+        </div>
+        <div class="content">
+          <p>Dear <strong>${fullname}</strong>,</p>
+          <p>Use the verification code below to reset your password. This code expires in <strong>10 minutes</strong>.</p>
+          <div class="code-box">
+            <p style="margin:0 0 8px 0; font-size:14px; color:#6b7280;">Your verification code:</p>
+            <div class="code">${code}</div>
+          </div>
+          <div class="warning">
+            <h4 style="margin-top:0; color:#dc2626;">⚠️ Security Reminder</h4>
+            <p style="margin:5px 0;">Never share this code with anyone. E-FACET staff will never ask for this code.</p>
+            <p style="margin:5px 0;">If you did not request a password reset, please ignore this email.</p>
+          </div>
+          <p style="color:#6b7280; font-size:14px;">This code will expire in 10 minutes.</p>
+        </div>
+        <div class="footer">
+          <p style="margin:0 0 10px 0;">This is an automated message. Please do not reply to this email.</p>
+          <p style="margin:0;">&copy; ${new Date().getFullYear()} E-FACET Enrollment System. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset code sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending reset code:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendReservationConfirmation,
   sendAdminNotification,
   sendReminderEmail,
-  sendNewCourseAnnouncement, // ← NEW
+  sendNewCourseAnnouncement,
+  sendPasswordResetCode,
 };

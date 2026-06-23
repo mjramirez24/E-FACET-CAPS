@@ -48,6 +48,7 @@ exports.getDrivingCourseInstructors = async (req, res) => {
 
 
 exports.upsertDrivingCourseInstructor = async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { course_id, instructor_id } = req.body;
 
@@ -55,8 +56,8 @@ exports.upsertDrivingCourseInstructor = async (req, res) => {
       return res.status(400).json({ status: "error", message: "course_id and instructor_id are required" });
     }
 
-    // ✅ GUARD: block inactive instructors
-    const [ins] = await pool.execute(
+    // Guard: block inactive instructors
+    const [ins] = await conn.execute(
       `SELECT status FROM instructors WHERE instructor_id = ? LIMIT 1`,
       [instructor_id]
     );
@@ -64,16 +65,34 @@ exports.upsertDrivingCourseInstructor = async (req, res) => {
       return res.status(400).json({ status: "error", message: "Cannot assign: instructor is not active" });
     }
 
-    await pool.execute(
+    await conn.beginTransaction();
+
+    // 1) Save assignment to driving_course_instructors
+    await conn.execute(
       `INSERT INTO driving_course_instructors (course_id, instructor_id)
        VALUES (?, ?)
        ON DUPLICATE KEY UPDATE instructor_id = VALUES(instructor_id)`,
       [course_id, instructor_id]
     );
 
+    // 2) ✅ AUTO-UPDATE: push new instructor_id to all future open schedules for this course
+    await conn.execute(
+      `UPDATE schedules
+       SET instructor_id = ?, updated_at = NOW()
+       WHERE course_id = ?
+         AND schedule_date >= CURDATE()
+         AND LOWER(status) = 'open'`,
+      [instructor_id, course_id]
+    );
+
+    await conn.commit();
+
     return res.json({ status: "success", message: "Assigned successfully" });
   } catch (err) {
+    try { await conn.rollback(); } catch (_) {}
     console.error("upsertDrivingCourseInstructor error:", err);
     return res.status(500).json({ status: "error", message: "Failed to save assignment" });
+  } finally {
+    conn.release();
   }
 };

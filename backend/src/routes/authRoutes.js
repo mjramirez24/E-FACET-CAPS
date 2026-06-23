@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
+const passwordReset = require("../controllers/authPasswordReset");
 
 router.get("/test", authController.test);
 router.get("/check", authController.checkAuth);
@@ -12,6 +13,10 @@ router.get("/logout", authController.logout);
 router.get("/check-username", authController.checkUsername);
 router.post("/send-otp", authController.sendOtp);
 router.post("/verify-otp", authController.verifyOtp);
+
+router.post("/forgot-password", passwordReset.requestReset);
+router.post("/verify-reset-code", passwordReset.verifyCode);
+router.post("/reset-password", passwordReset.resetPassword);
 
 router.get("/me", (req, res) => {
   if (!req.session?.user_id) {

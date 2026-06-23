@@ -13,7 +13,7 @@
       </div>
 
       <!-- Track title -->
-      <div class="text-center mb-6">
+      <div v-if="!forgotStep" class="text-center mb-6">
         <div 
           class="inline-flex items-center px-3 py-1 rounded-full mb-1"
           :class="track === 'tesda' ? 'bg-blue-500/20' : 'bg-green-500/20'"
@@ -48,7 +48,7 @@
       </div>
 
       <!-- Login Form -->
-      <form @submit.prevent="handleLogin" class="space-y-4" id="loginForm" name="loginForm">
+      <form v-if="!forgotStep" @submit.prevent="handleLogin" class="space-y-4" id="loginForm" name="loginForm">
         <!-- Username Field -->
         <div>
           <label class="block text-xs text-gray-300 font-medium mb-1" for="username">
@@ -98,6 +98,13 @@
             {{ errors.password }}
           </p>
         </div>
+        <!-- Forgot password link -->
+        <div class="text-right -mt-1">
+          <button type="button" @click="startForgotPassword"
+            class="text-xs text-gray-400 hover:text-white transition underline">
+            Forgot password?
+          </button>
+        </div>
 
         <!-- Login Button -->
         <button
@@ -123,8 +130,136 @@
         </button>
       </form>
 
+<!-- STEP 1: Enter Email -->
+      <form v-if="forgotStep === 1" @submit.prevent="handleRequestReset" class="space-y-4">
+        <div class="text-center mb-2">
+          <div class="inline-flex items-center px-3 py-1 rounded-full mb-1"
+            :class="track === 'tesda' ? 'bg-blue-500/20' : 'bg-green-500/20'">
+            <div class="w-2 h-2 rounded-full mr-2"
+              :class="track === 'tesda' ? 'bg-blue-400' : 'bg-green-400'"></div>
+            <h2 class="text-sm font-semibold"
+              :class="track === 'tesda' ? 'text-blue-200' : 'text-green-200'">Forgot Password</h2>
+          </div>
+          <p class="text-xs text-gray-300 mt-1">Enter your username or email address</p>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-300 font-medium mb-1">Username / Email</label>
+          <input type="text" v-model="resetData.identifier" required :disabled="isLoading"
+            class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition disabled:opacity-50"
+            :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
+            placeholder="Enter your username or email" />
+        </div>
+        <button type="submit" :disabled="isLoading"
+          class="w-full text-white py-3 rounded-lg font-medium transition disabled:opacity-50"
+          :class="track === 'tesda' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'">
+          <span v-if="isLoading" class="flex items-center justify-center">
+            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+          <span v-else>Send Verification Code</span>
+        </button>
+        <button type="button" @click="cancelForgot"
+          class="w-full text-gray-400 text-sm hover:text-white transition text-center">
+          ← Back to Login
+        </button>
+      </form>
+
+      <!-- STEP 2: Enter Code -->
+      <form v-if="forgotStep === 2" @submit.prevent="handleVerifyCode" class="space-y-4">
+        <div class="text-center mb-2">
+          <div class="inline-flex items-center px-3 py-1 rounded-full mb-1"
+            :class="track === 'tesda' ? 'bg-blue-500/20' : 'bg-green-500/20'">
+            <div class="w-2 h-2 rounded-full mr-2"
+              :class="track === 'tesda' ? 'bg-blue-400' : 'bg-green-400'"></div>
+            <h2 class="text-sm font-semibold"
+              :class="track === 'tesda' ? 'text-blue-200' : 'text-green-200'">Enter Verification Code</h2>
+          </div>
+          <p class="text-xs text-gray-300 mt-1">
+            Code sent to the email of <span class="text-white font-medium">{{ resetData.identifier }}</span>
+          </p>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-300 font-medium mb-1">6-Digit Code</label>
+          <input type="text" v-model="resetData.code" required :disabled="isLoading"
+            maxlength="6" inputmode="numeric"
+            class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition disabled:opacity-50 text-center tracking-widest text-lg font-mono"
+            :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
+            placeholder="000000" />
+        </div>
+        <div class="text-center">
+          <button type="button" @click="handleRequestReset"
+            :disabled="isLoading || resendCooldown > 0"
+            class="text-xs transition disabled:opacity-50"
+            :class="track === 'tesda' ? 'text-blue-300 hover:text-white' : 'text-green-300 hover:text-white'">
+            {{ resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code' }}
+          </button>
+        </div>
+        <button type="submit" :disabled="isLoading"
+          class="w-full text-white py-3 rounded-lg font-medium transition disabled:opacity-50"
+          :class="track === 'tesda' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'">
+          <span v-if="isLoading" class="flex items-center justify-center">
+            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+          <span v-else>Verify Code</span>
+        </button>
+        <button type="button" @click="cancelForgot"
+          class="w-full text-gray-400 text-sm hover:text-white transition text-center">
+          ← Back to Login
+        </button>
+      </form>
+
+      <!-- STEP 3: New Password -->
+      <form v-if="forgotStep === 3" @submit.prevent="handleResetPassword" class="space-y-4">
+        <div class="text-center mb-2">
+          <div class="inline-flex items-center px-3 py-1 rounded-full mb-1"
+            :class="track === 'tesda' ? 'bg-blue-500/20' : 'bg-green-500/20'">
+            <div class="w-2 h-2 rounded-full mr-2"
+              :class="track === 'tesda' ? 'bg-blue-400' : 'bg-green-400'"></div>
+            <h2 class="text-sm font-semibold"
+              :class="track === 'tesda' ? 'text-blue-200' : 'text-green-200'">Set New Password</h2>
+          </div>
+          <p class="text-xs text-gray-300 mt-1">Choose a strong new password</p>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-300 font-medium mb-1">New Password</label>
+          <input type="password" v-model="resetData.newPassword" required :disabled="isLoading"
+            class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition disabled:opacity-50"
+            :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
+            placeholder="At least 8 characters" />
+          <p v-if="resetData.newPassword.length > 0" class="text-xs mt-1" :class="resetData.newPassword.length < 8 ? 'text-red-400' : 'text-green-400'">
+            {{ resetData.newPassword.length < 8 ? `✗ ${resetData.newPassword.length}/8 characters minimum` : '✓ Password length is good' }}
+          </p>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-300 font-medium mb-1">Confirm New Password</label>
+          <input type="password" v-model="resetData.confirmPassword" required :disabled="isLoading"
+            class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition disabled:opacity-50"
+            :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
+            placeholder="Re-enter new password" />
+          <p v-if="resetData.confirmPassword && resetData.newPassword !== resetData.confirmPassword"
+            class="text-red-400 text-xs mt-1">Passwords do not match</p>
+        </div>
+        <button type="submit"
+          :disabled="isLoading || resetData.newPassword !== resetData.confirmPassword || resetData.newPassword.length < 8"
+          class="w-full text-white py-3 rounded-lg font-medium transition disabled:opacity-50"
+          :class="track === 'tesda' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'">
+          <span v-if="isLoading" class="flex items-center justify-center">
+            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+          <span v-else>Reset Password</span>
+        </button>
+      </form>
+
       <!-- Footer Links -->
-      <div class="mt-6 pt-5 border-t border-white/10">
+      <div v-if="!forgotStep" class="mt-6 pt-5 border-t border-white/10">
         <p class="text-center text-xs text-gray-400 mb-3">
           Don't have an account?
           <a href="#" @click.prevent="goToSignup" 
@@ -167,6 +302,10 @@ export default {
         type: "",
       },
       isLoading: false,
+      forgotStep: null,
+      resetData: { identifier: "", code: "", newPassword: "", confirmPassword: "" },
+      resendCooldown: 0,
+      resendTimer: null,
     };
   },
 
@@ -309,6 +448,102 @@ export default {
           text: "Network error. Please check your connection and try again.",
           type: "error",
         };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    startForgotPassword() {
+          this.message = { text: "", type: "" };
+          this.resetData = { identifier: "", code: "", newPassword: "", confirmPassword: "" };
+          this.forgotStep = 1;
+        },
+
+      cancelForgot() {
+            this.forgotStep = null;
+            this.message = { text: "", type: "" };
+            this.resetData = { identifier: "", code: "", newPassword: "", confirmPassword: "" };
+            if (this.resendTimer) clearInterval(this.resendTimer);
+            this.resendCooldown = 0;
+          },
+
+    startResendCooldown() {
+      this.resendCooldown = 60;
+      if (this.resendTimer) clearInterval(this.resendTimer);
+      this.resendTimer = setInterval(() => {
+        this.resendCooldown--;
+        if (this.resendCooldown <= 0) clearInterval(this.resendTimer);
+      }, 1000);
+    },
+
+    async handleRequestReset() {
+      this.message = { text: "", type: "" };
+      this.isLoading = true;
+      try {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: this.resetData.identifier }),
+        });
+        const data = await res.json();
+        if (data.status !== "success") {
+          this.message = { text: data.message || "Failed to send code.", type: "error" };
+          return;
+        }
+        this.message = { text: "Verification code sent! Check your email.", type: "success" };
+        this.forgotStep = 2;
+        this.startResendCooldown();
+      } catch (err) {
+        this.message = { text: "Network error. Please try again.", type: "error" };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async handleVerifyCode() {
+      this.message = { text: "", type: "" };
+      this.isLoading = true;
+      try {
+        const res = await fetch("/api/auth/verify-reset-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: this.resetData.identifier, code: this.resetData.code }),
+        });
+        const data = await res.json();
+        if (data.status !== "success") {
+          this.message = { text: data.message || "Invalid code.", type: "error" };
+          return;
+        }
+        this.message = { text: "", type: "" };
+        this.forgotStep = 3;
+      } catch (err) {
+        this.message = { text: "Network error. Please try again.", type: "error" };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async handleResetPassword() {
+      this.message = { text: "", type: "" };
+      this.isLoading = true;
+      try {
+        const res = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+                      identifier: this.resetData.identifier,
+                      code: this.resetData.code,
+                      newPassword: this.resetData.newPassword,
+                    }),
+        });
+        const data = await res.json();
+        if (data.status !== "success") {
+          this.message = { text: data.message || "Reset failed.", type: "error" };
+          return;
+        }
+        this.message = { text: "Password reset! You can now log in.", type: "success" };
+        this.cancelForgot();
+      } catch (err) {
+        this.message = { text: "Network error. Please try again.", type: "error" };
       } finally {
         this.isLoading = false;
       }
