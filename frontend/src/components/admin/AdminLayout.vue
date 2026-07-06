@@ -1,62 +1,77 @@
 <template>
-  <div class="bg-gray-100 flex min-h-screen">
+  <div class="bg-gray-50 flex min-h-screen">
     <!-- Sidebar -->
     <AdminSidebar :active-page="activePage" />
 
     <!-- Main Content -->
     <main :class="[
-      'flex-1 p-4 sm:p-6 overflow-y-auto min-h-screen bg-gray-100 transition-all duration-300',
+      'flex-1 p-4 sm:p-6 overflow-y-auto min-h-screen bg-gray-50 transition-all duration-300',
       'lg:ml-64'
     ]">
       <!-- Page Header -->
-      <header class="flex justify-between items-center bg-green-800 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-t-xl mb-4">
+      <header class="flex justify-between items-center bg-gradient-to-r from-emerald-700 to-emerald-600 text-white px-5 sm:px-6 py-3 rounded-2xl mb-4 shadow-lg shadow-emerald-500/20">
         <div class="flex items-center w-full gap-2 sm:gap-4">
           <slot name="header-left"></slot>
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
-
-          <!-- ─── Notification Bell ─── -->
+          <!-- Notification Bell -->
           <div class="relative" ref="bellWrapper">
             <button
               @click="toggleDropdown"
-              class="relative p-1.5 sm:p-2 hover:bg-green-700 rounded-full transition-colors"
+              class="relative p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
               title="Notifications"
             >
               <!-- Bell icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
 
-              <!-- Red dot — only visible when there's something to act on -->
+              <!-- Red dot indicator -->
               <span
                 v-if="hasPendingReservations || hasUnreadMessages"
-                class="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-green-800 animate-pulse"
+                class="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-emerald-700 animate-pulse"
               ></span>
             </button>
 
-            <!-- ─── Dropdown Panel ─── -->
+            <!-- Dropdown Panel -->
             <transition name="notif-drop">
               <div
                 v-if="dropdownOpen"
-                class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
+                class="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
               >
                 <!-- Header -->
-                <div class="px-4 py-3 bg-green-800 text-white flex items-center justify-between">
-                  <span class="font-semibold text-sm tracking-wide">Notifications</span>
-                  <button @click="dropdownOpen = false" class="text-green-200 hover:text-white text-lg leading-none">✕</button>
+                <div class="px-5 py-3.5 bg-gradient-to-r from-emerald-700 to-emerald-600 text-white flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="font-semibold text-sm">Notifications</span>
+                  </div>
+                  <button @click="dropdownOpen = false" class="text-emerald-200 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
 
                 <!-- Loading state -->
-                <div v-if="notifLoading" class="px-4 py-6 text-center text-sm text-gray-400">
-                  Loading…
+                <div v-if="notifLoading" class="px-4 py-8 text-center">
+                  <svg class="animate-spin h-6 w-6 mx-auto mb-2 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span class="text-sm text-gray-400">Loading notifications...</span>
                 </div>
 
                 <template v-else>
-                  <!-- ── Pending Reservations Section ── -->
+                  <!-- Pending Reservations Section -->
                   <div class="border-b border-gray-100">
-                    <div class="px-4 pt-3 pb-1 flex items-center gap-2">
+                    <div class="px-5 pt-4 pb-1 flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                       <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pending Reservations</span>
                     </div>
 
@@ -64,30 +79,46 @@
                     <button
                       v-if="hasPendingReservations"
                       @click="goReservations"
-                      class="w-full text-left px-4 py-3 hover:bg-yellow-50 transition-colors flex items-start gap-3"
+                      class="w-full text-left px-5 py-3.5 hover:bg-amber-50 transition-colors flex items-start gap-3 border-t border-gray-50"
                     >
-                      <span class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-base">⏳</span>
-                      <div>
+                      <div class="mt-0.5 flex-shrink-0 w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-800">
                           {{ notifData.pendingTotal }} reservation<span v-if="notifData.pendingTotal !== 1">s</span> awaiting approval
                         </p>
                         <p class="text-xs text-gray-500 mt-0.5">
                           Driving: {{ notifData.pendingDriving }} &nbsp;•&nbsp; TESDA: {{ notifData.pendingTesda }}
                         </p>
-                        <p class="text-xs text-yellow-600 font-medium mt-1">Tap to review →</p>
+                        <p class="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
+                          Tap to review
+                          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </p>
                       </div>
                     </button>
 
                     <!-- None pending -->
-                    <div v-else class="px-4 py-3 flex items-center gap-3 text-gray-400">
-                      <span class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base">✅</span>
+                    <div v-else class="px-5 py-3.5 flex items-center gap-3 text-gray-400 border-t border-gray-50">
+                      <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
                       <span class="text-sm">No pending reservations</span>
                     </div>
                   </div>
 
-                  <!-- ── Unread Messages Section ── -->
+                  <!-- Unread Messages Section -->
                   <div>
-                    <div class="px-4 pt-3 pb-1 flex items-center gap-2">
+                    <div class="px-5 pt-4 pb-1 flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
                       <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Unread Messages</span>
                     </div>
 
@@ -97,16 +128,16 @@
                         v-for="msg in notifData.unreadMessages"
                         :key="msg.id"
                         @click="goMessages(msg.id)"
-                        class="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 border-t border-gray-50"
+                        class="w-full text-left px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 border-t border-gray-50"
                       >
-                        <span class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700">
+                        <div class="mt-0.5 flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-sm font-bold text-blue-700 shadow-inner">
                           {{ getInitials(msg.name) }}
-                        </span>
+                        </div>
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center justify-between gap-2">
                             <p class="text-sm font-semibold text-gray-800 truncate">{{ msg.name }}</p>
-                            <span class="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-600 text-white text-xs font-bold">
-                              {{ msg.unreadCount > 9 ? '9+' : msg.unreadCount }}
+                            <span class="flex-shrink-0 inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full bg-blue-600 text-white text-xs font-bold">
+                              {{ msg.unreadCount > 99 ? '99+' : msg.unreadCount }}
                             </span>
                           </div>
                           <p class="text-xs text-gray-500 truncate mt-0.5">{{ msg.lastMessage || 'New message' }}</p>
@@ -115,15 +146,22 @@
                     </template>
 
                     <!-- None unread -->
-                    <div v-else class="px-4 py-3 flex items-center gap-3 text-gray-400">
-                      <span class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base">💬</span>
+                    <div v-else class="px-5 py-3.5 flex items-center gap-3 text-gray-400 border-t border-gray-50">
+                      <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                      </div>
                       <span class="text-sm">No unread messages</span>
                     </div>
 
                     <!-- Footer -->
-                    <div class="px-4 py-2 border-t border-gray-100 bg-gray-50">
-                      <button @click="goMessages()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                        View all messages →
+                    <div class="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                      <button @click="goMessages()" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold transition-colors flex items-center gap-1">
+                        View all messages
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -131,17 +169,20 @@
               </div>
             </transition>
           </div>
-          <!-- ─── End Notification Bell ─── -->
+          <!-- End Notification Bell -->
 
-          <!-- User Avatar -->
-          <div class="w-8 h-8 sm:w-10 sm:h-10 bg-white text-green-800 rounded-full flex items-center justify-center text-base sm:text-xl cursor-pointer hover:bg-gray-100 transition-colors">
-            👤
+          <!-- Admin Avatar - Shows first letter of fullname -->
+          <div 
+            class="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm text-white rounded-xl flex items-center justify-center text-sm sm:text-base font-bold cursor-pointer hover:bg-white/30 transition-all duration-200 border-2 border-white/20 shadow-inner" 
+            :title="userData.fullname || 'Admin'"
+          >
+            {{ userInitial }}
           </div>
         </div>
       </header>
 
       <!-- Page Content -->
-      <div class="bg-white rounded-b-xl shadow p-4 sm:p-6">
+      <div class="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-4 sm:p-6">
         <slot></slot>
       </div>
     </main>
@@ -165,15 +206,18 @@ export default {
     return {
       dropdownOpen: false,
       notifLoading: false,
+      userData: {
+        fullname: '',
+        email: ''
+      },
 
       notifData: {
         pendingTotal: 0,
         pendingDriving: 0,
         pendingTesda: 0,
-        unreadMessages: [],   // [{ id, name, unreadCount, lastMessage }]
+        unreadMessages: [],
       },
 
-      // poll interval handle
       _pollTimer: null,
     };
   },
@@ -185,13 +229,18 @@ export default {
     hasUnreadMessages() {
       return this.notifData.unreadMessages.length > 0;
     },
+    userInitial() {
+      if (this.userData.fullname && this.userData.fullname.trim()) {
+        return this.userData.fullname.trim().charAt(0).toUpperCase();
+      }
+      return 'A';
+    },
   },
 
   mounted() {
+    this.fetchUserData();
     this.fetchNotifications();
-    // Refresh every 60 s so the dot stays current without full page reload
     this._pollTimer = setInterval(this.fetchNotifications, 60_000);
-    // Close dropdown when clicking outside
     document.addEventListener('click', this.onOutsideClick);
   },
 
@@ -201,10 +250,25 @@ export default {
   },
 
   methods: {
+    async fetchUserData() {
+      try {
+        const profileRes = await fetch('/api/settings/profile', { credentials: 'include' });
+        const profileJson = await profileRes.json();
+        
+        if (profileJson?.status === 'success' && profileJson?.profile) {
+          this.userData = {
+            fullname: profileJson.profile.fullname || '',
+            email: profileJson.profile.email || ''
+          };
+        }
+      } catch (e) {
+        // Silent fail
+      }
+    },
+
     toggleDropdown() {
       this.dropdownOpen = !this.dropdownOpen;
       if (this.dropdownOpen) {
-        // Refresh data each time the panel is opened
         this.fetchNotifications();
       }
     },
@@ -218,13 +282,11 @@ export default {
     async fetchNotifications() {
       this.notifLoading = true;
       try {
-        // Run both requests in parallel
         const [dashRes, inboxRes] = await Promise.all([
           fetch('/api/admin/dashboard/summary', { credentials: 'include' }),
           fetch('/api/messages/inbox', { credentials: 'include' }),
         ]);
 
-        // ── Pending reservations ──
         if (dashRes.ok) {
           const dashJson = await dashRes.json();
           if (dashJson.status === 'success') {
@@ -235,13 +297,12 @@ export default {
           }
         }
 
-        // ── Unread messages ──
         if (inboxRes.ok) {
           const inbox = await inboxRes.json();
           if (Array.isArray(inbox)) {
             this.notifData.unreadMessages = inbox
               .filter(m => m.unreadCount > 0)
-              .slice(0, 5)   // show max 5 senders in dropdown
+              .slice(0, 5)
               .map(m => ({
                 id:          m.id,
                 name:        m.name,
@@ -251,7 +312,7 @@ export default {
           }
         }
       } catch (err) {
-        console.error('fetchNotifications error:', err);
+        // Silent fail
       } finally {
         this.notifLoading = false;
       }
@@ -290,10 +351,24 @@ main {
   overflow-y: auto;
   scrollbar-width: thin;
 }
-main::-webkit-scrollbar { width: 8px; }
-main::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-main::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-main::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+
+main::-webkit-scrollbar {
+  width: 8px;
+}
+
+main::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+main::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+main::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
 
 @media (max-width: 1023px) {
   main {
@@ -302,9 +377,21 @@ main::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
   }
 }
 
-/* Dropdown slide-down animation */
-.notif-drop-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.notif-drop-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
-.notif-drop-enter-from  { opacity: 0; transform: translateY(-6px); }
-.notif-drop-leave-to    { opacity: 0; transform: translateY(-6px); }
+.notif-drop-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.notif-drop-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.notif-drop-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.notif-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 </style>

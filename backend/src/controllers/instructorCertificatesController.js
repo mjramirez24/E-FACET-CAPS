@@ -226,22 +226,20 @@ async function resolveScheduleInstructorIdFromUserId(userId) {
 
 /* ----------------------------- PDF: DRIVING ----------------------------- */
 
-async function generateDrivingPdf(payload) {
-  const {
-    certificate_code,
-    student_name,
-    student_email,
-    course_name,
-    course_code,
-    issued_at,
-    done_at,
-    lto_client_id,
-    birthday,
-    gender,
-    picture_2x2,
-    overrides,
-  } = payload;
-
+async function generateDrivingPdf({
+  certificate_code,
+  student_name,
+  student_email,
+  course_name,
+  course_code,
+  issued_at,
+  done_at,
+  lto_client_id,
+  birthday,
+  gender,
+  picture_2x2,
+  overrides,
+}) {
   const uploadsDir = path.join(APP_ROOT, "uploads", "certificates");
   ensureDir(uploadsDir);
 
@@ -258,8 +256,14 @@ async function generateDrivingPdf(payload) {
   const logoAbs = path.join(APP_ROOT, "assets", "logo.png");
   const sealAbs = path.join(APP_ROOT, "assets", "seal.png");
 
+  const micahSignAbs = path.join(APP_ROOT, "src", "assets", "micah.png");
+
+  const jezreelSignAbs = path.join(APP_ROOT, "src", "assets", "jezreel.png");
+
+  // outer border
   drawBorder(doc, 25, 25, pageW - 50, pageH - 50);
 
+  // watermark seal
   if (fileExists(sealAbs)) {
     const wmSize = 420;
     const wmX = (pageW - wmSize) / 2;
@@ -275,6 +279,7 @@ async function generateDrivingPdf(payload) {
   const headerTop = 40;
   const headerLeft = 40;
 
+  // left logo
   if (fileExists(logoAbs)) {
     doc.image(logoAbs, headerLeft, headerTop, { width: 62, height: 62 });
   } else {
@@ -289,12 +294,14 @@ async function generateDrivingPdf(payload) {
       .restore();
   }
 
+  // 2x2 (right)
   const photoBoxW = 95;
   const photoBoxH = 95;
   const photoX = pageW - 40 - photoBoxW;
   const photoY = headerTop;
 
   const photoAbs = resolveLocalImagePath(picture_2x2);
+
   if (photoAbs && fileExists(photoAbs)) {
     try {
       doc
@@ -315,6 +322,7 @@ async function generateDrivingPdf(payload) {
     drawPhotoPlaceholder(doc, photoX, photoY, photoBoxW, photoBoxH);
   }
 
+  // header center text
   doc
     .save()
     .fillColor("#111827")
@@ -348,6 +356,7 @@ async function generateDrivingPdf(payload) {
   const boxX = 40;
   const boxW = pageW - 80;
 
+  // Student Driver's Details
   const box1H = 185;
   drawSectionHeader(doc, boxX, y, boxW, "Student Driver's Details");
 
@@ -389,6 +398,7 @@ async function generateDrivingPdf(payload) {
 
   doc.restore();
 
+  // Training Info
   y = y + box1H + 14;
   const box2H = 120;
 
@@ -424,6 +434,7 @@ async function generateDrivingPdf(payload) {
 
   doc.restore();
 
+  // ✅ PDC only: DL Code tables (checks controlled by overrides + mode)
   if (isPdc) {
     y = y + box2H + 14;
 
@@ -481,17 +492,20 @@ async function generateDrivingPdf(payload) {
           ? { mt: false, at: true }
           : { mt: true, at: false };
       }
+
       if (c === "B") {
         if (!fallbackB) return { mt: false, at: false };
         return mode === "AT"
           ? { mt: false, at: true }
           : { mt: true, at: false };
       }
+
       return { mt: false, at: false };
     };
 
     const drawDlTable = (x, y0, w, rowsData) => {
       doc.save().rect(x, y0, w, dlBoxH).stroke("#d1d5db").restore();
+
       doc.save().fillColor("#f3f4f6").rect(x, y0, w, 22).fill().restore();
       doc
         .save()
@@ -519,23 +533,16 @@ async function generateDrivingPdf(payload) {
           .stroke()
           .restore();
 
-        doc
-          .save()
-          .font("Helvetica-Bold")
-          .fontSize(9)
-          .fillColor("#111827")
-          .text(code, x + 8, rowY, { width: 40 })
-          .restore();
+        doc.save().font("Helvetica-Bold").fontSize(9).fillColor("#111827");
+        doc.text(code, x + 8, rowY, { width: 40 });
+        doc.restore();
 
-        doc
-          .save()
-          .font("Helvetica")
-          .fontSize(9)
-          .fillColor("#4b5563")
-          .text(desc, x + 40, rowY, { width: w - 16 - 90 })
-          .restore();
+        doc.save().font("Helvetica").fontSize(9).fillColor("#4b5563");
+        doc.text(desc, x + 40, rowY, { width: w - 16 - 90 });
+        doc.restore();
 
         const check = resolveDlCheck(code);
+
         const mtX = x + w - 66;
         const atX = x + w - 32;
         const cbY = rowY + 1;
@@ -552,32 +559,128 @@ async function generateDrivingPdf(payload) {
 
     drawDlTable(leftX, y, halfW, left);
     drawDlTable(rightX, y, halfW, right);
+
+    y = y + dlBoxH + 10;
   }
 
-  const footerTop = pageH - 170;
-  const qrBox = { w: 95, h: 95, x: pageW - 40 - 95, y: pageH - 155 };
+  /* =====================================================
+   CERTIFICATE NOTICE
+===================================================== */
 
-  doc.save().fillColor("#111827").font("Helvetica").fontSize(9);
+  const footerTop = pageH - 175;
+
+  doc.save();
+  doc.fillColor("#111827");
+  doc.font("Helvetica");
+  doc.fontSize(9);
+
   doc.text(
     `This Certificate with Control Number ${certificate_code} has been issued in compliance with the applicable LTO training requirements.`,
-    40,
+    boxX,
     footerTop,
-    { width: pageW - 80 - 110, align: "left" },
+    {
+      width: boxW,
+      align: "justify",
+    },
   );
+
+  doc.moveDown(0.5);
+
+  doc.fontSize(8);
+
+  doc.text(
+    "IMPORTANT NOTICE: This document serves only as proof that the student has successfully completed the required Theoretical Driving Course (TDC) or Practical Driving Course (PDC). The certificate holder may still be required to claim or present the official certificate and comply with all applicable Land Transportation Office (LTO) requirements before proceeding with driver's license application, renewal, or other related transactions.",
+    {
+      width: boxW,
+      align: "justify",
+    },
+  );
+
   doc.restore();
 
-  doc
-    .save()
-    .rect(qrBox.x, qrBox.y, qrBox.w, qrBox.h)
-    .stroke("#6b7280")
-    .restore();
-  doc
-    .save()
-    .font("Helvetica")
-    .fontSize(8)
-    .fillColor("#6b7280")
-    .text("QR", qrBox.x, qrBox.y + 38, { width: qrBox.w, align: "center" })
-    .restore();
+  /* =====================================================
+   SIGNATURES
+===================================================== */
+
+  const sigY = pageH - 60;
+
+  const leftLineX1 = 70;
+  const leftLineX2 = 245;
+
+  const rightLineX1 = 295;
+  const rightLineX2 = 470;
+
+  /* -------------------------
+   Micah E-Sign
+------------------------- */
+
+  if (fileExists(micahSignAbs)) {
+    doc.image(micahSignAbs, 85, sigY - 50, {
+      width: 160,
+      height: 60,
+    });
+  }
+
+  /* -------------------------
+   Jezreel E-Sign
+------------------------- */
+
+  if (fileExists(jezreelSignAbs)) {
+    doc.image(jezreelSignAbs, 320, sigY - 50, {
+      width: 160,
+      height: 60,
+    });
+  }
+
+  /* -------------------------
+   Signature Lines
+------------------------- */
+
+  doc.save();
+  doc.strokeColor("#9ca3af");
+  doc.lineWidth(1);
+
+  doc.moveTo(leftLineX1, sigY).lineTo(leftLineX2, sigY).stroke();
+
+  doc.moveTo(rightLineX1, sigY).lineTo(rightLineX2, sigY).stroke();
+
+  doc.restore();
+
+  /* -------------------------
+   Names
+------------------------- */
+
+  doc.save();
+
+  doc.font("Helvetica-Bold");
+  doc.fontSize(9);
+  doc.fillColor("#111827");
+
+  doc.text("MICAH M. MARQUINEZ", 70, sigY - 10, {
+    width: 175,
+    align: "center",
+  });
+
+  doc.text("JEZREEL S. MARQUINEZ", 295, sigY - 10, {
+    width: 175,
+    align: "center",
+  });
+
+  doc.font("Helvetica");
+  doc.fontSize(8);
+  doc.fillColor("#374151");
+
+  doc.text("Authorized Representative", 70, sigY + 5, {
+    width: 175,
+    align: "center",
+  });
+
+  doc.text("Training Institute", 295, sigY + 5, {
+    width: 175,
+    align: "center",
+  });
+
+  doc.restore();
 
   doc.end();
 
