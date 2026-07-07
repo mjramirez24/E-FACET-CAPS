@@ -7,6 +7,8 @@ router.get("/inbox", messageCtrl.getInbox);
 router.get("/thread/:userId", messageCtrl.getThread);
 router.post("/mark-read", messageCtrl.markAsRead);
 router.get("/contacts", messageCtrl.getContacts);
+router.put("/:id", messageCtrl.editMessage);
+router.delete("/:id", messageCtrl.deleteMessage);
 
 // ✅ FIXED DELETE ROUTE
 router.delete("/conversation/:userId", messageCtrl.deleteConversation);

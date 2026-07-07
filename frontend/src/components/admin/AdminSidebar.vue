@@ -44,7 +44,7 @@
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       ]"
     >
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto" ref="scrollContainer">
         <!-- Logo -->
         <div class="flex items-center gap-2 p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div class="logo-icon-wrapper">
@@ -353,6 +353,8 @@ const api = axios.create({
   withCredentials: true,
 });
 
+let savedScrollTop = 0;
+
 export default {
   name: "AdminSidebar",
 
@@ -481,34 +483,56 @@ export default {
       }
     },
 
-    handleResize() {
-      if (window.innerWidth >= 1024) {
-        this.isMobileMenuOpen = false;
-        document.body.style.overflow = "";
-      }
+  handleResize() {
+        if (window.innerWidth >= 1024) {
+          this.isMobileMenuOpen = false;
+          document.body.style.overflow = "";
+        }
+      },
+
+      handleSidebarScroll() {
+        if (this.$refs.scrollContainer) {
+          savedScrollTop = this.$refs.scrollContainer.scrollTop;
+        }
+      },
     },
-  },
+
+  
 
   async mounted() {
-    await this.fetchUserData();
+      await this.fetchUserData()  // keep existing await pattern below, see note
 
-    window.addEventListener("user-updated", this.handleUserUpdate);
-    window.addEventListener("resize", this.handleResize);
+      window.addEventListener("user-updated", this.handleUserUpdate);
+      window.addEventListener("resize", this.handleResize);
 
-    this.removeRouteHook = this.$router.afterEach(() => {
-      this.isMobileMenuOpen = false;
-      document.body.style.overflow = "";
-    });
-  },
+      this.removeRouteHook = this.$router.afterEach(() => {
+        this.isMobileMenuOpen = false;
+        document.body.style.overflow = "";
+      });
 
-  beforeUnmount() {
-    window.removeEventListener("user-updated", this.handleUserUpdate);
-    window.removeEventListener("resize", this.handleResize);
+      // Restore scroll position immediately after mount
+      this.$nextTick(() => {
+        if (this.$refs.scrollContainer) {
+          this.$refs.scrollContainer.scrollTop = savedScrollTop;
+          this.$refs.scrollContainer.addEventListener("scroll", this.handleSidebarScroll);
+        }
+      });
+    },
 
-    if (typeof this.removeRouteHook === "function") {
-      this.removeRouteHook();
-    }
-  },
+    beforeUnmount() {
+      window.removeEventListener("user-updated", this.handleUserUpdate);
+      window.removeEventListener("resize", this.handleResize);
+
+      if (this.$refs.scrollContainer) {
+        // Save the latest scroll position before this instance is destroyed
+        savedScrollTop = this.$refs.scrollContainer.scrollTop;
+        this.$refs.scrollContainer.removeEventListener("scroll", this.handleSidebarScroll);
+      }
+
+      if (typeof this.removeRouteHook === "function") {
+        this.removeRouteHook();
+      }
+    },
 };
 </script>
 

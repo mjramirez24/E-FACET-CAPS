@@ -237,17 +237,19 @@ export default {
     },
   },
 
-  mounted() {
-    this.fetchUserData();
-    this.fetchNotifications();
-    this._pollTimer = setInterval(this.fetchNotifications, 60_000);
-    document.addEventListener('click', this.onOutsideClick);
-  },
+    mounted() { 
+      this.fetchUserData();
+      this.fetchNotifications();
+      this._pollTimer = setInterval(this.fetchNotifications, 60_000);
+      document.addEventListener('click', this.onOutsideClick);
+      window.addEventListener('user-updated', this.handleUserUpdate);
+    },
 
-  beforeUnmount() {
-    clearInterval(this._pollTimer);
-    document.removeEventListener('click', this.onOutsideClick);
-  },
+    beforeUnmount() {
+      clearInterval(this._pollTimer);
+      document.removeEventListener('click', this.onOutsideClick);
+      window.removeEventListener('user-updated', this.handleUserUpdate);
+    },
 
   methods: {
     async fetchUserData() {
@@ -265,6 +267,15 @@ export default {
         // Silent fail
       }
     },
+
+    handleUserUpdate(event) {
+    if (event.detail) {
+      this.userData = {
+        fullname: event.detail.fullname || '',
+        email: event.detail.email || '',
+      };
+    }
+  },
 
     toggleDropdown() {
       this.dropdownOpen = !this.dropdownOpen;

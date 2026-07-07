@@ -147,6 +147,47 @@
         </div></transition></div></transition>
       </div>
     </div>
+    
+    <!-- SUCCESS/ERROR NOTIFICATION MODAL -->
+      <transition name="modal-fade">
+        <div v-if="messageOpen" class="modal-overlay" @click.self="closeMessage">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-sm">
+              <div class="modal-head-delete">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-11 h-11 rounded-full flex items-center justify-center text-xl"
+                    :class="messageType === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'"
+                  >
+                    <svg v-if="messageType === 'success'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-bold text-gray-900">{{ messageTitle }}</h3>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-body-delete">
+                <p class="text-sm text-gray-700 leading-relaxed">{{ messageText }}</p>
+                <div class="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    @click="closeMessage"
+                    class="btn-save"
+                    :class="messageType === 'success' ? 'btn-green' : 'btn-red'"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </transition>
   </AdminLayout>
 </template>
 
@@ -177,15 +218,62 @@ export default {
     const deleting = ref(false);
     const form = reactive({ instructor_id: null, instructor_code: "", firstname: "", lastname: "", email: "", contact_number: "", specialization: "", status: "active" });
 
-    const fetchInstructors = async () => { loading.value = true; try { const res = await api.get("/admin/instructors"); instructors.value = Array.isArray(res.data?.data) ? res.data.data : []; } catch (err) { console.error("fetchInstructors error:", err); alert(err?.response?.data?.message || err.message || "Failed to fetch instructors"); instructors.value = []; } finally { loading.value = false; } };
+   const fetchInstructors = async () => {
+    loading.value = true;
+    try {
+      const res = await api.get("/admin/instructors");
+      instructors.value = Array.isArray(res.data?.data) ? res.data.data : [];
+    } catch (err) {
+      console.error("fetchInstructors error:", err);
+      showMessage("Error", err?.response?.data?.message || err.message || "Failed to fetch instructors", "error");
+      instructors.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
     const filteredInstructors = computed(() => { let r = [...instructors.value]; if (searchQuery.value.trim()) { const q = searchQuery.value.toLowerCase(); r = r.filter((i) => String(i.instructor_code || "").toLowerCase().includes(q) || String(i.firstname || "").toLowerCase().includes(q) || String(i.lastname || "").toLowerCase().includes(q) || String(i.fullname || "").toLowerCase().includes(q) || String(i.email || "").toLowerCase().includes(q) || String(i.specialization || "").toLowerCase().includes(q)); } if (statusFilter.value) { r = r.filter((i) => (i.status || "") === statusFilter.value); } return r; });
     const resetForm = () => { form.instructor_id = null; form.instructor_code = ""; form.firstname = ""; form.lastname = ""; form.email = ""; form.contact_number = ""; form.specialization = ""; form.status = "active"; };
     const editInstructor = (i) => { isEditing.value = true; form.instructor_id = i.instructor_id; form.instructor_code = i.instructor_code || ""; form.firstname = i.firstname || ""; form.lastname = i.lastname || ""; form.email = i.email || ""; form.contact_number = i.contact_number || ""; form.specialization = i.specialization || ""; form.status = i.status || "active"; showModal.value = true; };
     const closeModal = () => { showModal.value = false; resetForm(); };
-    const saveInstructor = async () => { if (saving.value) return; saving.value = true; try { const payload = { instructor_code: form.instructor_code, firstname: form.firstname, lastname: form.lastname, email: form.email || null, contact_number: form.contact_number || null, specialization: form.specialization || null, status: form.status }; if (isEditing.value && form.instructor_id) { await api.put(`/admin/instructors/${form.instructor_id}`, payload); } else { await api.post(`/admin/instructors`, payload); } await fetchInstructors(); closeModal(); } catch (err) { console.error("saveInstructor error:", err); alert(err?.response?.data?.message || err.message || "Failed to save instructor"); } finally { saving.value = false; } };
+    const saveInstructor = async () => {
+    if (saving.value) return;
+    saving.value = true;
+    try {
+      const payload = { instructor_code: form.instructor_code, firstname: form.firstname, lastname: form.lastname, email: form.email || null, contact_number: form.contact_number || null, specialization: form.specialization || null, status: form.status };
+      const wasEditing = isEditing.value;
+      if (isEditing.value && form.instructor_id) {
+        await api.put(`/admin/instructors/${form.instructor_id}`, payload);
+      } else {
+        await api.post(`/admin/instructors`, payload);
+      }
+      await fetchInstructors();
+      closeModal();
+      showMessage("Changes Saved!", wasEditing ? "Instructor updated successfully." : "Instructor added successfully.", "success");
+    } catch (err) {
+      console.error("saveInstructor error:", err);
+      showMessage("Error", err?.response?.data?.message || err.message || "Failed to save instructor", "error");
+    } finally {
+      saving.value = false;
+    }
+  };
     const confirmDelete = (i) => { toDelete.value = i; showDeleteModal.value = true; };
     const cancelDelete = () => { toDelete.value = null; showDeleteModal.value = false; };
-    const deleteInstructor = async () => { if (!toDelete.value || deleting.value) return; deleting.value = true; try { await api.delete(`/admin/instructors/${toDelete.value.instructor_id}`); await fetchInstructors(); cancelDelete(); } catch (err) { console.error("deleteInstructor error:", err); alert(err?.response?.data?.message || err.message || "Failed to delete instructor"); } finally { deleting.value = false; } };
+    const deleteInstructor = async () => {
+    if (!toDelete.value || deleting.value) return;
+    deleting.value = true;
+    try {
+      const deletedName = toDelete.value?.fullname || `${toDelete.value?.firstname} ${toDelete.value?.lastname}`;
+      await api.delete(`/admin/instructors/${toDelete.value.instructor_id}`);
+      await fetchInstructors();
+      cancelDelete();
+      showMessage("Instructor Deleted", `${deletedName} was removed successfully.`, "success");
+    } catch (err) {
+      console.error("deleteInstructor error:", err);
+      showMessage("Error", err?.response?.data?.message || err.message || "Failed to delete instructor", "error");
+    } finally {
+      deleting.value = false;
+    }
+  };
 
     // TRAINERS
     const trainers = ref([]);
@@ -197,17 +285,80 @@ export default {
     const trainerToDelete = ref(null);
     const savingTrainer = ref(false);
     const deletingTrainer = ref(false);
+    // Success/Error notification modal
+    const messageOpen = ref(false);
+    const messageTitle = ref("");
+    const messageText = ref("");
+    const messageType = ref("success"); // 'success' | 'error'
+
+    const showMessage = (title, text, type = "success") => {
+      messageTitle.value = title;
+      messageText.value = text;
+      messageType.value = type;
+      messageOpen.value = true;
+    };
+
+    const closeMessage = () => {
+      messageOpen.value = false;
+    };
     const trainerForm = reactive({ trainer_id: null, trainer_code: "", firstname: "", lastname: "", email: "", contact_number: "", specialization: "", status: "active" });
 
-    const fetchTrainers = async () => { loadingTrainers.value = true; try { const res = await api.get("/admin/tesda/trainers"); trainers.value = Array.isArray(res.data?.data) ? res.data.data : []; } catch (err) { console.error("fetchTrainers error:", err); alert(err?.response?.data?.message || err.message || "Failed to fetch trainers"); trainers.value = []; } finally { loadingTrainers.value = false; } };
+    const fetchTrainers = async () => {
+    loadingTrainers.value = true;
+    try {
+      const res = await api.get("/admin/tesda/trainers");
+      trainers.value = Array.isArray(res.data?.data) ? res.data.data : [];
+    } catch (err) {
+      console.error("fetchTrainers error:", err);
+      showMessage("Error", err?.response?.data?.message || err.message || "Failed to fetch trainers", "error");
+      trainers.value = [];
+    } finally {
+      loadingTrainers.value = false;
+    }
+  };
     const filteredTrainers = computed(() => { let r = [...trainers.value]; if (searchQuery.value.trim()) { const q = searchQuery.value.toLowerCase(); r = r.filter((t) => String(t.trainer_code || "").toLowerCase().includes(q) || String(t.firstname || "").toLowerCase().includes(q) || String(t.lastname || "").toLowerCase().includes(q) || String(t.fullname || "").toLowerCase().includes(q) || String(t.email || "").toLowerCase().includes(q) || String(t.specialization || "").toLowerCase().includes(q)); } if (trainerStatusFilter.value) { r = r.filter((t) => (t.status || "") === trainerStatusFilter.value); } return r; });
     const resetTrainerForm = () => { trainerForm.trainer_id = null; trainerForm.trainer_code = ""; trainerForm.firstname = ""; trainerForm.lastname = ""; trainerForm.email = ""; trainerForm.contact_number = ""; trainerForm.specialization = ""; trainerForm.status = "active"; };
     const editTrainer = (t) => { isEditingTrainer.value = true; trainerForm.trainer_id = t.trainer_id; trainerForm.trainer_code = t.trainer_code || ""; trainerForm.firstname = t.firstname || ""; trainerForm.lastname = t.lastname || ""; trainerForm.email = t.email || ""; trainerForm.contact_number = t.contact_number || ""; trainerForm.specialization = t.specialization || ""; trainerForm.status = t.status || "active"; showTrainerModal.value = true; };
     const closeTrainerModal = () => { showTrainerModal.value = false; resetTrainerForm(); };
-    const saveTrainer = async () => { if (savingTrainer.value) return; savingTrainer.value = true; try { const payload = { trainer_code: trainerForm.trainer_code, firstname: trainerForm.firstname, lastname: trainerForm.lastname, email: trainerForm.email || null, contact_number: trainerForm.contact_number || null, specialization: trainerForm.specialization || null, status: trainerForm.status, user_id: null }; if (isEditingTrainer.value && trainerForm.trainer_id) { await api.put(`/admin/tesda/trainers/${trainerForm.trainer_id}`, payload); } else { await api.post(`/admin/tesda/trainers`, payload); } await fetchTrainers(); closeTrainerModal(); } catch (err) { console.error("saveTrainer error:", err); alert(err?.response?.data?.message || err.message || "Failed to save trainer"); } finally { savingTrainer.value = false; } };
+   const saveTrainer = async () => {
+    if (savingTrainer.value) return;
+    savingTrainer.value = true;
+    try {
+      const payload = { trainer_code: trainerForm.trainer_code, firstname: trainerForm.firstname, lastname: trainerForm.lastname, email: trainerForm.email || null, contact_number: trainerForm.contact_number || null, specialization: trainerForm.specialization || null, status: trainerForm.status, user_id: null };
+      const wasEditing = isEditingTrainer.value;
+      if (isEditingTrainer.value && trainerForm.trainer_id) {
+        await api.put(`/admin/tesda/trainers/${trainerForm.trainer_id}`, payload);
+      } else {
+        await api.post(`/admin/tesda/trainers`, payload);
+      }
+      await fetchTrainers();
+      closeTrainerModal();
+      showMessage("Changes Saved!", wasEditing ? "Trainer updated successfully." : "Trainer added successfully.", "success");
+    } catch (err) {
+      console.error("saveTrainer error:", err);
+      showMessage("Error", err?.response?.data?.message || err.message || "Failed to save trainer", "error");
+    } finally {
+      savingTrainer.value = false;
+    }
+  };
     const confirmDeleteTrainer = (t) => { trainerToDelete.value = t; showTrainerDeleteModal.value = true; };
     const cancelDeleteTrainer = () => { trainerToDelete.value = null; showTrainerDeleteModal.value = false; };
-    const deleteTrainer = async () => { if (!trainerToDelete.value || deletingTrainer.value) return; deletingTrainer.value = true; try { await api.delete(`/admin/tesda/trainers/${trainerToDelete.value.trainer_id}`); await fetchTrainers(); cancelDeleteTrainer(); } catch (err) { console.error("deleteTrainer error:", err); alert(err?.response?.data?.message || err.message || "Failed to delete trainer"); } finally { deletingTrainer.value = false; } };
+    const deleteTrainer = async () => {
+    if (!trainerToDelete.value || deletingTrainer.value) return;
+    deletingTrainer.value = true;
+    try {
+      const deletedName = trainerToDelete.value?.fullname || `${trainerToDelete.value?.firstname} ${trainerToDelete.value?.lastname}`;
+      await api.delete(`/admin/tesda/trainers/${trainerToDelete.value.trainer_id}`);
+      await fetchTrainers();
+      cancelDeleteTrainer();
+      showMessage("Trainer Deleted", `${deletedName} was removed successfully.`, "success");
+    } catch (err) {
+      console.error("deleteTrainer error:", err);
+      showMessage("Error", err?.response?.data?.message || err.message || "Failed to delete trainer", "error");
+    } finally {
+      deletingTrainer.value = false;
+    }
+  };
 
     onMounted(async () => { await fetchInstructors(); await fetchTrainers(); });
 
@@ -215,6 +366,7 @@ export default {
       activeTab, searchQuery,
       instructors, loading, statusFilter, filteredInstructors, showModal, showDeleteModal, isEditing, toDelete, form, saving, deleting, editInstructor, closeModal, saveInstructor, confirmDelete, cancelDelete, deleteInstructor,
       trainers, loadingTrainers, trainerStatusFilter, filteredTrainers, showTrainerModal, showTrainerDeleteModal, isEditingTrainer, trainerToDelete, trainerForm, savingTrainer, deletingTrainer, editTrainer, closeTrainerModal, saveTrainer, confirmDeleteTrainer, cancelDeleteTrainer, deleteTrainer,
+      messageOpen, messageTitle, messageText, messageType, showMessage, closeMessage,
     };
   },
 };

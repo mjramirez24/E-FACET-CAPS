@@ -3,96 +3,95 @@
   <AdminLayout>
     <!-- Header -->
     <template #header-left>
-      <input
-        type="text"
-        placeholder="Search users (any field)..."
-        v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-        @input="handleSearch"
-      />
-
-      <select
-        v-model="roleFilter"
-        class="p-2 rounded-md text-gray-800 border border-gray-300 focus:outline-none"
-        @change="onFilterChange"
-      >
-        <option value="">All Roles</option>
-        <option value="admin">Admin</option>
-        <option value="instructor">Instructor</option>
-        <option value="trainer">Trainer</option>
-        <option value="user">User</option>
-      </select>
-
-      <select
-        v-model="trackFilter"
-        class="p-2 rounded-md text-gray-800 border border-gray-300 focus:outline-none"
-        @change="onFilterChange"
-      >
-        <option value="">All Tracks</option>
-        <option value="driving">Driving</option>
-        <option value="tesda">TESDA</option>
-      </select>
+      <div class="header-actions">
+        <div class="search-box">
+          <svg class="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search users (any field)..."
+            v-model="searchQuery"
+            class="search-input-modern"
+            @input="handleSearch"
+          />
+        </div>
+      </div>
     </template>
 
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-green-800">👥 User Management</h2>
+    <div class="users-wrapper">
+      <!-- Page Header -->
+      <div class="page-top">
+        <div>
+          <h2 class="page-title">User Management</h2>
+          <p class="page-subtitle">Admins, Instructors, Trainers &amp; Students</p>
+        </div>
 
-        <div class="flex gap-2">
-          <button
-            @click="toggleColumnsPanel"
-            class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
+        <div class="header-btn-group">
+          <select
+            v-model="roleFilter"
+            class="select-modern"
+            @change="onFilterChange"
           >
+            <option value="">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="instructor">Instructor</option>
+            <option value="trainer">Trainer</option>
+            <option value="user">User</option>
+          </select>
+
+          <select
+            v-model="trackFilter"
+            class="select-modern"
+            @change="onFilterChange"
+          >
+            <option value="">All Tracks</option>
+            <option value="driving">Driving</option>
+            <option value="tesda">TESDA</option>
+          </select>
+
+          <button @click="toggleColumnsPanel" class="btn-outline">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
             {{ showColumnsPanel ? "Hide Columns" : "Show Columns" }}
           </button>
 
-          <button
-            @click="openAddModal"
-            class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md text-sm font-medium"
-          >
-            ➕ Add User
+          <button @click="openAddModal" class="add-btn">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add User
           </button>
         </div>
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="text-gray-600">Loading users...</div>
+      <div v-if="loading" class="loading-box">
+        <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        Loading users...
+      </div>
 
-      <div v-else>
+      <div v-else class="users-body">
         <!-- Column visibility -->
-        <div
-          v-if="showColumnsPanel"
-          class="bg-white border border-gray-200 rounded-xl p-4 mb-4"
-        >
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div v-if="showColumnsPanel" class="panel-card columns-panel">
+          <div class="panel-header">
             <div>
-              <p class="text-sm font-semibold text-gray-800">Column visibility</p>
-              <p class="text-xs text-gray-500">Toggle columns (table only)</p>
+              <h3 class="panel-title">Column visibility</h3>
+              <p class="panel-meta">Toggle columns (table only)</p>
             </div>
 
-            <div class="flex gap-2 flex-wrap">
-              <button
-                class="px-3 py-1 border rounded-md hover:bg-gray-50 text-xs"
-                @click="applyPreset('minimal')"
-              >
-                Preset: Minimal
-              </button>
-
-              <button
-                class="px-3 py-1 border rounded-md hover:bg-gray-50 text-xs"
-                @click="applyPreset('all')"
-              >
-                Preset: Show all
-              </button>
+            <div class="preset-btns">
+              <button class="pg-btn" @click="applyPreset('minimal')">Preset: Minimal</button>
+              <button class="pg-btn" @click="applyPreset('all')">Preset: Show all</button>
             </div>
           </div>
 
-          <div class="mt-3 flex flex-wrap gap-4">
-            <label
-              v-for="c in allColumns"
-              :key="c.key"
-              class="inline-flex items-center gap-2 text-sm"
-            >
+          <div class="columns-grid">
+            <label v-for="c in allColumns" :key="c.key" class="column-check">
               <input
                 type="checkbox"
                 v-model="visibleCols[c.key]"
@@ -104,340 +103,329 @@
         </div>
 
         <!-- Table -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm border border-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th
-                  v-for="c in displayedColumns"
-                  :key="c.key"
-                  class="p-3 text-left border-b"
-                >
-                  {{ c.label }}
-                </th>
-              </tr>
-            </thead>
+        <div class="panel-card">
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead class="thead-green">
+                <tr>
+                  <th v-for="c in displayedColumns" :key="c.key">{{ c.label }}</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
-                <td
-                  v-for="c in displayedColumns"
-                  :key="c.key"
-                  class="p-3 border-b"
-                >
-                  <!-- Actions column -->
-                  <template v-if="c.key === 'actions'">
-                    <div class="flex gap-2 flex-wrap">
-                      <button
-                        v-if="canToggleDisable(u)"
-                        @click="toggleDisable(u)"
-                        class="px-3 py-1 rounded-md text-white text-xs"
-                        :class="Number(u?.is_disabled || 0) === 1 ? 'bg-green-700 hover:bg-green-800' : 'bg-gray-700 hover:bg-gray-800'"
-                      >
-                        {{ Number(u?.is_disabled || 0) === 1 ? "✅ Enable" : "🚫 Disable" }}
-                      </button>
+              <tbody>
+                <tr v-for="u in users" :key="u.id">
+                  <td v-for="c in displayedColumns" :key="c.key">
+                    <!-- Actions column -->
+                    <template v-if="c.key === 'actions'">
+                      <div class="action-btns">
+                        <button
+                          v-if="canToggleDisable(u)"
+                          @click="toggleDisable(u)"
+                          class="action-toggle"
+                          :class="Number(u?.is_disabled || 0) === 1 ? 'action-toggle-enable' : 'action-toggle-disable'"
+                        >
+                          {{ Number(u?.is_disabled || 0) === 1 ? "Enable" : "Disable" }}
+                        </button>
 
-                      <button
-                        @click="openEditModal(u)"
-                        class="px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                      >
-                        ✏️ Edit
-                      </button>
+                        <button @click="openEditModal(u)" class="action-edit">Edit</button>
+                        <button @click="confirmDelete(u)" class="action-delete">Delete</button>
+                      </div>
+                    </template>
 
-                      <button
-                        @click="confirmDelete(u)"
-                        class="px-3 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs"
-                      >
-                        🗑 Delete
-                      </button>
-                    </div>
-                  </template>
+                    <!-- Role badge -->
+                    <template v-else-if="c.key === 'role'">
+                      <span class="pill" :class="roleBadge(u.role)">{{ u.role }}</span>
+                    </template>
 
-                  <!-- Role badge -->
-                  <template v-else-if="c.key === 'role'">
-                    <span
-                      class="px-2 py-1 rounded-full text-xs font-medium"
-                      :class="roleBadge(u.role)"
-                    >
-                      {{ u.role }}
-                    </span>
-                  </template>
+                    <!-- Status badge -->
+                    <template v-else-if="c.key === 'status'">
+                      <span class="pill" :class="statusBadge(u)">{{ statusLabel(u) }}</span>
+                    </template>
 
-                  <!-- Status badge -->
-                  <template v-else-if="c.key === 'status'">
-                    <span
-                      class="px-2 py-1 rounded-full text-xs font-medium"
-                      :class="statusBadge(u)"
-                    >
-                      {{ statusLabel(u) }}
-                    </span>
-                  </template>
+                    <!-- Birthday formatted -->
+                    <template v-else-if="c.key === 'birthday'">
+                      {{ formatBirthday(u.birthday) }}
+                    </template>
 
-                  <!-- Birthday formatted -->
-                  <template v-else-if="c.key === 'birthday'">
-                    {{ formatBirthday(u.birthday) }}
-                  </template>
+                    <!-- Track field from API -->
+                    <template v-else-if="c.key === 'track'">
+                      {{ u.track_code || "—" }}
+                    </template>
 
-                  <!-- Track field from API -->
-                  <template v-else-if="c.key === 'track'">
-                    {{ u.track_code || "-" }}
-                  </template>
+                    <!-- Normal fields -->
+                    <template v-else>
+                      {{ u?.[c.key] ?? "—" }}
+                    </template>
+                  </td>
+                </tr>
 
-                  <!-- Normal fields -->
-                  <template v-else>
-                    {{ u?.[c.key] ?? "-" }}
-                  </template>
-                </td>
-              </tr>
-
-              <tr v-if="users.length === 0">
-                <td :colspan="displayedColumns.length" class="p-5 text-center text-gray-500">
-                  No users found.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="flex items-center justify-between mt-4 text-sm text-gray-700">
-          <div>
-            Total: <span class="font-semibold">{{ meta.total }}</span>
+                <tr v-if="users.length === 0">
+                  <td :colspan="displayedColumns.length" class="empty-cell">No users found.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div class="flex items-center gap-2">
-            <button
-              class="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
-              :disabled="meta.page <= 1"
-              @click="goPage(meta.page - 1)"
-            >
-              Prev
-            </button>
-
-            <span>Page {{ meta.page }} / {{ meta.totalPages }}</span>
-
-            <button
-              class="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
-              :disabled="meta.page >= meta.totalPages"
-              @click="goPage(meta.page + 1)"
-            >
-              Next
-            </button>
+          <!-- Pagination -->
+          <div class="pagination-bar">
+            <span class="page-info">Total: {{ meta.total }} • Page {{ meta.page }} of {{ meta.totalPages }}</span>
+            <div class="page-btns">
+              <button
+                class="pg-btn"
+                :class="{ 'pg-disabled': meta.page <= 1 }"
+                :disabled="meta.page <= 1"
+                @click="goPage(meta.page - 1)"
+              >
+                ← Prev
+              </button>
+              <button
+                class="pg-btn"
+                :class="{ 'pg-disabled': meta.page >= meta.totalPages }"
+                :disabled="meta.page >= meta.totalPages"
+                @click="goPage(meta.page + 1)"
+              >
+                Next →
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ADD/EDIT MODAL -->
-    <div
-      v-if="showModal"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-    >
-      <div class="bg-white w-full max-w-xl rounded-xl shadow-lg p-6 max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-bold text-green-800 mb-4">
-          {{ isEditing ? "Edit User" : "Add User" }}
-        </h3>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="text-xs text-gray-600">Full Name *</label>
-            <input v-model="form.fullname" class="w-full p-2 border rounded-md" />
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Username *</label>
-            <input v-model="form.username" class="w-full p-2 border rounded-md" />
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Email *</label>
-            <input v-model="form.email" type="email" class="w-full p-2 border rounded-md" />
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Contact</label>
-            <input v-model="form.contact" class="w-full p-2 border rounded-md" />
-          </div>
-
-          <!-- Address parts (PH implied) -->
-          <div class="md:col-span-2">
-            <label class="text-xs text-gray-600">Address (PH implied)</label>
-
-            <div class="mt-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                v-model="addressParts.street"
-                class="w-full p-2 border rounded-md"
-                placeholder="Street / Sitio / House No."
-              />
-              <input
-                v-model="addressParts.barangay"
-                class="w-full p-2 border rounded-md"
-                placeholder="Barangay"
-              />
-              <input
-                v-model="addressParts.city"
-                class="w-full p-2 border rounded-md"
-                placeholder="City / Municipality"
-              />
-              <input
-                v-model="addressParts.province"
-                class="w-full p-2 border rounded-md"
-                placeholder="Province"
-              />
-            </div>
-
-            <p class="mt-2 text-xs text-gray-500">
-              Preview: <span class="text-gray-800 font-medium">{{ composedAddressPreview }}</span>
-            </p>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Civil Status</label>
-            <select v-model="form.civil_status" class="w-full p-2 border rounded-md bg-white text-gray-900">
-              <option value="">(none)</option>
-              <option value="single">single</option>
-              <option value="married">married</option>
-              <option value="widowed">widowed</option>
-              <option value="separated">separated</option>
-            </select>
-          </div>
-
-          <!-- Nationality searchable dropdown -->
-          <div class="relative" ref="natWrapRef">
-            <label class="text-xs text-gray-600">Nationality</label>
-
-            <input
-              v-model="nationalityQuery"
-              type="text"
-              class="w-full p-2 border rounded-md"
-              placeholder="Search nationality (e.g., Filipino)"
-              @focus="openNationality()"
-              @input="onNationalityInput"
-              @keydown.down.prevent="moveNationality(1)"
-              @keydown.up.prevent="moveNationality(-1)"
-              @keydown.enter.prevent="selectHighlightedNationality()"
-              @keydown.esc.prevent="isNationalityOpen = false"
-            />
-
-            <div
-              v-if="isNationalityOpen && filteredNationalities.length > 0"
-              class="absolute z-[9999] mt-2 w-full max-h-48 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg"
-            >
-              <button
-                v-for="(n, idx) in filteredNationalities"
-                :key="n"
-                type="button"
-                class="w-full text-left px-3 py-2 text-sm"
-                :class="idx === nationalityHighlight ? 'bg-gray-100 text-gray-900' : 'text-gray-800 hover:bg-gray-50'"
-                @mousedown.prevent="pickNationality(n)"
-              >
-                {{ n }}
+    <transition name="modal-fade">
+      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+        <transition name="modal-scale">
+          <div class="modal-card">
+            <div class="modal-head modal-head-green">
+              <h3 class="modal-title">{{ isEditing ? "Edit User" : "Add User" }}</h3>
+              <button class="modal-close-btn" @click="closeModal">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <p class="mt-1 text-[11px] text-gray-500">
-              Tip: type to filter, Enter to select.
-            </p>
+            <div class="modal-body">
+              <div v-if="errorMsg" class="error-box">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ errorMsg }}
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Full Name *</label>
+                  <input v-model="form.fullname" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Username *</label>
+                  <input v-model="form.username" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Email *</label>
+                  <input v-model="form.email" type="email" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Contact</label>
+                  <input v-model="form.contact" class="form-input" />
+                </div>
+
+                <!-- Address parts (PH implied) -->
+                <div class="form-group md-col-span-2">
+                  <label class="form-label">Address (PH implied)</label>
+
+                  <div class="address-grid">
+                    <input v-model="addressParts.street" class="form-input" placeholder="Street / Sitio / House No." />
+                    <input v-model="addressParts.barangay" class="form-input" placeholder="Barangay" />
+                    <input v-model="addressParts.city" class="form-input" placeholder="City / Municipality" />
+                    <input v-model="addressParts.province" class="form-input" placeholder="Province" />
+                  </div>
+
+                  <p class="address-preview">Preview: <span>{{ composedAddressPreview }}</span></p>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Civil Status</label>
+                  <select v-model="form.civil_status" class="form-input">
+                    <option value="">(none)</option>
+                    <option value="single">single</option>
+                    <option value="married">married</option>
+                    <option value="widowed">widowed</option>
+                    <option value="separated">separated</option>
+                  </select>
+                </div>
+
+                <!-- Nationality searchable dropdown -->
+                <div class="form-group nationality-wrap" ref="natWrapRef">
+                  <label class="form-label">Nationality</label>
+
+                  <input
+                    v-model="nationalityQuery"
+                    type="text"
+                    class="form-input"
+                    placeholder="Search nationality (e.g., Filipino)"
+                    @focus="openNationality()"
+                    @input="onNationalityInput"
+                    @keydown.down.prevent="moveNationality(1)"
+                    @keydown.up.prevent="moveNationality(-1)"
+                    @keydown.enter.prevent="selectHighlightedNationality()"
+                    @keydown.esc.prevent="isNationalityOpen = false"
+                  />
+
+                  <div v-if="isNationalityOpen && filteredNationalities.length > 0" class="nationality-dropdown">
+                    <button
+                      v-for="(n, idx) in filteredNationalities"
+                      :key="n"
+                      type="button"
+                      class="nationality-option"
+                      :class="{ 'nationality-option-active': idx === nationalityHighlight }"
+                      @mousedown.prevent="pickNationality(n)"
+                    >
+                      {{ n }}
+                    </button>
+                  </div>
+
+                  <p class="field-hint">Tip: type to filter, Enter to select.</p>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Role *</label>
+                  <select v-model="form.role" class="form-input" @change="handleRoleChange">
+                    <option value="admin">admin</option>
+                    <option value="instructor">instructor</option>
+                    <option value="trainer">trainer</option>
+                    <option value="user">user</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Track</label>
+                  <select v-model="form.track" class="form-input" :disabled="!needsTrack">
+                    <option value="">(none)</option>
+                    <option value="driving">driving</option>
+                    <option value="tesda">tesda</option>
+                  </select>
+                  <p v-if="!needsTrack" class="field-hint">Track is only required for user/student.</p>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Gender</label>
+                  <select v-model="form.gender" class="form-input">
+                    <option value="">(leave as is)</option>
+                    <option value="male">male</option>
+                    <option value="female">female</option>
+                  </select>
+                  <p class="field-hint">Leave blank to keep current gender.</p>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Birthday</label>
+                  <input v-model="form.birthday" type="date" class="form-input" />
+                  <p class="field-hint">Leave blank to keep current birthday.</p>
+                </div>
+
+                <div class="form-group md-col-span-2">
+                  <label class="form-label">Password {{ isEditing ? "(optional – leave blank to keep)" : "*" }}</label>
+                  <input v-model="form.password" type="password" class="form-input" />
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-foot">
+              <button class="btn-cancel" @click="closeModal">Cancel</button>
+              <button class="btn-save btn-green" :disabled="saving" @click="saveUser">
+                {{ saving ? "Saving..." : isEditing ? "Update" : "Create" }}
+              </button>
+            </div>
           </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Role *</label>
-            <select
-              v-model="form.role"
-              class="w-full p-2 border rounded-md bg-white text-gray-900"
-              @change="handleRoleChange"
-            >
-              <option value="admin">admin</option>
-              <option value="instructor">instructor</option>
-              <option value="trainer">trainer</option>
-              <option value="user">user</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Track</label>
-            <select
-              v-model="form.track"
-              class="w-full p-2 border rounded-md bg-white text-gray-900"
-              :disabled="!needsTrack"
-            >
-              <option value="">(none)</option>
-              <option value="driving">driving</option>
-              <option value="tesda">tesda</option>
-            </select>
-            <p v-if="!needsTrack" class="text-xs text-gray-400 mt-1">
-              Track is only required for user/student.
-            </p>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Gender</label>
-            <select v-model="form.gender" class="w-full p-2 border rounded-md bg-white text-gray-900">
-              <option value="">(leave as is)</option>
-              <option value="male">male</option>
-              <option value="female">female</option>
-            </select>
-            <p class="text-xs text-gray-400 mt-1">Leave blank to keep current gender.</p>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-600">Birthday</label>
-            <input v-model="form.birthday" type="date" class="w-full p-2 border rounded-md" />
-            <p class="text-xs text-gray-400 mt-1">Leave blank to keep current birthday.</p>
-          </div>
-
-          <div class="md:col-span-2">
-            <label class="text-xs text-gray-600">
-              Password {{ isEditing ? "(optional – leave blank to keep)" : "*" }}
-            </label>
-            <input v-model="form.password" type="password" class="w-full p-2 border rounded-md" />
-          </div>
-        </div>
-
-        <div v-if="errorMsg" class="mt-3 text-sm text-red-600">{{ errorMsg }}</div>
-
-        <div class="flex justify-end gap-2 mt-6">
-          <button @click="closeModal" class="px-4 py-2 rounded-md border hover:bg-gray-50">
-            Cancel
-          </button>
-          <button
-            @click="saveUser"
-            :disabled="saving"
-            class="px-4 py-2 rounded-md bg-green-700 hover:bg-green-800 text-white disabled:opacity-50"
-          >
-            {{ saving ? "Saving..." : isEditing ? "Update" : "Create" }}
-          </button>
-        </div>
+        </transition>
       </div>
-    </div>
+    </transition>
 
     <!-- DELETE MODAL -->
-    <div
-      v-if="showDeleteModal"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-    >
-      <div class="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
-        <h3 class="text-lg font-bold text-red-700 mb-2">Delete Account</h3>
-        <p class="text-sm text-gray-700">
-          Are you sure you want to delete <b>{{ toDelete?.fullname }}</b> ({{ toDelete?.email }})?
-        </p>
-
-        <div v-if="deleteErrorMsg" class="mt-3 text-sm text-red-600">{{ deleteErrorMsg }}</div>
-
-        <div class="flex justify-end gap-2 mt-6">
-          <button @click="cancelDelete" class="px-4 py-2 rounded-md border hover:bg-gray-50">
-            Cancel
-          </button>
-          <button
-            @click="deleteUser"
-            :disabled="deleting"
-            class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-          >
-            {{ deleting ? "Deleting..." : "Delete" }}
-          </button>
-        </div>
+    <transition name="modal-fade">
+      <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+        <transition name="modal-scale">
+          <div class="modal-card modal-card-sm">
+            <div class="modal-head-delete">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-gray-900">Delete Account</h3>
+                  <p class="text-sm text-gray-500">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+            <div class="modal-body-delete">
+              <p class="text-sm text-gray-700 leading-relaxed">
+                Are you sure you want to delete <span class="font-semibold text-gray-900">{{ toDelete?.fullname }}</span>
+                ({{ toDelete?.email }})? All data will be permanently removed.
+              </p>
+              <div v-if="deleteErrorMsg" class="error-box mt-3">{{ deleteErrorMsg }}</div>
+              <div class="mt-6 flex justify-end gap-3">
+                <button type="button" @click="cancelDelete" class="btn-cancel">Cancel</button>
+                <button type="button" @click="deleteUser" :disabled="deleting" class="btn-save btn-red flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {{ deleting ? "Deleting..." : "Delete" }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
       </div>
-    </div>
+    </transition>
+
+    <!-- SUCCESS/ERROR NOTIFICATION MODAL -->
+      <transition name="modal-fade">
+        <div v-if="messageOpen" class="modal-overlay" @click.self="closeMessage">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-sm">
+              <div class="modal-head-delete">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-11 h-11 rounded-full flex items-center justify-center text-xl"
+                    :class="messageType === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'"
+                  >
+                    <svg v-if="messageType === 'success'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-bold text-gray-900">{{ messageTitle }}</h3>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-body-delete">
+                <p class="text-sm text-gray-700 leading-relaxed">{{ messageText }}</p>
+                <div class="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    @click="closeMessage"
+                    class="btn-save"
+                    :class="messageType === 'success' ? 'btn-green' : 'btn-red'"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </transition>
   </AdminLayout>
 </template>
 
@@ -524,6 +512,22 @@ export default {
     const toDelete = ref(null);
     const deleting = ref(false);
     const deleteErrorMsg = ref("");
+    // Success/Error notification modal
+    const messageOpen = ref(false);
+    const messageTitle = ref("");
+    const messageText = ref("");
+    const messageType = ref("success"); // 'success' | 'error'
+
+    const showMessage = (title, text, type = "success") => {
+      messageTitle.value = title;
+      messageText.value = text;
+      messageType.value = type;
+      messageOpen.value = true;
+    };
+
+    const closeMessage = () => {
+      messageOpen.value = false;
+    };
 
     // Address parts (modal)
     const addressParts = ref({ street: "", barangay: "", city: "", province: "" });
@@ -643,18 +647,16 @@ export default {
     });
 
     const roleBadge = (role) => {
-      if (role === "admin") return "bg-purple-100 text-purple-700";
-      if (role === "instructor") return "bg-blue-100 text-blue-700";
-      if (role === "trainer") return "bg-orange-100 text-orange-700";
-      return "bg-green-100 text-green-700";
+      if (role === "admin") return "pill-purple";
+      if (role === "instructor") return "pill-blue";
+      if (role === "trainer") return "pill-amber";
+      return "pill-green";
     };
 
     const statusLabel = (u) => (Number(u?.is_disabled || 0) === 1 ? "disabled" : "active");
 
     const statusBadge = (u) =>
-      Number(u?.is_disabled || 0) === 1
-        ? "bg-red-100 text-red-700"
-        : "bg-emerald-100 text-emerald-700";
+      Number(u?.is_disabled || 0) === 1 ? "pill-red" : "pill-green";
 
     const canToggleDisable = (u) => u?.role === "user" || u?.role === "student";
 
@@ -680,19 +682,19 @@ export default {
 
         users.value = data?.data || [];
         meta.value = data?.meta || meta.value;
-      } catch (err) {
-        const data = err?.response?.data;
-        const msg =
-          (typeof data === "string" ? data : null) ||
-          data?.error?.sqlMessage ||
-          data?.error?.code ||
-          data?.message ||
-          err?.message ||
-          "Failed to load users";
-        alert(msg);
-      } finally {
-        loading.value = false;
-      }
+        } catch (err) {
+          const data = err?.response?.data;
+          const msg =
+            (typeof data === "string" ? data : null) ||
+            data?.error?.sqlMessage ||
+            data?.error?.code ||
+            data?.message ||
+            err?.message ||
+            "Failed to load users";
+          showMessage("Error", msg, "error");
+        } finally {
+          loading.value = false;
+        }
     };
 
     let searchTimer = null;
@@ -776,9 +778,9 @@ export default {
 
         showModal.value = true;
         await nextTick();
-      } catch (err) {
-        alert(err?.response?.data?.message || err.message || "Failed to load user");
-      }
+        } catch (err) {
+          showMessage("Error", err?.response?.data?.message || err.message || "Failed to load user", "error");
+        }
     };
 
     const closeModal = () => {
@@ -835,11 +837,12 @@ export default {
 
         showModal.value = false;
         await fetchUsers();
-      } catch (err) {
-        errorMsg.value = err?.response?.data?.message || err.message || "Failed to save user";
-      } finally {
-        saving.value = false;
-      }
+        showMessage("Changes Saved!", isEditing.value ? "User updated successfully." : "User created successfully.", "success");
+        } catch (err) {
+          errorMsg.value = err?.response?.data?.message || err.message || "Failed to save user";
+        } finally {
+          saving.value = false;
+        }
     };
 
     const confirmDelete = (u) => {
@@ -858,10 +861,12 @@ export default {
       try {
         deleting.value = true;
         deleteErrorMsg.value = "";
+        const deletedName = toDelete.value?.fullname;
         await api.delete(`/admin/users/${toDelete.value.id}`);
         showDeleteModal.value = false;
         toDelete.value = null;
         await fetchUsers();
+        showMessage("User Deleted", `${deletedName} was removed successfully.`, "success");
       } catch (err) {
         deleteErrorMsg.value = err?.response?.data?.message || err.message || "Failed to delete user";
       } finally {
@@ -884,9 +889,9 @@ export default {
         else await api.put(`/admin/users/${u.id}/disable`);
 
         await fetchUsers();
-      } catch (err) {
-        alert(err?.response?.data?.message || err.message || "Failed to update status");
-      }
+        } catch (err) {
+          showMessage("Error", err?.response?.data?.message || err.message || "Failed to update status", "error");
+        }
     };
 
     onMounted(() => {
@@ -935,6 +940,12 @@ export default {
       closeModal,
       handleRoleChange,
       saveUser,
+      messageOpen, 
+      messageTitle, 
+      messageText, 
+      messageType, 
+      showMessage, 
+      closeMessage,
 
       // delete modal
       showDeleteModal,
@@ -944,6 +955,7 @@ export default {
       confirmDelete,
       cancelDelete,
       deleteUser,
+      
 
       // address + nationality
       addressParts,
@@ -962,3 +974,142 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+/* ========== WRAPPER ========== */
+.users-wrapper { padding: 4px 0; display: flex; flex-direction: column; gap: 16px; }
+.page-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.page-subtitle { font-size: 0.8rem; color: #6b7280; margin: 2px 0 0; }
+.users-body { display: flex; flex-direction: column; gap: 16px; }
+
+/* ========== HEADER BUTTONS ========== */
+.header-btn-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn-outline { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; color: #374151; border: 1px solid #e5e7eb; border-radius: 12px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+.btn-outline:hover { border-color: #10b981; color: #059669; background: #f9fafb; }
+.add-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: #10b981; color: #fff; border: none; border-radius: 12px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+.add-btn:hover { background: #059669; transform: translateY(-1px); }
+
+/* ========== HEADER SEARCH / FILTERS ========== */
+.header-actions { display: flex; align-items: center; gap: 12px; width: 100%; flex-wrap: wrap; }
+.search-box { position: relative; flex: 1; min-width: 200px; max-width: 380px; }
+.search-icon-svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #9ca3af; }
+.search-input-modern { width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; color: #111827 !important; background: #fff !important; }
+.search-input-modern:focus { border-color: #10b981; }
+.select-modern { padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 0.85rem; color: #374151; background: #fff; outline: none; cursor: pointer; }
+.select-modern:focus { border-color: #10b981; }
+
+/* ========== LOADING ========== */
+.loading-box { padding: 40px; text-align: center; color: #9ca3af; font-size: 0.9rem; }
+
+/* ========== PANEL ========== */
+.panel-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; }
+.columns-panel { padding: 20px; overflow: visible; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.panel-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+.panel-meta { font-size: 0.78rem; color: #9ca3af; margin: 2px 0 0; }
+.preset-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.columns-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.column-check { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #374151; }
+
+/* ========== TABLE ========== */
+.table-wrap { overflow-x: auto; }
+.modern-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.modern-table th { text-align: left; padding: 11px 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.modern-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; white-space: nowrap; }
+.modern-table tbody tr:hover { background: #f9fafb; }
+.thead-green th { background: #10b981; color: #fff; border-bottom: none; }
+.empty-cell { text-align: center; color: #9ca3af; padding: 30px !important; white-space: normal !important; }
+
+/* ========== PILLS ========== */
+.pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+.pill-green { background: #d1fae5; color: #059669; }
+.pill-blue { background: #dbeafe; color: #2563eb; }
+.pill-amber { background: #fef3c7; color: #d97706; }
+.pill-red { background: #fee2e2; color: #dc2626; }
+.pill-gray { background: #f3f4f6; color: #6b7280; }
+.pill-purple { background: #ede9fe; color: #7c3aed; }
+
+/* ========== ACTION BUTTONS ========== */
+.action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.action-edit { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; background: #3b82f6; color: #fff; border: none; cursor: pointer; transition: all 0.2s; }
+.action-edit:hover { background: #2563eb; }
+.action-delete { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; background: #ef4444; color: #fff; border: none; cursor: pointer; transition: all 0.2s; }
+.action-delete:hover { background: #dc2626; }
+.action-toggle { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; color: #fff; border: none; cursor: pointer; transition: all 0.2s; }
+.action-toggle-disable { background: #6b7280; }
+.action-toggle-disable:hover { background: #4b5563; }
+.action-toggle-enable { background: #10b981; }
+.action-toggle-enable:hover { background: #059669; }
+
+/* ========== PAGINATION ========== */
+.pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb; flex-wrap: wrap; gap: 10px; }
+.page-info { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
+.page-btns { display: flex; align-items: center; gap: 6px; }
+.pg-btn { padding: 7px 14px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
+.pg-btn:hover:not(.pg-disabled) { border-color: #10b981; color: #059669; }
+.pg-disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ========== MODALS ========== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.2); }
+.modal-card-sm { max-width: 420px; }
+.modal-head { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+.modal-head-green { background: #f0fdf4; border-bottom: 1px solid #d1fae5; }
+.modal-head-delete { padding: 20px 20px 16px; border-bottom: 1px solid #f3f4f6; }
+.modal-body-delete { padding: 20px; }
+.modal-title { font-size: 1.1rem; font-weight: 700; color: #111827; margin: 0; }
+.modal-close-btn { padding: 6px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; transition: all 0.2s; }
+.modal-close-btn:hover { background: #f3f4f6; color: #111827; }
+.modal-body { padding: 20px; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 16px 16px; }
+.error-box { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 10px; color: #dc2626; font-size: 0.85rem; margin-bottom: 16px; }
+
+/* ========== FORM ========== */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; position: relative; }
+.md-col-span-2 { grid-column: span 2; }
+.form-label { font-size: 0.75rem; font-weight: 600; color: #374151; }
+.form-input { padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; background: #fff; color: #111827; }
+.form-input:focus { border-color: #10b981; }
+.field-hint { font-size: 0.7rem; color: #9ca3af; margin-top: 2px; }
+
+/* ========== ADDRESS ========== */
+.address-grid { margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.address-preview { margin-top: 8px; font-size: 0.75rem; color: #6b7280; }
+.address-preview span { color: #111827; font-weight: 600; }
+
+/* ========== NATIONALITY DROPDOWN ========== */
+.nationality-wrap { position: relative; }
+.nationality-dropdown { position: absolute; z-index: 20; margin-top: 4px; width: 100%; max-height: 190px; overflow-y: auto; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); top: 100%; }
+.nationality-option { display: block; width: 100%; text-align: left; padding: 8px 12px; font-size: 0.85rem; background: transparent; border: none; color: #374151; cursor: pointer; }
+.nationality-option:hover, .nationality-option-active { background: #f0fdf4; color: #059669; }
+
+/* ========== BUTTONS (modal footer) ========== */
+.btn-cancel { padding: 9px 18px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #374151; cursor: pointer; transition: all 0.2s; }
+.btn-cancel:hover { background: #f3f4f6; }
+.btn-save { padding: 9px 18px; border: none; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #fff; cursor: pointer; transition: all 0.2s; }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-green { background: #10b981; }
+.btn-green:hover:not(:disabled) { background: #059669; }
+.btn-red { background: #ef4444; }
+.btn-red:hover:not(:disabled) { background: #dc2626; }
+
+/* ========== ANIMATIONS ========== */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-scale-enter-active { transition: all 0.25s ease; }
+.modal-scale-leave-active { transition: all 0.15s ease; }
+.modal-scale-enter-from { opacity: 0; transform: scale(0.95) translateY(10px); }
+.modal-scale-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
+
+/* ========== MISC ========== */
+.flex { display: flex; } .items-center { align-items: center; } .gap-3 { gap: 12px; }
+.text-sm { font-size: 0.875rem; } .text-gray-700 { color: #374151; } .font-semibold { font-weight: 600; }
+.mt-3 { margin-top: 12px; }
+
+@media (max-width: 640px) {
+  .form-grid, .address-grid { grid-template-columns: 1fr; }
+  .md-col-span-2 { grid-column: span 1; }
+}
+</style>

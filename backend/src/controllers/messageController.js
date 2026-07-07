@@ -342,3 +342,70 @@ exports.deleteConversation = async (req, res) => {
     return res.status(500).json({ status: "error", message: "Server error" });
   }
 };
+
+exports.editMessage = async (req, res) => {
+  try {
+    const userId = req.session.user_id;
+    const messageId = req.params.id;
+    const { message } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ status: "error", message: "Not logged in" });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ status: "error", message: "Message text required" });
+    }
+
+    const [[existing]] = await pool.query(
+      "SELECT sender_id FROM messages WHERE id = ?",
+      [messageId],
+    );
+
+    if (!existing) {
+      return res.status(404).json({ status: "error", message: "Message not found" });
+    }
+    if (existing.sender_id !== userId) {
+      return res.status(403).json({ status: "error", message: "You can only edit your own messages" });
+    }
+
+    await pool.query(
+      "UPDATE messages SET message = ? WHERE id = ?",
+      [message, messageId],
+    );
+
+    res.json({ status: "ok", message: "Message updated" });
+  } catch (err) {
+    console.error("editMessage error:", err);
+    res.status(500).json({ status: "error", message: "Server error" });
+  }
+};
+
+exports.deleteMessage = async (req, res) => {
+  try {
+    const userId = req.session.user_id;
+    const messageId = req.params.id;
+
+    if (!userId) {
+      return res.status(401).json({ status: "error", message: "Not logged in" });
+    }
+
+    const [[existing]] = await pool.query(
+      "SELECT sender_id FROM messages WHERE id = ?",
+      [messageId],
+    );
+
+    if (!existing) {
+      return res.status(404).json({ status: "error", message: "Message not found" });
+    }
+    if (existing.sender_id !== userId) {
+      return res.status(403).json({ status: "error", message: "You can only delete your own messages" });
+    }
+
+    await pool.query("DELETE FROM messages WHERE id = ?", [messageId]);
+
+    res.json({ status: "ok", message: "Message deleted" });
+  } catch (err) {
+    console.error("deleteMessage error:", err);
+    res.status(500).json({ status: "error", message: "Server error" });
+  }
+};
