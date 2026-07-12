@@ -85,7 +85,14 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">Phone Number</label>
-                  <input type="tel" v-model="profile.contact" class="form-input" placeholder="+63 123 456 7890">
+                  <input 
+                    type="tel" 
+                    v-model="profile.contact" 
+                    @input="onPhoneInput"
+                    maxlength="11"
+                    class="form-input" 
+                    placeholder="09123456789"
+                  >
                 </div>
               </div>
             </div>
@@ -283,7 +290,13 @@
       }
     },
 
-    methods: {
+        methods: {
+      onPhoneInput(e) {
+        const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11)
+        this.profile.contact = digitsOnly
+        e.target.value = digitsOnly
+      },
+
       showMessage(title, text, icon = 'ℹ️') {
         this.messageTitle = title
         this.messageText = text
@@ -300,24 +313,17 @@
           const response = await api.get("/settings/profile")
           if (response.data?.status === 'success' && response.data?.profile) {
             Object.assign(this.profile, response.data.profile)
-
-            // Dispatch event for sidebar update
-            const event = new CustomEvent('user-updated', {
+            window.dispatchEvent(new CustomEvent('user-updated', {
               detail: {
                 fullname: response.data.profile.fullname,
                 username: response.data.profile.username,
                 email: response.data.profile.email
               }
-            })
-            window.dispatchEvent(event)
+            }))
           }
         } catch (err) {
           console.error("Fetch profile error:", err)
-          this.showMessage(
-            'Error',
-            err.response?.data?.message || 'Failed to load profile',
-            '❌'
-          )
+          this.showMessage('Error', err.response?.data?.message || 'Failed to load profile', '❌')
         }
       },
 
@@ -337,30 +343,22 @@
           this.showMessage('Validation Error', 'Name and email are required', '⚠️')
           return
         }
-
         this.saving = true
         try {
           const response = await api.put("/settings/profile", this.profile)
           if (response.data?.status === 'success') {
-            // Dispatch event for sidebar update
-            const event = new CustomEvent('user-updated', {
+            window.dispatchEvent(new CustomEvent('user-updated', {
               detail: {
                 fullname: this.profile.fullname,
                 username: this.profile.username,
                 email: this.profile.email
               }
-            })
-            window.dispatchEvent(event)
-
+            }))
             this.showMessage('Success', 'Profile updated successfully', '✅')
           }
         } catch (err) {
           console.error("Save profile error:", err)
-          this.showMessage(
-            'Error',
-            err.response?.data?.message || 'Failed to update profile',
-            '❌'
-          )
+          this.showMessage('Error', err.response?.data?.message || 'Failed to update profile', '❌')
         } finally {
           this.saving = false
         }
@@ -375,11 +373,7 @@
           }
         } catch (err) {
           console.error("Save preferences error:", err)
-          this.showMessage(
-            'Error',
-            err.response?.data?.message || 'Failed to save preferences',
-            '❌'
-          )
+          this.showMessage('Error', err.response?.data?.message || 'Failed to save preferences', '❌')
         } finally {
           this.saving = false
         }
@@ -402,14 +396,12 @@
           this.showMessage('Validation Error', 'Passwords do not match', '⚠️')
           return
         }
-
         this.saving = true
         try {
           const response = await api.post("/settings/change-password", {
             currentPassword: this.security.currentPassword,
             newPassword: this.security.newPassword
           })
-
           if (response.data?.status === 'success') {
             this.showMessage('Success', 'Password updated successfully', '✅')
             this.security.currentPassword = ''
@@ -418,26 +410,121 @@
           }
         } catch (err) {
           console.error("Update password error:", err)
-          this.showMessage(
-            'Error',
-            err.response?.data?.message || 'Failed to update password',
-            '❌'
-          )
+          this.showMessage('Error', err.response?.data?.message || 'Failed to update password', '❌')
         } finally {
           this.saving = false
         }
       },
 
       async saveAllSettings() {
+        if (!this.profile.fullname || !this.profile.email) {
+          this.showMessage('Validation Error', 'Name and email are required', '⚠️')
+          return
+        }
+
+        const wantsPasswordChange =
+          this.security.currentPassword || this.security.newPassword || this.security.confirmPassword
+
+        if (wantsPasswordChange) {
+          if (!this.security.currentPassword) {
+            this.showMessage('Validation Error', 'Current password is required', '⚠️')
+            return
+          }
+          if (!this.security.newPassword) {
+            this.showMessage('Validation Error', 'New password is required', '⚠️')
+            return
+          }
+          if (this.security.newPassword.length < 8) {
+            this.showMessage('Validation Error', 'Password must be at least 8 characters', '⚠️')
+            return
+          }
+          if (this.security.newPassword !== this.security.confirmPassword) {
+            this.showMessage('Validation Error', 'Passwords do not match', '⚠️')
+            return
+          }
+        }
+
         this.saving = true
+
+        const results = { profile: null, preferences: null, password: null }
+        let profileErrorMsg = ''
+        let preferencesErrorMsg = ''
+        let passwordErrorMsg = ''
+
         try {
-          await this.saveProfile()
-          await this.savePreferences()
-          this.showMessage('Success', 'All settings saved successfully', '✅')
+          const profileRes = await api.put("/settings/profile", this.profile)
+          if (profileRes.data?.status === 'success') {
+            results.profile = true
+            window.dispatchEvent(new CustomEvent('user-updated', {
+              detail: {
+                fullname: this.profile.fullname,
+                username: this.profile.username,
+                email: this.profile.email
+              }
+            }))
+          } else {
+            results.profile = false
+          }
         } catch (err) {
-          console.error("Save all error:", err)
-        } finally {
-          this.saving = false
+          console.error("Save profile error:", err)
+          results.profile = false
+          profileErrorMsg = err.response?.data?.message || 'Failed to update profile'
+        }
+
+        try {
+          const prefRes = await api.put("/settings/preferences", this.preferences)
+          results.preferences = prefRes.data?.status === 'success'
+          if (!results.preferences) preferencesErrorMsg = 'Failed to save preferences'
+        } catch (err) {
+          console.error("Save preferences error:", err)
+          results.preferences = false
+          preferencesErrorMsg = err.response?.data?.message || 'Failed to save preferences'
+        }
+
+        if (wantsPasswordChange) {
+          try {
+            const pwRes = await api.post("/settings/change-password", {
+              currentPassword: this.security.currentPassword,
+              newPassword: this.security.newPassword
+            })
+            if (pwRes.data?.status === 'success') {
+              results.password = true
+              this.security.currentPassword = ''
+              this.security.newPassword = ''
+              this.security.confirmPassword = ''
+            } else {
+              results.password = false
+            }
+          } catch (err) {
+            console.error("Update password error:", err)
+            results.password = false
+            passwordErrorMsg = err.response?.data?.message || 'Failed to update password'
+          }
+        }
+
+        this.saving = false
+
+        const failures = []
+        if (results.profile === false) failures.push(`Profile: ${profileErrorMsg}`)
+        if (results.preferences === false) failures.push(`Preferences: ${preferencesErrorMsg}`)
+        if (results.password === false) failures.push(`Password: ${passwordErrorMsg}`)
+
+        if (failures.length === 0) {
+          this.showMessage('Success', 'All settings saved successfully', '✅')
+        } else {
+          const succeeded = []
+          if (results.profile === true) succeeded.push('Profile')
+          if (results.preferences === true) succeeded.push('Preferences')
+          if (results.password === true) succeeded.push('Password')
+
+          const successPart = succeeded.length ? `${succeeded.join(' and ')} saved successfully. ` : ''
+          const failurePart = failures.join(' | ')
+
+          this.showMessage(
+            succeeded.length ? 'Partially Saved' : 'Error',
+            `${successPart}${failurePart}`,
+            succeeded.length ? '⚠️' : '❌'
+          )
         }
       }
     },

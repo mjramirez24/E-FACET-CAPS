@@ -112,24 +112,27 @@
           </p>
         </div>
 
-        <!-- Contact -->
-        <div>
-          <label class="block text-xs text-gray-300 font-medium mb-1">Contact Number:</label>
-          <input
-            type="text"
-            v-model="formData.contact"
-            required
-            class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
-            :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
-            placeholder="09XX XXX XXXX"
-          />
-          <p v-if="errors.contact" class="text-red-400 text-xs mt-1 flex items-center">
-            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            {{ errors.contact }}
-          </p>
-        </div>
+      <!-- Contact -->
+      <div>
+        <label class="block text-xs text-gray-300 font-medium mb-1">Contact Number:</label>
+        <input
+          type="text"
+          v-model="formData.contact"
+          @input="onContactInput"
+          inputmode="numeric"
+          maxlength="11"
+          required
+          class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
+          :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
+          placeholder="09XX XXX XXXX"
+        />
+        <p v-if="errors.contact" class="text-red-400 text-xs mt-1 flex items-center">
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          {{ errors.contact }}
+        </p>
+      </div>
 
         <!-- Address -->
         <div>
@@ -354,24 +357,41 @@
           </p>
         </div>
 
-        <!-- Password -->
-        <div>
-          <label class="block text-xs text-gray-300 font-medium mb-1">Password: *</label>
-          <input
-            type="password"
-            v-model="formData.password"
-            required
-            class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
-            :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-600'"
-            placeholder="Create a password"
-          />
-          <p v-if="errors.password" class="text-red-400 text-xs mt-1 flex items-center">
-            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            {{ errors.password }}
+      <!-- Password -->
+      <div>
+        <label class="block text-xs text-gray-300 font-medium mb-1">Password: *</label>
+        <input
+          type="password"
+          v-model="formData.password"
+          minlength="8"
+          required
+          class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
+          :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-600'"
+          placeholder="Create a password (min. 8 characters)"
+        />
+
+        <!-- Strength meter -->
+        <div v-if="formData.password" class="mt-2">
+          <div class="flex gap-1 mb-1">
+            <div
+              v-for="n in 4"
+              :key="n"
+              class="h-1 flex-1 rounded-full transition-colors"
+              :class="n <= passwordStrength.score ? passwordStrength.barColor : 'bg-white/10'"
+            ></div>
+          </div>
+          <p class="text-xs" :class="passwordStrength.textColor">
+            {{ passwordStrength.label }}
           </p>
         </div>
+
+        <p v-if="errors.password" class="text-red-400 text-xs mt-1 flex items-center">
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          {{ errors.password }}
+        </p>
+      </div>
 
         <!-- Confirm Password -->
         <div>
@@ -621,12 +641,36 @@ export default {
       if (!q) return list.slice(0, 12);
       return list.filter((n) => n.toLowerCase().includes(q)).slice(0, 12);
     },
+          passwordStrength() {
+      const pw = this.formData.password || "";
+      if (!pw) return { score: 0, label: "", barColor: "", textColor: "" };
+
+      let score = 0;
+      if (pw.length >= 8) score++;
+      if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+      if (/\d/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+      const levels = [
+        { label: "Too weak — add more characters", barColor: "bg-red-500", textColor: "text-red-400" },
+        { label: "Weak — try adding numbers or symbols", barColor: "bg-orange-500", textColor: "text-orange-400" },
+        { label: "Medium — add uppercase or symbols", barColor: "bg-yellow-500", textColor: "text-yellow-400" },
+        { label: "Strong password", barColor: "bg-green-500", textColor: "text-green-400" },
+      ];
+
+      return { score, ...levels[Math.max(0, score - 1)] };
+    },
+
   },
 
   methods: {
     cap(s) {
       if (!s) return "";
       return s.charAt(0).toUpperCase() + s.slice(1);
+    },
+    onContactInput() {
+      // strip non-digits, cap at 11 characters
+      this.formData.contact = this.formData.contact.replace(/\D/g, "").slice(0, 11);
     },
 
     closeAllDropdowns() {
@@ -723,6 +767,12 @@ export default {
         isValid = false;
       }
 
+      const contact = (this.formData.contact || "").trim();
+      if (contact && contact.length !== 11) {
+        this.errors.contact = "Contact number must be exactly 11 digits";
+        isValid = false;
+      }
+
       if (
         !this.addressParts.street.trim() ||
         !this.addressParts.barangay.trim() ||
@@ -756,6 +806,9 @@ export default {
 
       if (!this.formData.password) {
         this.errors.password = "Password is required";
+        isValid = false;
+      } else if (this.formData.password.length < 8) {
+        this.errors.password = "Password must be at least 8 characters";
         isValid = false;
       }
 

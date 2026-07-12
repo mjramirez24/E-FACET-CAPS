@@ -85,7 +85,14 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Phone Number</label>
-                <input type="tel" v-model="profile.contact" class="form-input" placeholder="+63 123 456 7890">
+                <input 
+                  type="tel" 
+                  v-model="profile.contact" 
+                  @input="onPhoneInput"
+                  maxlength="11"
+                  class="form-input" 
+                  placeholder="09123456789"
+                >
               </div>
             </div>
           </div>
@@ -263,68 +270,116 @@ export default {
     }
   },
 
-  methods: {
-    showMessage(title, text, icon = 'warning') {
-      this.messageTitle = title
-      this.messageText = text
-      this.messageIcon = icon
-      this.messageOpen = true
-    },
+ methods: {
+  onPhoneInput(e) {
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11)
+    this.profile.contact = digitsOnly
+    e.target.value = digitsOnly
+  },
 
-    closeMessage() {
-      this.messageOpen = false
-    },
+  showMessage(title, text, icon = 'warning') {
+    this.messageTitle = title
+    this.messageText = text
+    this.messageIcon = icon
+    this.messageOpen = true
+  },
 
-    async fetchProfile() {
-      try {
-        const response = await api.get("/settings/profile")
-        if (response.data?.status === 'success' && response.data?.profile) {
-          Object.assign(this.profile, response.data.profile)
+  closeMessage() {
+    this.messageOpen = false
+  },
 
-          const event = new CustomEvent('user-updated', {
-            detail: {
-              fullname: response.data.profile.fullname,
-              username: response.data.profile.username,
-              email: response.data.profile.email
-            }
-          })
-          window.dispatchEvent(event)
-        }
-      } catch (err) {
-        console.error("Fetch profile error:", err)
-        this.showMessage('Error', err.response?.data?.message || 'Failed to load profile', 'error')
+  async fetchProfile() {
+    try {
+      const response = await api.get("/settings/profile")
+      if (response.data?.status === 'success' && response.data?.profile) {
+        Object.assign(this.profile, response.data.profile)
+        window.dispatchEvent(new CustomEvent('user-updated', {
+          detail: {
+            fullname: response.data.profile.fullname,
+            username: response.data.profile.username,
+            email: response.data.profile.email
+          }
+        }))
       }
-    },
+    } catch (err) {
+      console.error("Fetch profile error:", err)
+      this.showMessage('Error', err.response?.data?.message || 'Failed to load profile', 'error')
+    }
+  },
 
-    async saveProfile() {
-      if (!this.profile.fullname || !this.profile.email) {
-        this.showMessage('Validation Error', 'Name and email are required', 'warning')
-        return
+  async saveProfile() {
+    if (!this.profile.fullname || !this.profile.email) {
+      this.showMessage('Validation Error', 'Name and email are required', 'warning')
+      return
+    }
+    this.saving = true
+    try {
+      const response = await api.put("/settings/profile", this.profile)
+      if (response.data?.status === 'success') {
+        window.dispatchEvent(new CustomEvent('user-updated', {
+          detail: {
+            fullname: this.profile.fullname,
+            username: this.profile.username,
+            email: this.profile.email
+          }
+        }))
+        this.showMessage('Success', 'Profile updated successfully', 'success')
       }
+    } catch (err) {
+      console.error("Save profile error:", err)
+      this.showMessage('Error', err.response?.data?.message || 'Failed to update profile', 'error')
+    } finally {
+      this.saving = false
+    }
+  },
 
-      this.saving = true
-      try {
-        const response = await api.put("/settings/profile", this.profile)
-        if (response.data?.status === 'success') {
-          const event = new CustomEvent('user-updated', {
-            detail: {
-              fullname: this.profile.fullname,
-              username: this.profile.username,
-              email: this.profile.email
-            }
-          })
-          window.dispatchEvent(event)
-          this.showMessage('Success', 'Profile updated successfully', 'success')
-        }
-      } catch (err) {
-        console.error("Save profile error:", err)
-        this.showMessage('Error', err.response?.data?.message || 'Failed to update profile', 'error')
-      } finally {
-        this.saving = false
+  async updatePassword() {
+    if (!this.security.currentPassword) {
+      this.showMessage('Validation Error', 'Current password is required', 'warning')
+      return
+    }
+    if (!this.security.newPassword) {
+      this.showMessage('Validation Error', 'New password is required', 'warning')
+      return
+    }
+    if (this.security.newPassword.length < 8) {
+      this.showMessage('Validation Error', 'Password must be at least 8 characters', 'warning')
+      return
+    }
+    if (this.security.newPassword !== this.security.confirmPassword) {
+      this.showMessage('Validation Error', 'Passwords do not match', 'warning')
+      return
+    }
+    this.saving = true
+    try {
+      const response = await api.post("/settings/change-password", {
+        currentPassword: this.security.currentPassword,
+        newPassword: this.security.newPassword
+      })
+      if (response.data?.status === 'success') {
+        this.showMessage('Success', 'Password updated successfully', 'success')
+        this.security.currentPassword = ''
+        this.security.newPassword = ''
+        this.security.confirmPassword = ''
       }
-    },
+    } catch (err) {
+      console.error("Update password error:", err)
+      this.showMessage('Error', err.response?.data?.message || 'Failed to update password', 'error')
+    } finally {
+      this.saving = false
+    }
+  },
 
-    async updatePassword() {
+  async saveAllSettings() {
+    if (!this.profile.fullname || !this.profile.email) {
+      this.showMessage('Validation Error', 'Name and email are required', 'warning')
+      return
+    }
+
+    const wantsPasswordChange =
+      this.security.currentPassword || this.security.newPassword || this.security.confirmPassword
+
+    if (wantsPasswordChange) {
       if (!this.security.currentPassword) {
         this.showMessage('Validation Error', 'Current password is required', 'warning')
         return
@@ -341,40 +396,79 @@ export default {
         this.showMessage('Validation Error', 'Passwords do not match', 'warning')
         return
       }
+    }
 
-      this.saving = true
+    this.saving = true
+
+    const results = { profile: null, password: null }
+    let profileErrorMsg = ''
+    let passwordErrorMsg = ''
+
+    try {
+      const profileRes = await api.put("/settings/profile", this.profile)
+      if (profileRes.data?.status === 'success') {
+        results.profile = true
+        window.dispatchEvent(new CustomEvent('user-updated', {
+          detail: {
+            fullname: this.profile.fullname,
+            username: this.profile.username,
+            email: this.profile.email
+          }
+        }))
+      } else {
+        results.profile = false
+      }
+    } catch (err) {
+      console.error("Save profile error:", err)
+      results.profile = false
+      profileErrorMsg = err.response?.data?.message || 'Failed to update profile'
+    }
+
+    if (wantsPasswordChange) {
       try {
-        const response = await api.post("/settings/change-password", {
+        const pwRes = await api.post("/settings/change-password", {
           currentPassword: this.security.currentPassword,
           newPassword: this.security.newPassword
         })
-
-        if (response.data?.status === 'success') {
-          this.showMessage('Success', 'Password updated successfully', 'success')
+        if (pwRes.data?.status === 'success') {
+          results.password = true
           this.security.currentPassword = ''
           this.security.newPassword = ''
           this.security.confirmPassword = ''
+        } else {
+          results.password = false
         }
       } catch (err) {
         console.error("Update password error:", err)
-        this.showMessage('Error', err.response?.data?.message || 'Failed to update password', 'error')
-      } finally {
-        this.saving = false
-      }
-    },
-
-    async saveAllSettings() {
-      this.saving = true
-      try {
-        await this.saveProfile()
-        this.showMessage('Success', 'All settings saved successfully', 'success')
-      } catch (err) {
-        console.error("Save all error:", err)
-      } finally {
-        this.saving = false
+        results.password = false
+        passwordErrorMsg = err.response?.data?.message || 'Failed to update password'
       }
     }
-  },
+
+    this.saving = false
+
+    const failures = []
+    if (results.profile === false) failures.push(`Profile: ${profileErrorMsg}`)
+    if (results.password === false) failures.push(`Password: ${passwordErrorMsg}`)
+
+    if (failures.length === 0) {
+      this.showMessage('Success', 'All settings saved successfully', 'success')
+    } else {
+      const succeeded = []
+      if (results.profile === true) succeeded.push('Profile')
+      if (results.password === true) succeeded.push('Password')
+
+      const successPart = succeeded.length ? `${succeeded.join(' and ')} saved successfully. ` : ''
+      const failurePart = failures.join(' | ')
+
+      this.showMessage(
+        succeeded.length ? 'Partially Saved' : 'Error',
+        `${successPart}${failurePart}`,
+        succeeded.length ? 'warning' : 'error'
+      )
+    }
+  }
+},
 
   async mounted() {
     this.loading = true
