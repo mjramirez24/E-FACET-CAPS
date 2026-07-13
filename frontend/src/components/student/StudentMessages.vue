@@ -233,21 +233,48 @@
                   :class="['flex group', message.sender_id === myId ? 'justify-end' : 'justify-start']"
                 >
                   <div
-                    :class="[
-                      'px-3.5 py-2 max-w-[70vw] sm:max-w-md shadow-sm',
-                      message.sender_id === myId
-                        ? 'bg-emerald-600 text-white rounded-2xl rounded-br-sm'
-                        : 'bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-sm',
-                    ]"
+                    class="flex items-end gap-1.5"
+                    :class="message.sender_id === myId ? 'flex-row-reverse' : 'flex-row'"
                   >
-                    <p class="text-sm leading-snug break-words">{{ message.text }}</p>
-                    <p class="text-[10px] mt-1 text-right" :class="message.sender_id === myId ? 'text-emerald-100' : 'text-gray-400'">
-                      {{ formatTime(message.timestamp) }}
-                    </p>
+                    <div
+                      :class="[
+                        'px-3.5 py-2 max-w-[70vw] sm:max-w-md shadow-sm',
+                        message.sender_id === myId
+                          ? 'bg-emerald-600 text-white rounded-2xl rounded-br-sm'
+                          : 'bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-sm',
+                      ]"
+                    >
+                      <p class="text-sm leading-snug break-words">{{ message.text }}</p>
+                      <p class="text-[10px] mt-1 text-right" :class="message.sender_id === myId ? 'text-emerald-100' : 'text-gray-400'">
+                        {{ formatTime(message.timestamp) }}
+                      </p>
+                    </div>
+
+                  <!-- Hover actions: edit (own messages only) + delete (any message, for-me only) -->
+                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1">
+                      <button
+                        v-if="message.sender_id === myId"
+                        @click="editMessage(message)"
+                        class="w-6 h-6 rounded-full bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-xs shadow-sm"
+                        title="Edit"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        @click="confirmDeleteMessage(message)"
+                        class="w-6 h-6 shrink-0 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        title="Delete for me"
+                      >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+            
 
             <!-- No conversation selected -->
             <div v-else class="flex-1 flex items-center justify-center">
@@ -258,6 +285,14 @@
                 <p class="text-base font-semibold text-gray-600">Select a conversation</p>
                 <p class="text-sm mt-1">Choose a conversation from the list to start messaging</p>
               </div>
+            </div>
+            <!-- Editing banner -->
+            <div
+              v-if="selectedConversation && isEditingDraft"
+              class="px-4 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between shrink-0"
+            >
+              <span class="text-xs text-emerald-700 font-medium">✏️ Editing — fix the text below and hit send</span>
+              <button @click="cancelEditDraft" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold">Cancel</button>
             </div>
 
             <!-- Composer -->
@@ -353,43 +388,41 @@
       </div>
     </transition>
 
-    <!-- Delete Confirmation Modal -->
-    <transition name="modal-fade">
-      <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
-        <transition name="modal-scale">
-          <div class="modal-card modal-card-sm">
-            <div class="modal-head-delete">
-              <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+      <!-- Delete Confirmation Modal -->
+      <transition name="modal-fade">
+        <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-sm">
+              <div class="modal-head-delete">
+                <div class="flex items-center gap-3">
+                  <div class="w-11 h-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-bold text-gray-900">{{ deleteModalTitle }}</h3>
+                    <p class="text-sm text-gray-500">This action cannot be undone</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 class="text-lg font-bold text-gray-900">Delete Conversation</h3>
-                  <p class="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+              <div class="modal-body-delete">
+                <p class="text-sm text-gray-700 leading-relaxed">{{ deleteModalText }}</p>
+                <div v-if="deleteErrorMsg" class="error-box mt-3">{{ deleteErrorMsg }}</div>
+                <div class="mt-6 flex justify-end gap-3">
+                  <button type="button" @click="cancelDelete" class="btn-cancel">Cancel</button>
+                  <button type="button" @click="performDelete" :disabled="deleting" class="btn-save btn-red flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {{ deleting ? 'Deleting...' : 'Delete' }}
+                  </button>
                 </div>
               </div>
             </div>
-            <div class="modal-body-delete">
-              <p class="text-sm text-gray-700 leading-relaxed">
-                Are you sure you want to delete your conversation with {{ deleteTarget?.name }}? This cannot be undone.
-              </p>
-              <div v-if="deleteErrorMsg" class="error-box mt-3">{{ deleteErrorMsg }}</div>
-              <div class="mt-6 flex justify-end gap-3">
-                <button type="button" @click="cancelDelete" class="btn-cancel">Cancel</button>
-                <button type="button" @click="performDelete" :disabled="deleting" class="btn-save btn-red flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  {{ deleting ? 'Deleting...' : 'Delete' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </transition>
-      </div>
-    </transition>
+          </transition>
+        </div>
+      </transition>
 
     <!-- Success Notification -->
     <transition name="modal-fade">
@@ -449,6 +482,9 @@ export default {
     const newMessageContent = ref("");
     const messagesContainer = ref(null);
     const messageInputRef = ref(null);
+    const hiddenMessageIds = ref(new Set());
+    const isEditingDraft = ref(false);
+    const editingMessageId = ref(null);
 
     const inbox = ref([]);
     const messages = ref([]);
@@ -481,10 +517,28 @@ export default {
       adminMessages: 0,
     });
 
-    // API calls
+    // Hidden messages (local "delete for me")
+    const loadHiddenIds = () => {
+      try {
+        const raw = localStorage.getItem(`hiddenMessages_${myId.value}`);
+        hiddenMessageIds.value = new Set(raw ? JSON.parse(raw) : []);
+      } catch {
+        hiddenMessageIds.value = new Set();
+      }
+    };
+
+    const persistHiddenIds = () => {
+      try {
+        localStorage.setItem(`hiddenMessages_${myId.value}`, JSON.stringify([...hiddenMessageIds.value]));
+      } catch {
+        // ignore storage errors (e.g. private browsing)
+      }
+    };
+
     const fetchMe = async () => {
       const res = await api.get("/auth/me");
       myId.value = res.data.user.id;
+      loadHiddenIds();
     };
 
     const fetchInbox = async () => {
@@ -509,33 +563,59 @@ export default {
     };
 
     const loadThread = async (user) => {
-      selectedConversation.value = user;
-      const res = await api.get(`/messages/thread/${user.id}`);
-      messages.value = res.data;
+          selectedConversation.value = user;
+          const res = await api.get(`/messages/thread/${user.id}`);
 
-      const found = inbox.value.find((c) => c.id === user.id);
-      if (found) found.unreadCount = 0;
+          // Filter out anything this user has locally "deleted for me"
+          messages.value = (res.data || []).filter(m => !hiddenMessageIds.value.has(m.id));
 
-      await nextTick();
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-      }
-    };
+          const found = inbox.value.find((c) => c.id === user.id);
+          if (found) found.unreadCount = 0;
+
+          await nextTick();
+          if (messagesContainer.value) {
+            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+          }
+        };
 
     const sendMessage = async () => {
-      if (!newMessage.value.trim() || !selectedConversation.value || sending.value) return;
-      sending.value = true;
-      try {
-        await api.post("/messages/send", {
-          receiver_id: selectedConversation.value.id,
-          message: newMessage.value,
-        });
-        newMessage.value = "";
-        await loadThread(selectedConversation.value);
-        await fetchInbox();
-      } finally {
-        sending.value = false;
-      }
+          if (!newMessage.value.trim() || !selectedConversation.value || sending.value) return;
+          sending.value = true;
+          try {
+            if (isEditingDraft.value && editingMessageId.value) {
+              // Overwrite the existing message instead of sending a new one
+              await api.put(`/messages/${editingMessageId.value}`, {
+                message: newMessage.value,
+              });
+              isEditingDraft.value = false;
+              editingMessageId.value = null;
+            } else {
+              await api.post("/messages/send", {
+                receiver_id: selectedConversation.value.id,
+                message: newMessage.value,
+              });
+            }
+            newMessage.value = "";
+            await loadThread(selectedConversation.value);
+            await fetchInbox();
+          } finally {
+            sending.value = false;
+          }
+        };
+
+        const editMessage = (message) => {
+      newMessage.value = message.text;
+      isEditingDraft.value = true;
+      editingMessageId.value = message.id;
+      nextTick(() => {
+        messageInputRef.value?.focus();
+      });
+    };
+
+    const cancelEditDraft = () => {
+      newMessage.value = "";
+      isEditingDraft.value = false;
+      editingMessageId.value = null;
     };
 
     const sendNewMessage = async () => {
@@ -558,7 +638,13 @@ export default {
 
     // Delete modal
     const confirmDeleteConversation = (conv) => {
-      deleteTarget.value = conv;
+      deleteTarget.value = { type: "conversation", data: conv };
+      deleteErrorMsg.value = "";
+      showDeleteModal.value = true;
+    };
+
+      const confirmDeleteMessage = (message) => {
+      deleteTarget.value = { type: "message", data: message };
       deleteErrorMsg.value = "";
       showDeleteModal.value = true;
     };
@@ -569,27 +655,48 @@ export default {
       deleteErrorMsg.value = "";
     };
 
-    const performDelete = async () => {
+const performDelete = async () => {
       if (!deleteTarget.value) return;
       deleting.value = true;
       deleteErrorMsg.value = "";
 
       try {
-        await api.delete(`/messages/conversation/${deleteTarget.value.id}`);
+        if (deleteTarget.value.type === "conversation") {
+          const conv = deleteTarget.value.data;
+          await api.delete(`/messages/conversation/${conv.id}`);
 
-        inbox.value = inbox.value.filter(c => c.id !== deleteTarget.value.id);
+          inbox.value = inbox.value.filter(c => c.id !== conv.id);
 
-        if (selectedConversation.value?.id === deleteTarget.value.id) {
-          selectedConversation.value = null;
-          messages.value = [];
+          if (selectedConversation.value?.id === conv.id) {
+            selectedConversation.value = null;
+            messages.value = [];
+          }
+
+          messageStats.value.totalMessages = inbox.value.length;
+          messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length;
+        } else if (deleteTarget.value.type === "message") {
+          const message = deleteTarget.value.data;
+
+          if (message.sender_id === myId.value) {
+            // Own message: delete for everyone
+            await api.delete(`/messages/${message.id}`);
+            messages.value = messages.value.filter(m => m.id !== message.id);
+            await fetchInbox();
+          } else {
+            // Someone else's message: hide locally only
+            hiddenMessageIds.value.add(message.id);
+            persistHiddenIds();
+            messages.value = messages.value.filter(m => m.id !== message.id);
+          }
         }
 
-        messageStats.value.totalMessages = inbox.value.length;
-        messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length;
-
+        const wasConversation = deleteTarget.value.type === "conversation";
         showDeleteModal.value = false;
         deleteTarget.value = null;
-        showMessage("Conversation Deleted", "The conversation was removed successfully.");
+        showMessage(
+          wasConversation ? "Conversation Deleted" : "Message Deleted",
+          wasConversation ? "The conversation was removed successfully." : "Your message was removed successfully."
+        );
       } catch (err) {
         console.error("Delete failed:", err);
         deleteErrorMsg.value = err.response?.data?.message || "Failed to delete";
@@ -599,31 +706,48 @@ export default {
     };
 
     // Computed
-    const filteredConversations = computed(() => {
-      let result = [...inbox.value];
+      const filteredConversations = computed(() => {
+        let result = [...inbox.value];
 
-      if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase();
-        result = result.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            c.role.toLowerCase().includes(q) ||
-            (c.lastMessage || "").toLowerCase().includes(q)
+        if (searchQuery.value) {
+          const q = searchQuery.value.toLowerCase();
+          result = result.filter(
+            (c) =>
+              c.name.toLowerCase().includes(q) ||
+              c.role.toLowerCase().includes(q) ||
+              (c.lastMessage || "").toLowerCase().includes(q)
+          );
+        }
+
+        if (selectedType.value) {
+          result = result.filter((c) => c.role === selectedType.value);
+        }
+
+        if (selectedStatus.value) {
+          result = result.filter((c) => c.status === selectedStatus.value);
+        }
+
+        return result.sort(
+          (a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
         );
-      }
+      });
 
-      if (selectedType.value) {
-        result = result.filter((c) => c.role === selectedType.value);
-      }
+      const deleteModalTitle = computed(() => {
+        if (!deleteTarget.value) return "";
+        return deleteTarget.value.type === "conversation" ? "Delete Conversation" : "Delete Message";
+      });
 
-      if (selectedStatus.value) {
-        result = result.filter((c) => c.status === selectedStatus.value);
-      }
-
-      return result.sort(
-        (a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
-      );
-    });
+      const deleteModalText = computed(() => {
+        if (!deleteTarget.value) return "";
+        if (deleteTarget.value.type === "conversation") {
+          return `Are you sure you want to delete your conversation with ${deleteTarget.value.data?.name}? This cannot be undone.`;
+        }
+        const message = deleteTarget.value.data;
+        if (message.sender_id === myId.value) {
+          return "Delete this message for everyone? This cannot be undone.";
+        }
+        return "Delete this message? It will only be removed from your own view.";
+      });
 
     const recentContacts = computed(() =>
       allContacts.value
@@ -728,6 +852,13 @@ export default {
       filteredConversations,
       messages,
       myId,
+      isEditingDraft,
+      editingMessageId,
+      editMessage,
+      cancelEditDraft,
+      confirmDeleteMessage,
+      deleteModalTitle,
+      deleteModalText,
 
       // Delete modal
       showDeleteModal,

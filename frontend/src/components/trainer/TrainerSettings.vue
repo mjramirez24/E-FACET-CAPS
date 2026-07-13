@@ -2,429 +2,145 @@
   <TrainerLayout active-page="settings">
     <!-- Header -->
     <template #header-left>
-      <input
-        type="text"
-        placeholder="Search settings..."
-        v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-      />
+      <div class="header-actions">
+        <div class="search-box">
+          <svg class="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search settings..."
+            v-model="searchQuery"
+            class="search-input-modern"
+          />
+        </div>
+      </div>
     </template>
 
-    <div>
+    <div class="settings-wrapper">
       <!-- Page Header -->
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-bold text-blue-800">⚙️ Settings</h2>
+      <div class="page-top">
+        <div>
+          <h2 class="page-title">Settings</h2>
+          <p class="page-subtitle">Manage your profile details and account security</p>
+        </div>
         <button
           @click="saveAllSettings"
           :disabled="saving"
-          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          class="add-btn"
         >
-          <span v-if="saving" class="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-          {{ saving ? 'Saving...' : '💾 Save All Changes' }}
-        </button>
-      </div>
-
-      <!-- Settings Tabs -->
-      <div class="flex space-x-1 mb-6 p-1 bg-gray-100 rounded-lg">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-            activeTab === tab.id ? 'bg-blue-700 text-white' : 'text-gray-700 hover:bg-gray-200'
-          ]"
-        >
-          {{ tab.label }}
+          <span v-if="saving" class="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          {{ saving ? 'Saving...' : 'Save All Changes' }}
         </button>
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700"></div>
-        <p class="mt-3 text-gray-600">Loading settings...</p>
+      <div v-if="loading" class="loading-box">
+        <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        Loading settings...
       </div>
 
       <!-- Settings Content -->
-      <div v-else class="space-y-6">
-        <!-- Profile Settings -->
-        <div v-if="activeTab === 'profile'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-blue-800">👤 Profile Information</h3>
+      <div v-else class="settings-body">
+
+        <!-- ══════════ Profile Section ══════════ -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="flex items-center gap-3">
+              <div class="section-icon-wrap section-icon-blue">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="panel-title">Profile Information</h3>
+                <p class="panel-meta">Your name and contact details as they appear across the system</p>
+              </div>
+            </div>
             <button
               @click="saveProfile"
               :disabled="saving"
-              class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium disabled:opacity-50"
+              class="btn-outline"
             >
               Save Profile
             </button>
           </div>
 
-          <div class="space-y-4">
-            <div class="flex items-center gap-4 mb-6">
-              <div
-                class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-800"
-              >
-                {{ getInitials(profile.fullname) }}
-              </div>
-              <div>
-                <input 
-                  type="file" 
-                  ref="fileInput"
-                  accept="image/jpeg,image/png"
-                  class="hidden"
-                  @change="handleFileUpload"
-                >
-                <button
-                  @click="triggerFileUpload"
-                  :disabled="uploading"
-                  class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
-                >
-                  {{ uploading ? 'Uploading...' : 'Change Photo' }}
-                </button>
-                <p class="text-xs text-gray-500 mt-1">JPG, PNG up to 5MB</p>
-              </div>
-            </div>
+          <div class="panel-body">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  v-model="profile.fullname"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+            <div class="profile-grid">
+              <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" v-model="profile.fullname" class="form-input">
               </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input
-                  type="text"
-                  v-model="profile.username"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+              <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" v-model="profile.email" class="form-input">
               </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  v-model="profile.email"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+              <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" v-model="profile.username" class="form-input">
               </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <div class="form-group">
+                <label class="form-label">Phone Number</label>
                 <input
                   type="tel"
                   v-model="profile.contact"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="+63 123 456 7890"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
-                <input
-                  type="text"
-                  v-model="profile.specialization"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Defensive Driving"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">License No.</label>
-                <input
-                  type="text"
-                  v-model="profile.license_no"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="LIC-0001"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Assigned Branch</label>
-                <input
-                  type="text"
-                  v-model="profile.branch"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Main Branch"
-                />
+                  @input="onPhoneInput"
+                  maxlength="11"
+                  class="form-input"
+                  placeholder="09123456789"
+                >
               </div>
             </div>
           </div>
         </div>
 
-        <!-- System Preferences -->
-        <div v-if="activeTab === 'preferences'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-blue-800">🎨 System Preferences</h3>
-            <button
-              @click="savePreferences"
-              :disabled="saving"
-              class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium disabled:opacity-50"
-            >
-              Save Preferences
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Theme</label>
-              <select
-                v-model="preferences.theme"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="auto">Auto</option>
-              </select>
+        <!-- ══════════ Security Section ══════════ -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="flex items-center gap-3">
+              <div class="section-icon-wrap section-icon-blue">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="panel-title">Account Security</h3>
+                <p class="panel-meta">Update your account password</p>
+              </div>
             </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Dashboard Layout</label>
-              <select
-                v-model="preferences.layout"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="compact">Compact</option>
-                <option value="spacious">Spacious</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Notification Sound</label>
-              <select
-                v-model="preferences.notification_sound"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="default">Default</option>
-                <option value="muted">Muted</option>
-                <option value="soft">Soft Tone</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Language</label>
-              <select
-                v-model="preferences.language"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="en">English</option>
-                <option value="fil">Filipino</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-6 border-t border-gray-200">
-            <h4 class="text-md font-medium text-gray-800 mb-3">Display Settings</h4>
-            <div class="space-y-3">
-              <label class="flex items-center">
-                <input
-                  type="checkbox"
-                  v-model="preferences.show_avatars"
-                  class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span class="text-sm text-gray-700">Show user avatars</span>
-              </label>
-
-              <label class="flex items-center">
-                <input
-                  type="checkbox"
-                  v-model="preferences.auto_refresh"
-                  class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span class="text-sm text-gray-700">Auto-refresh dashboard</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Security Settings -->
-        <div v-if="activeTab === 'security'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-blue-800">🔒 Account Security</h3>
             <button
               @click="updatePassword"
               :disabled="saving"
-              class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium disabled:opacity-50"
+              class="btn-outline"
             >
               Update Password
             </button>
           </div>
 
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-              <input
-                type="password"
-                v-model="security.currentPassword"
-                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                <input
-                  type="password"
-                  v-model="security.newPassword"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <div class="text-xs text-gray-500 mt-1">
-                  Password strength:
-                  <span :class="passwordStrengthClass">{{ passwordStrength }}</span>
-                </div>
+          <div class="panel-body">
+            <div class="security-grid">
+              <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <input type="password" v-model="security.currentPassword" class="form-input">
               </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                <input
-                  type="password"
-                  v-model="security.confirmPassword"
-                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <div v-if="security.newPassword && security.confirmPassword && security.newPassword !== security.confirmPassword"
-                  class="text-xs text-red-600 mt-1"
-                >
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" v-model="security.newPassword" class="form-input">
+                <p class="field-hint">
+                  Password strength: <span :class="passwordStrengthClass">{{ passwordStrength }}</span>
+                </p>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" v-model="security.confirmPassword" class="form-input">
+                <p v-if="security.newPassword && security.confirmPassword && security.newPassword !== security.confirmPassword" class="field-hint field-hint-error">
                   Passwords do not match
-                </div>
-              </div>
-            </div>
-
-            <div class="mt-6 pt-6 border-t border-gray-200">
-              <h4 class="text-md font-medium text-gray-800 mb-3">Security Options</h4>
-              <div class="space-y-3">
-                <label class="flex items-center">
-                  <input
-                    type="checkbox"
-                    v-model="security.login_alerts"
-                    class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span class="text-sm text-gray-700">Email alerts for new logins</span>
-                </label>
-
-                <label class="flex items-center">
-                  <input
-                    type="checkbox"
-                    v-model="security.session_timeout"
-                    class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span class="text-sm text-gray-700">Auto logout after 30 minutes of inactivity</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Notifications -->
-        <div v-if="activeTab === 'notifications'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-blue-800">🔔 Notifications</h3>
-            <button
-              @click="saveNotifications"
-              :disabled="saving"
-              class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium disabled:opacity-50"
-            >
-              Save Notifications
-            </button>
-          </div>
-
-          <div class="space-y-4">
-            <div class="bg-gray-50 p-4 rounded-lg">
-              <h4 class="text-md font-medium text-gray-800 mb-3">In-App Notifications</h4>
-              <div class="space-y-3">
-                <label class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700">New messages</span>
-                  <input
-                    type="checkbox"
-                    v-model="preferences.inapp_new_messages"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </label>
-
-                <label class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700">Class schedule updates</span>
-                  <input
-                    type="checkbox"
-                    v-model="preferences.inapp_schedule_updates"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </label>
-
-                <label class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700">System announcements</span>
-                  <input
-                    type="checkbox"
-                    v-model="preferences.inapp_announcements"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Trainer Tools -->
-        <div v-if="activeTab === 'tools'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-blue-800">🧰 Trainer Tools</h3>
-            <button
-              @click="saveTools"
-              :disabled="saving"
-              class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium disabled:opacity-50"
-            >
-              Save Tools
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-gray-50 p-4 rounded-lg">
-              <h4 class="text-md font-medium text-gray-800 mb-3">Default Class Options</h4>
-              <div class="space-y-3">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Default session length</label>
-                  <select
-                    v-model="tools.default_session_length"
-                    class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="30">30 minutes</option>
-                    <option value="60">60 minutes</option>
-                    <option value="90">90 minutes</option>
-                    <option value="120">120 minutes</option>
-                  </select>
-                </div>
-
-                <label class="flex items-center">
-                  <input
-                    type="checkbox"
-                    v-model="tools.auto_approve_attendance"
-                    class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span class="text-sm text-gray-700">Auto-approve attendance</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="bg-gray-50 p-4 rounded-lg">
-              <h4 class="text-md font-medium text-gray-800 mb-3">Quick Actions</h4>
-              <div class="space-y-2">
-                <button
-                  @click="exportClassList"
-                  :disabled="saving"
-                  class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  📁 Export Class List
-                </button>
-                <button
-                  @click="downloadTemplates"
-                  :disabled="saving"
-                  class="w-full px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  🧾 Download Templates
-                </button>
+                </p>
               </div>
             </div>
           </div>
@@ -434,44 +150,44 @@
     </div>
 
     <!-- Success/Error Modal -->
-    <div
-      v-if="messageOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      @click.self="closeMessage"
-    >
-      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        <div class="p-4 border-b border-gray-200 flex items-start justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">{{ messageIcon }}</span>
-            <h3 class="text-lg font-semibold text-gray-800">
-              {{ messageTitle }}
-            </h3>
+    <transition name="modal-fade">
+      <div v-if="messageOpen" class="modal-overlay" @click.self="closeMessage">
+        <transition name="modal-scale">
+          <div class="modal-card modal-card-sm">
+            <div class="modal-head-delete">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl" :class="notifIconClass">
+                  <svg v-if="messageIcon === '✅'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else-if="messageIcon === '❌'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m-9.303 3.376C1.83 17.615 2.865 19.5 4.559 19.5h14.882c1.694 0 2.73-1.885 1.862-3.374L13.882 4.5c-.847-1.457-2.917-1.457-3.764 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-gray-900">{{ messageTitle }}</h3>
+                </div>
+              </div>
+            </div>
+            <div class="modal-body-delete">
+              <p class="text-sm text-gray-700 leading-relaxed">{{ messageText }}</p>
+              <div class="mt-6 flex justify-end">
+                <button class="btn-save" :class="messageIcon === '❌' ? 'btn-red' : 'btn-blue'" @click="closeMessage">
+                  OK
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            @click="closeMessage"
-            class="px-3 py-1 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
-          >
-            ✕
-          </button>
-        </div>
-        <div class="p-6 text-center">
-          <p class="text-gray-600">{{ messageText }}</p>
-        </div>
-        <div class="p-4 border-t border-gray-200 flex justify-end">
-          <button
-            @click="closeMessage"
-            class="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm"
-          >
-            OK
-          </button>
-        </div>
+        </transition>
       </div>
-    </div>
+    </transition>
   </TrainerLayout>
 </template>
 
 <script>
-import { ref, computed, onMounted } from "vue";
 import TrainerLayout from "./TrainerLayout.vue";
 import axios from "axios";
 import { API_URL } from "../../config/api";
@@ -491,21 +207,12 @@ export default {
       loading: true,
       saving: false,
       uploading: false,
-      activeTab: "profile",
 
       // Message modal
       messageOpen: false,
       messageTitle: "",
       messageText: "",
       messageIcon: "",
-
-      tabs: [
-        { id: "profile", label: "👤 Profile" },
-        { id: "preferences", label: "🎨 Preferences" },
-        { id: "security", label: "🔒 Security" },
-        { id: "notifications", label: "🔔 Notifications" },
-        { id: "tools", label: "🧰 Tools" },
-      ],
 
       profile: {
         fullname: "",
@@ -517,29 +224,10 @@ export default {
         branch: "",
       },
 
-      preferences: {
-        theme: "light",
-        layout: "compact",
-        notification_sound: "default",
-        language: "en",
-        show_avatars: true,
-        auto_refresh: true,
-        inapp_new_messages: true,
-        inapp_schedule_updates: true,
-        inapp_announcements: true,
-      },
-
       security: {
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
-        login_alerts: true,
-        session_timeout: true,
-      },
-
-      tools: {
-        default_session_length: "60",
-        auto_approve_attendance: false,
       },
 
       fileInput: null,
@@ -579,9 +267,21 @@ export default {
         default: return "text-gray-600";
       }
     },
+
+    notifIconClass() {
+      if (this.messageIcon === '✅') return 'bg-emerald-100 text-emerald-600'
+      if (this.messageIcon === '❌') return 'bg-red-100 text-red-600'
+      return 'bg-amber-100 text-amber-600'
+    }
   },
 
   methods: {
+    onPhoneInput(e) {
+      const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11)
+      this.profile.contact = digitsOnly
+      e.target.value = digitsOnly
+    },
+
     getInitials(name) {
       if (!name) return "??";
       return name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2);
@@ -612,29 +312,17 @@ export default {
             branch: response.data.profile.branch || "",
           };
 
-          const event = new CustomEvent('user-updated', { 
+          window.dispatchEvent(new CustomEvent('user-updated', {
             detail: {
               fullname: response.data.profile.fullname,
               username: response.data.profile.username,
               email: response.data.profile.email
             }
-          });
-          window.dispatchEvent(event);
+          }));
         }
       } catch (err) {
         console.error("Fetch profile error:", err);
         this.showMessage("Error", err.response?.data?.message || "Failed to load profile", "❌");
-      }
-    },
-
-    async fetchPreferences() {
-      try {
-        const response = await api.get("/settings/preferences");
-        if (response.data?.status === "success" && response.data?.preferences) {
-          Object.assign(this.preferences, response.data.preferences);
-        }
-      } catch (err) {
-        console.error("Fetch preferences error:", err);
       }
     },
 
@@ -655,50 +343,18 @@ export default {
 
         const response = await api.put("/settings/profile", profileData);
         if (response.data?.status === "success") {
-          const event = new CustomEvent('user-updated', { 
+          window.dispatchEvent(new CustomEvent('user-updated', {
             detail: {
               fullname: this.profile.fullname,
               username: this.profile.username,
               email: this.profile.email
             }
-          });
-          window.dispatchEvent(event);
+          }));
           this.showMessage("Success", "Profile updated successfully", "✅");
         }
       } catch (err) {
         console.error("Save profile error:", err);
         this.showMessage("Error", err.response?.data?.message || "Failed to update profile", "❌");
-      } finally {
-        this.saving = false;
-      }
-    },
-
-    async savePreferences() {
-      this.saving = true;
-      try {
-        const response = await api.put("/settings/preferences", this.preferences);
-        if (response.data?.status === "success") {
-          this.showMessage("Success", "Preferences saved successfully", "✅");
-        }
-      } catch (err) {
-        console.error("Save preferences error:", err);
-        this.showMessage("Error", err.response?.data?.message || "Failed to save preferences", "❌");
-      } finally {
-        this.saving = false;
-      }
-    },
-
-    saveNotifications() {
-      return this.savePreferences();
-    },
-
-    async saveTools() {
-      this.saving = true;
-      try {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        this.showMessage("Success", "Trainer tools saved successfully", "✅");
-      } catch (err) {
-        this.showMessage("Error", "Failed to save tools", "❌");
       } finally {
         this.saving = false;
       }
@@ -744,16 +400,107 @@ export default {
     },
 
     async saveAllSettings() {
+      if (!this.profile.fullname || !this.profile.email) {
+        this.showMessage("Validation Error", "Name and email are required", "⚠️");
+        return;
+      }
+
+      const wantsPasswordChange =
+        this.security.currentPassword || this.security.newPassword || this.security.confirmPassword;
+
+      if (wantsPasswordChange) {
+        if (!this.security.currentPassword) {
+          this.showMessage("Validation Error", "Current password is required", "⚠️");
+          return;
+        }
+        if (!this.security.newPassword) {
+          this.showMessage("Validation Error", "New password is required", "⚠️");
+          return;
+        }
+        if (this.security.newPassword.length < 8) {
+          this.showMessage("Validation Error", "Password must be at least 8 characters", "⚠️");
+          return;
+        }
+        if (this.security.newPassword !== this.security.confirmPassword) {
+          this.showMessage("Validation Error", "Passwords do not match", "⚠️");
+          return;
+        }
+      }
+
       this.saving = true;
+
+      const results = { profile: null, password: null };
+      let profileErrorMsg = "";
+      let passwordErrorMsg = "";
+
       try {
-        await this.saveProfile();
-        await this.savePreferences();
-        await this.saveTools();
-        this.showMessage("Success", "All settings saved successfully", "✅");
+        const profileData = {
+          fullname: this.profile.fullname,
+          username: this.profile.username,
+          email: this.profile.email,
+          contact: this.profile.contact,
+        };
+        const profileRes = await api.put("/settings/profile", profileData);
+        if (profileRes.data?.status === "success") {
+          results.profile = true;
+          window.dispatchEvent(new CustomEvent('user-updated', {
+            detail: {
+              fullname: this.profile.fullname,
+              username: this.profile.username,
+              email: this.profile.email
+            }
+          }));
+        } else {
+          results.profile = false;
+        }
       } catch (err) {
-        console.error("Save all error:", err);
-      } finally {
-        this.saving = false;
+        console.error("Save profile error:", err);
+        results.profile = false;
+        profileErrorMsg = err.response?.data?.message || "Failed to update profile";
+      }
+
+      if (wantsPasswordChange) {
+        try {
+          const pwRes = await api.post("/settings/change-password", {
+            currentPassword: this.security.currentPassword,
+            newPassword: this.security.newPassword
+          });
+          if (pwRes.data?.status === "success") {
+            results.password = true;
+            this.security.currentPassword = "";
+            this.security.newPassword = "";
+            this.security.confirmPassword = "";
+          } else {
+            results.password = false;
+          }
+        } catch (err) {
+          console.error("Update password error:", err);
+          results.password = false;
+          passwordErrorMsg = err.response?.data?.message || "Failed to update password";
+        }
+      }
+
+      this.saving = false;
+
+      const failures = [];
+      if (results.profile === false) failures.push(`Profile: ${profileErrorMsg}`);
+      if (results.password === false) failures.push(`Password: ${passwordErrorMsg}`);
+
+      if (failures.length === 0) {
+        this.showMessage("Success", "All settings saved successfully", "✅");
+      } else {
+        const succeeded = [];
+        if (results.profile === true) succeeded.push("Profile");
+        if (results.password === true) succeeded.push("Password");
+
+        const successPart = succeeded.length ? `${succeeded.join(' and ')} saved successfully. ` : "";
+        const failurePart = failures.join(' | ');
+
+        this.showMessage(
+          succeeded.length ? "Partially Saved" : "Error",
+          `${successPart}${failurePart}`,
+          succeeded.length ? "⚠️" : "❌"
+        );
       }
     },
 
@@ -795,21 +542,100 @@ export default {
         event.target.value = "";
       }
     },
-
-    exportClassList() {
-      this.showMessage("Info", "Exporting class list...", "📁");
-    },
-
-    downloadTemplates() {
-      this.showMessage("Info", "Downloading templates...", "🧾");
-    },
   },
 
   async mounted() {
     this.loading = true;
     await this.fetchProfile();
-    await this.fetchPreferences();
     this.loading = false;
   },
 };
 </script>
+
+<style scoped>
+/* ========== WRAPPER ========== */
+.settings-wrapper { padding: 4px 0; display: flex; flex-direction: column; gap: 16px; }
+.page-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.page-subtitle { font-size: 0.8rem; color: #6b7280; margin: 2px 0 0; }
+.settings-body { display: flex; flex-direction: column; gap: 16px; }
+
+/* ========== HEADER SEARCH ========== */
+.header-actions { display: flex; align-items: center; gap: 12px; width: 100%; flex-wrap: wrap; }
+.search-box { position: relative; flex: 1; min-width: 200px; max-width: 380px; }
+.search-icon-svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #9ca3af; }
+.search-input-modern { width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; color: #111827 !important; background: #fff !important; }
+.search-input-modern:focus { border-color: #1d4ed8; }
+
+/* ========== TOP BUTTON ========== */
+.add-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: #1d4ed8; color: #fff; border: none; border-radius: 12px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+.add-btn:hover { background: #1e40af; transform: translateY(-1px); }
+.add-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ========== LOADING ========== */
+.loading-box { padding: 40px; text-align: center; color: #9ca3af; font-size: 0.9rem; }
+
+/* ========== PANEL ========== */
+.panel-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #f3f4f6; flex-wrap: wrap; gap: 12px; }
+.panel-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+.panel-meta { font-size: 0.78rem; color: #9ca3af; margin: 2px 0 0; }
+.panel-body { padding: 24px; }
+
+.section-icon-wrap { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.section-icon-blue { background: #dbeafe; color: #1d4ed8; }
+
+/* ========== BUTTONS ========== */
+.btn-outline { display: flex; align-items: center; gap: 8px; padding: 9px 16px; background: #fff; color: #374151; border: 1px solid #e5e7eb; border-radius: 10px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+.btn-outline:hover:not(:disabled) { border-color: #1d4ed8; color: #1d4ed8; background: #f9fafb; }
+.btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ========== AVATAR ========== */
+.avatar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.avatar-circle { width: 72px; height: 72px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; flex-shrink: 0; }
+.hidden-input { display: none; }
+
+/* ========== FORM GRIDS ========== */
+.profile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.security-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-label { font-size: 0.75rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.03em; }
+.form-input { padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; background: #fff; color: #111827; }
+.form-input:focus { border-color: #1d4ed8; }
+.field-hint { font-size: 0.72rem; color: #9ca3af; margin-top: 2px; }
+.field-hint-error { color: #dc2626; }
+
+@media (max-width: 1024px) {
+  .profile-grid { grid-template-columns: repeat(2, 1fr); }
+  .security-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .profile-grid, .security-grid { grid-template-columns: 1fr; }
+}
+
+/* ========== MODAL ========== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.2); }
+.modal-card-sm { max-width: 420px; }
+.modal-head-delete { padding: 20px 20px 16px; border-bottom: 1px solid #f3f4f6; }
+.modal-body-delete { padding: 20px; }
+
+.btn-save { padding: 9px 18px; border: none; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #fff; cursor: pointer; transition: all 0.2s; }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-blue { background: #1d4ed8; }
+.btn-blue:hover:not(:disabled) { background: #1e40af; }
+.btn-red { background: #ef4444; }
+.btn-red:hover:not(:disabled) { background: #dc2626; }
+
+/* ========== ANIMATIONS ========== */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-scale-enter-active { transition: all 0.25s ease; }
+.modal-scale-leave-active { transition: all 0.15s ease; }
+.modal-scale-enter-from { opacity: 0; transform: scale(0.95) translateY(10px); }
+.modal-scale-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
+
+/* ========== MISC ========== */
+.flex { display: flex; } .items-center { align-items: center; } .gap-3 { gap: 12px; }
+.text-sm { font-size: 0.875rem; } .text-gray-700 { color: #374151; }
+</style>

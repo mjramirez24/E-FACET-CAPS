@@ -13,7 +13,7 @@
     <div>
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold text-green-800">📅 Schedule</h2>
+        <h2 class="text-lg font-bold text-green-800">Classes</h2>
 
         <!-- Tabs -->
         <div class="flex gap-2">
