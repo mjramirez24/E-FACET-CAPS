@@ -1,103 +1,93 @@
 <!-- src/components/TrainerCoursesAndSchedule.vue -->
 <template>
   <TrainerLayout :active-page="selectedCourseId ? 'schedule' : 'courses'">
+    <!-- Header -->
     <template #header-left>
-      <input
-        type="text"
-        :placeholder="headerPlaceholder"
-        v-model="searchQuery"
-        class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-      />
+      <div class="search-box">
+        <svg class="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          :placeholder="headerPlaceholder"
+          v-model="searchQuery"
+          class="search-input-modern"
+        />
+      </div>
     </template>
 
     <div>
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 class="text-lg font-bold text-blue-800">
-            {{ selectedCourseId ? "📅 Schedule" : "📚 My Assigned Courses" }}
-          </h2>
-          <p v-if="selectedCourseId" class="text-sm text-gray-500 mt-1">
-            Course: <span class="font-semibold">{{ selectedCourseName }}</span>
-            <span v-if="selectedCourseRangeText" class="ml-2 text-gray-600">
-              • {{ selectedCourseRangeText }}
-            </span>
-          </p>
-        </div>
+      <!-- Page Header -->
+      <div class="page-header-row mb-5">
+        <div class="flex justify-between items-center w-full flex-wrap gap-3">
+          <div>
+            <h2 class="page-title">{{ selectedCourseId ? "Schedule" : " Assigned Courses" }}</h2>
+            <p v-if="selectedCourseId" class="page-subtitle">
+              Course: <span class="font-semibold">{{ selectedCourseName }}</span>
+              <span v-if="selectedCourseRangeText" class="ml-2">
+                • {{ selectedCourseRangeText }}
+              </span>
+            </p>
+            <p v-else class="page-subtitle">Manage your assigned TESDA courses and view their schedules</p>
+          </div>
 
-        <div class="flex items-center gap-2">
-          <button
-            v-if="selectedCourseId"
-            @click="backToCourses"
-            class="px-3 py-2 rounded-md text-sm font-semibold border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-            type="button"
-          >
-            ← Back
-          </button>
-
-          <button
-            v-if="selectedCourseId"
-            @click="fetchSchedules()"
-            class="px-3 py-2 rounded-md text-sm font-semibold border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-            type="button"
-          >
-            🔄 Refresh
-          </button>
+          <div class="tab-group" v-if="selectedCourseId">
+            <button @click="backToCourses" class="pg-btn" type="button">
+              ← Back
+            </button>
+            <button @click="fetchSchedules()" class="pg-btn pg-btn-accent" type="button">
+              ↻ Refresh
+            </button>
+          </div>
         </div>
       </div>
 
-      <div
-        v-if="errorMsg"
-        class="mb-4 p-3 rounded border border-red-200 bg-red-50 text-red-700 text-sm"
-      >
+      <!-- Error Banner -->
+      <div v-if="errorMsg" class="info-note info-note-error mb-4">
         {{ errorMsg }}
       </div>
 
-      <div v-if="loading" class="text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700"></div>
-        <p class="mt-3 text-gray-600">
-          {{ selectedCourseId ? "Loading schedules..." : "Loading courses..." }}
-        </p>
+      <!-- Loading -->
+      <div v-if="loading" class="loading-block">
+        <div class="cal-nav-btn spinner-ring"></div>
+        <p class="mt-3">{{ selectedCourseId ? "Loading schedules..." : "Loading courses..." }}</p>
       </div>
 
       <!-- ===================== VIEW: MY COURSES ===================== -->
       <div v-else-if="!selectedCourseId">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <p class="text-sm text-gray-600">Total Courses</p>
-            <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ courses.length }}</h3>
+        <!-- Floating Totals -->
+        <div class="stats-row mb-5">
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-blue">{{ courses.length }}</span>
+            <span class="stat-mini-label">Total Courses</span>
           </div>
-          <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-            <p class="text-sm text-gray-600">Active</p>
-            <h3 class="text-2xl font-bold text-green-800 mt-1">{{ activeCount }}</h3>
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-green">{{ activeCount }}</span>
+            <span class="stat-mini-label">Active</span>
           </div>
-          <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-            <p class="text-sm text-gray-600">Upcoming</p>
-            <h3 class="text-2xl font-bold text-yellow-800 mt-1">{{ upcomingCount }}</h3>
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-amber">{{ upcomingCount }}</span>
+            <span class="stat-mini-label">Upcoming</span>
           </div>
-          <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-            <p class="text-sm text-gray-600">Total Students</p>
-            <h3 class="text-2xl font-bold text-purple-800 mt-1">{{ totalStudents }}</h3>
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-purple">{{ totalStudents }}</span>
+            <span class="stat-mini-label">Total Students</span>
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
-            <select
-              v-model="coursesSelectedCourse"
-              class="w-52 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
+        <!-- Filters -->
+        <div class="filters-panel mb-5">
+          <div class="filter-field">
+            <label class="filter-label">Course</label>
+            <select v-model="coursesSelectedCourse" class="select-modern-sm" style="width: 220px;">
               <option value="">All Courses</option>
               <option v-for="c in courseOptions" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-            <select
-              v-model="coursesSelectedStatus"
-              class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
+          <div class="filter-field">
+            <label class="filter-label">Status</label>
+            <select v-model="coursesSelectedStatus" class="select-modern-sm" style="width: 160px;">
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="upcoming">Upcoming</option>
@@ -105,130 +95,105 @@
             </select>
           </div>
 
-          <div class="flex items-end gap-2">
-            <button
-              @click="clearCoursesFilters"
-              class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-              type="button"
-            >
-              Clear
-            </button>
-            <button
-              @click="fetchCourses()"
-              class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-              type="button"
-            >
-              Refresh
-            </button>
+          <div class="filter-field">
+            <label class="filter-label">Sort by</label>
+            <select v-model="coursesSortBy" class="select-modern-sm" style="width: 160px;">
+              <option value="course">Course</option>
+              <option value="status">Status</option>
+              <option value="students">Students</option>
+            </select>
           </div>
+
+          <button @click="clearCoursesFilters" class="pg-btn">Clear</button>
+          <button @click="fetchCourses()" class="pg-btn pg-btn-accent">↻ Refresh</button>
         </div>
 
-        <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
-          <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <!-- Courses Table -->
+        <div class="panel-card">
+          <div class="panel-header-bar">
+            <h3 class="panel-title">🗂️ Assigned Courses</h3>
             <div class="text-sm text-gray-600">
               Showing {{ filteredCourses.length }} of {{ courses.length }} courses
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-600">Sort by:</span>
-              <select v-model="coursesSortBy" class="text-sm border rounded px-2 py-1">
-                <option value="course">Course</option>
-                <option value="status">Status</option>
-                <option value="students">Students</option>
-              </select>
-            </div>
           </div>
 
-          <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-            <thead class="bg-blue-800 text-white">
-              <tr>
-                <th class="py-3 px-4 text-left font-medium">Course</th>
-                <th class="py-3 px-4 text-left font-medium">Code</th>
-                <th class="py-3 px-4 text-left font-medium">Start</th>
-                <th class="py-3 px-4 text-left font-medium">End</th>
-                <th class="py-3 px-4 text-left font-medium">Students</th>
-                <th class="py-3 px-4 text-left font-medium">Status</th>
-                <th class="py-3 px-4 text-left font-medium">Actions</th>
-              </tr>
-            </thead>
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead class="thead-blue">
+                <tr>
+                  <th>Course</th>
+                  <th>Code</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Students</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              <tr
-                v-for="c in filteredCourses"
-                :key="c.id"
-                class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-              >
-                <td class="py-3 px-4">
-                  <div class="font-medium">{{ c.course }}</div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    {{ c.duration || "—" }} • Mon–Sat only (skip Sunday)
-                  </div>
-                </td>
+              <tbody>
+                <tr v-for="c in filteredCourses" :key="c.id">
+                  <td>
+                    <div class="font-medium">{{ c.course }}</div>
+                    <div class="text-xs text-gray-400">{{ c.duration || "—" }} • Mon–Sat only (skip Sunday)</div>
+                  </td>
 
-                <td class="py-3 px-4">
-                  <span class="text-gray-700">{{ c.courseCode || "—" }}</span>
-                </td>
+                  <td class="text-gray-600">{{ c.courseCode || "—" }}</td>
 
-                <td class="py-3 px-4">
-                  <span class="text-gray-700">{{ formatDateOrTBA(c.startDate) }}</span>
-                </td>
+                  <td class="text-gray-600">{{ formatDateOrTBA(c.startDate) }}</td>
 
-                <td class="py-3 px-4">
-                  <span class="text-gray-700">{{ formatDateOrTBA(c.endDate) }}</span>
-                </td>
+                  <td class="text-gray-600">{{ formatDateOrTBA(c.endDate) }}</td>
 
-                <td class="py-3 px-4">
-                  <span class="font-medium">{{ c.students }}</span>
-                </td>
+                  <td class="font-medium">{{ c.students }}</td>
 
-                <td class="py-3 px-4">
-                  <span class="px-2 py-1 rounded-full text-xs font-medium" :class="statusBadgeClass(c.status)">
-                    {{ formatStatus(c.status) }}
-                  </span>
-                </td>
+                  <td>
+                    <span class="pill" :class="statusBadgeClass(c.status)">
+                      {{ formatStatus(c.status) }}
+                    </span>
+                  </td>
 
-                <td class="py-3 px-4">
-                  <button
-                    @click="selectCourse(c)"
-                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    type="button"
-                  >
-                    View schedules
-                  </button>
-                </td>
-              </tr>
+                  <td class="whitespace-nowrap">
+                    <div class="action-btns">
+                      <button @click="selectCourse(c)" class="action-view" type="button">
+                        View schedules
+                      </button>
+                    </div>
+                  </td>
+                </tr>
 
-              <tr v-if="filteredCourses.length === 0">
-                <td colspan="7" class="py-8 text-center text-gray-500">
-                  No assigned courses found
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                <tr v-if="filteredCourses.length === 0">
+                  <td colspan="7" class="empty-cell">No assigned courses found</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- ===================== VIEW: SCHEDULES FOR SELECTED COURSE ===================== -->
       <div v-else>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <p class="text-sm text-gray-600">Total Schedules</p>
-            <h3 class="text-2xl font-bold text-blue-800 mt-1">{{ schedulesTotal }}</h3>
+        <!-- Floating Totals -->
+        <div class="stats-row mb-5">
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-blue">{{ schedulesTotal }}</span>
+            <span class="stat-mini-label">Total Schedules</span>
           </div>
-          <div class="bg-sky-50 p-4 rounded-lg border border-sky-100">
-            <p class="text-sm text-gray-600">Loaded</p>
-            <h3 class="text-2xl font-bold text-sky-800 mt-1">{{ schedules.length }}</h3>
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-sky">{{ schedules.length }}</span>
+            <span class="stat-mini-label">Loaded</span>
           </div>
-          <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-            <p class="text-sm text-gray-600">Has Slots Dates</p>
-            <h3 class="text-2xl font-bold text-green-800 mt-1">{{ hasSlotsDates }}</h3>
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-green">{{ hasSlotsDates }}</span>
+            <span class="stat-mini-label">Has Slots Dates</span>
           </div>
-          <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-            <p class="text-sm text-gray-600">Full Dates</p>
-            <h3 class="text-2xl font-bold text-red-800 mt-1">{{ fullDates }}</h3>
+          <div class="stat-mini">
+            <span class="stat-mini-value stat-red">{{ fullDates }}</span>
+            <span class="stat-mini-label">Full Dates</span>
           </div>
         </div>
 
-        <div class="mb-4 p-3 rounded border border-gray-200 bg-gray-50 text-gray-700 text-sm">
+        <!-- Summary -->
+        <div class="info-note mb-4">
           <div class="flex flex-wrap gap-6">
             <div><span class="font-semibold">After filters:</span> {{ filteredSchedules.length }}</div>
             <div><span class="font-semibold">Selected Month:</span> {{ schedulesSelectedMonth || "(All)" }}</div>
@@ -236,202 +201,162 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-blue-800">📅 Schedule Overview</h3>
-            <div class="flex gap-3 text-sm">
-              <span class="flex items-center gap-1">
-                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                Has slots dates: {{ hasSlotsDates }}
-              </span>
-              <span class="flex items-center gap-1">
-                <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-                Full dates: {{ fullDates }}
-              </span>
+        <!-- Calendar -->
+        <div class="panel-card mb-5">
+          <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+            <h3 class="panel-title">📅 Schedule Overview</h3>
+            <div class="flex gap-4 text-sm flex-wrap">
+              <span class="legend-item"><span class="dot dot-green"></span>Has slots dates: {{ hasSlotsDates }}</span>
+              <span class="legend-item"><span class="dot dot-red"></span>Full dates: {{ fullDates }}</span>
             </div>
           </div>
 
-          <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Month</label>
-              <select
-                v-model="schedulesSelectedMonth"
-                class="w-40 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
+          <!-- Filters -->
+          <div class="filters-panel mb-5">
+            <div class="filter-field">
+              <label class="filter-label">Month</label>
+              <select v-model="schedulesSelectedMonth" class="select-modern-sm" style="width: 160px;">
                 <option value="">All Months</option>
                 <option v-for="m in months" :key="m" :value="m">{{ m }}</option>
               </select>
             </div>
 
-            <div class="flex items-end gap-2">
-              <button
-                @click="clearSchedulesFilters"
-                class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-                type="button"
-              >
-                Clear
-              </button>
-              <button
-                @click="fetchSchedules()"
-                class="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-                type="button"
-              >
-                Refresh
-              </button>
-            </div>
+            <button @click="clearSchedulesFilters" class="pg-btn">Clear</button>
+            <button @click="fetchSchedules()" class="pg-btn pg-btn-accent">↻ Refresh</button>
           </div>
 
-          <div class="flex justify-between items-center mb-4">
-            <button
-              @click="prevMonth"
-              class="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium"
-              type="button"
-            >
-              ◀ Prev
-            </button>
-            <h3 class="text-lg font-semibold text-blue-800">{{ currentMonthName }} {{ currentYear }}</h3>
-            <button
-              @click="nextMonth"
-              class="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium"
-              type="button"
-            >
-              Next ▶
-            </button>
+          <!-- Calendar Navigation -->
+          <div class="calendar-nav">
+            <button @click="prevMonth" class="cal-nav-btn" title="Previous month" type="button">‹</button>
+            <h3 class="cal-month-title">{{ currentMonthName }} {{ currentYear }}</h3>
+            <button @click="nextMonth" class="cal-nav-btn" title="Next month" type="button">›</button>
           </div>
 
-          <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium text-gray-600 mb-2">
-            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-          </div>
+          <!-- Calendar Grid -->
+          <div class="calendar-grid">
+            <div class="cal-weekday">Sun</div>
+            <div class="cal-weekday">Mon</div>
+            <div class="cal-weekday">Tue</div>
+            <div class="cal-weekday">Wed</div>
+            <div class="cal-weekday">Thu</div>
+            <div class="cal-weekday">Fri</div>
+            <div class="cal-weekday">Sat</div>
 
-          <div class="grid grid-cols-7 gap-2">
             <div
               v-for="d in calendarDates"
               :key="d.key"
               :class="[
-                'p-3 border rounded text-center transition-colors relative',
-                d.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400',
-                d.isToday ? 'border-blue-500' : 'border-gray-200',
-                d.isSunday ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'cursor-pointer',
-                d.inCourseRange ? 'bg-blue-50' : '',
+                'cal-cell',
+                d.isCurrentMonth ? 'cal-cell-current' : 'cal-cell-outside',
+                d.isToday ? 'cal-cell-today' : '',
+                d.isSunday ? 'cal-cell-sunday' : '',
+                d.inCourseRange ? 'cal-cell-range' : '',
                 getDateClass(d.ymd)
               ]"
               @click="!d.isSunday && openDateModal(d.ymd)"
             >
-              <div class="font-medium">{{ d.day }}</div>
+              <div class="cal-day-num">{{ d.day }}</div>
 
-              <div v-if="d.studentsSum !== null && !d.isSunday" class="text-xs mt-1">
-                <span :class="d.isFull ? 'text-red-600' : 'text-green-700'">
+              <div v-if="d.studentsSum !== null && !d.isSunday" class="cal-slot-info">
+                <span :class="d.isFull ? 'text-red-600' : 'text-green-600'">
                   {{ d.isFull ? "Full" : `Students ${d.studentsSum}` }}
                 </span>
               </div>
 
-              <div v-else-if="d.inCourseRange && !d.isSunday" class="text-[10px] mt-1 text-blue-700">
+              <div v-else-if="d.inCourseRange && !d.isSunday" class="cal-slot-info cal-slot-muted">
                 Training
               </div>
 
-              <div v-else-if="d.isSunday" class="text-[10px] mt-1 text-gray-400">
+              <div v-else-if="d.isSunday" class="cal-slot-info cal-slot-muted">
                 Sunday
               </div>
             </div>
           </div>
 
-          <div class="mt-4 flex gap-4 text-sm text-gray-600 flex-wrap">
-            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-blue-50 border border-blue-200 rounded"></div>Course range</span>
-            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-green-100 rounded"></div>Has slots</span>
-            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-red-100 rounded"></div>Full</span>
-            <span class="flex items-center gap-2"><div class="w-3 h-3 border-2 border-blue-500 rounded"></div>Today</span>
-            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-gray-200 rounded"></div>Sunday (excluded)</span>
+          <!-- Legend -->
+          <div class="calendar-legend">
+            <span class="legend-item"><span class="legend-swatch legend-swatch-blue"></span>Course range</span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch-green"></span>Has slots</span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch-red"></span>Full</span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch-today"></span>Today</span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch-sunday"></span>Sunday (excluded)</span>
           </div>
         </div>
 
-        <!-- ✅ Schedule Table (UPDATED: may End column na) -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 class="text-lg font-bold text-blue-800">🗂️ Schedule List</h3>
+        <!-- Schedule Table -->
+        <div class="panel-card">
+          <div class="panel-header-bar">
+            <h3 class="panel-title">🗂️ Schedule List</h3>
             <div class="text-sm text-gray-600">
               Showing {{ schedulesPaged.length }} of {{ filteredSchedules.length }} schedules
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
-              <thead class="bg-blue-800 text-white">
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead class="thead-blue">
                 <tr>
-                  <th class="py-3 px-4 text-left font-medium">Start</th>
-                  <th class="py-3 px-4 text-left font-medium">End</th>
-                  <th class="py-3 px-4 text-left font-medium">Time</th>
-                  <th class="py-3 px-4 text-left font-medium">Students</th>
-                  <th class="py-3 px-4 text-left font-medium">Status</th>
-                  <th class="py-3 px-4 text-left font-medium">Actions</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Time</th>
+                  <th>Students</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                <tr
-                  v-for="s in schedulesPaged"
-                  :key="s.id"
-                  class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                >
+                <tr v-for="s in schedulesPaged" :key="s.id">
                   <!-- Start -->
-                  <td class="py-3 px-4">
-                    {{ formatDateOrTBA(s.date) }}
-                    <div class="text-xs text-gray-500">{{ s.day || "" }}</div>
+                  <td>
+                    <div class="font-medium">{{ formatDateOrTBA(s.date) }}</div>
+                    <div class="text-xs text-gray-400">{{ s.day || "" }}</div>
                   </td>
 
-                  <!-- ✅ End (ITO ANG IDINAGDAG) -->
-                  <td class="py-3 px-4">
-                    {{ formatDateOrTBA(s.endDate) }}
-                  </td>
+                  <!-- End -->
+                  <td class="text-gray-600">{{ formatDateOrTBA(s.endDate) }}</td>
 
-                  <td class="py-3 px-4">
-                    <div class="font-medium">{{ s.startTime }} - {{ s.endTime }}</div>
-                  </td>
+                  <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
 
-                  <td class="py-3 px-4">
+                  <td>
                     <div class="font-medium">{{ s.students }}</div>
-                    <div class="text-xs text-gray-500" v-if="Number.isFinite(s.totalSlots)">Total: {{ s.totalSlots }}</div>
+                    <div class="text-xs text-gray-400" v-if="Number.isFinite(s.totalSlots)">Total: {{ s.totalSlots }}</div>
                   </td>
 
-                  <td class="py-3 px-4">
-                    <span :class="getStatusClassByBooked(s.students, s.totalSlots)">
+                  <td>
+                    <span class="pill" :class="getStatusClassByBooked(s.students, s.totalSlots)">
                       {{ getStatusLabelByBooked(s.students, s.totalSlots) }}
                     </span>
                   </td>
 
-                  <td class="py-3 px-4">
-                    <button
-                      @click="openScheduleModal(s)"
-                      class="text-blue-600 hover:text-blue-800 text-sm font-semibold mr-3"
-                      type="button"
-                    >
-                      View
-                    </button>
+                  <td class="whitespace-nowrap">
+                    <div class="action-btns">
+                      <button @click="openScheduleModal(s)" class="action-view" type="button">View</button>
+                    </div>
                   </td>
                 </tr>
 
                 <tr v-if="filteredSchedules.length === 0">
-                  <td colspan="6" class="py-8 text-center text-gray-500">
-                    No schedules found
-                  </td>
+                  <td colspan="6" class="empty-cell">No schedules found</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div v-if="filteredSchedules.length > 0" class="p-4 flex justify-between items-center border-t border-gray-200">
-            <div class="text-sm text-gray-600">
-              Page {{ schedulesPage }} of {{ schedulesTotalPages }} • {{ filteredSchedules.length }} items
-            </div>
+          <!-- Pagination -->
+          <div v-if="filteredSchedules.length > 0" class="pagination-bar">
+            <span class="page-info">Page {{ schedulesPage }} of {{ schedulesTotalPages }} • {{ filteredSchedules.length }} items</span>
 
-            <div class="flex items-center gap-2">
-              <select v-model.number="schedulesPageSize" class="text-sm border rounded px-2 py-1">
+            <div class="page-btns">
+              <select v-model.number="schedulesPageSize" class="select-modern-sm" style="width: 90px;">
                 <option :value="5">5</option>
                 <option :value="10">10</option>
                 <option :value="20">20</option>
               </select>
 
               <button
-                class="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+                class="pg-btn"
+                :class="{ 'pg-disabled': schedulesPage <= 1 }"
                 :disabled="schedulesPage <= 1"
                 @click="schedulesPage--"
                 type="button"
@@ -439,7 +364,8 @@
                 ← Prev
               </button>
               <button
-                class="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+                class="pg-btn"
+                :class="{ 'pg-disabled': schedulesPage >= schedulesTotalPages }"
                 :disabled="schedulesPage >= schedulesTotalPages"
                 @click="schedulesPage++"
                 type="button"
@@ -452,109 +378,120 @@
       </div>
     </div>
 
-    <!-- DATE MODAL -->
-    <div v-if="showDateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-blue-800">Schedules for {{ formatDateOrTBA(selectedDateYMD) }}</h3>
-            <button @click="closeDateModal" class="text-gray-400 hover:text-gray-600 text-xl" type="button">✕</button>
-          </div>
-
-          <div v-if="dateSchedules.length === 0" class="text-gray-600 text-sm">
-            No schedule rows for this date.
-            <div v-if="isInSelectedCourseRange(selectedDateYMD)" class="mt-2 text-blue-700 text-xs">
-              This date is inside the course duration range (Mon–Sat only).
+    <!-- ===================== DATE MODAL ===================== -->
+    <transition name="modal-fade">
+      <div v-if="showDateModal" class="modal-overlay" @click.self="closeDateModal">
+        <transition name="modal-scale">
+          <div class="modal-card modal-card-lg">
+            <div class="modal-head modal-head-blue">
+              <h3 class="modal-title">📌 Schedules for {{ formatDateOrTBA(selectedDateYMD) }}</h3>
+              <button class="modal-close-btn" @click="closeDateModal" type="button">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          </div>
 
-          <div v-else class="space-y-3">
-            <div v-for="s in dateSchedules" :key="s.id + '-' + selectedDateYMD" class="border border-gray-200 rounded-lg p-4">
-              <div class="flex justify-between items-start gap-3">
-                <div>
-                  <div class="font-semibold text-gray-800">{{ selectedCourseName }}</div>
-                  <div class="text-sm text-gray-600 mt-1">{{ s.startTime }} - {{ s.endTime }}</div>
-                  <div class="text-sm text-gray-600">
-                    Students: {{ s.students }} <span v-if="Number.isFinite(s.totalSlots)">/ {{ s.totalSlots }}</span>
-                  </div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    Batch covers: {{ s.date }} → {{ s.endDate || s.date }}
-                  </div>
-                </div>
-
-                <div class="text-right text-sm">
-                  <div :class="getStatusClassByBooked(s.students, s.totalSlots)">
-                    {{ getStatusLabelByBooked(s.students, s.totalSlots) }}
-                  </div>
-
-                  <button class="mt-2 text-blue-600 hover:text-blue-800 font-semibold" @click="openScheduleModal(s)" type="button">
-                    View
-                  </button>
+            <div class="modal-body-scroll">
+              <div v-if="dateSchedules.length === 0" class="empty-cell">
+                No schedule rows for this date.
+                <div v-if="isInSelectedCourseRange(selectedDateYMD)" class="mt-2 text-blue-700 text-xs">
+                  This date is inside the course duration range (Mon–Sat only).
                 </div>
               </div>
+
+              <div v-else class="table-wrap">
+                <table class="modern-table">
+                  <thead class="thead-blue">
+                    <tr>
+                      <th>Course</th>
+                      <th>Time</th>
+                      <th>Students</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in dateSchedules" :key="s.id + '-' + selectedDateYMD">
+                      <td>
+                        <div class="font-medium">{{ selectedCourseName }}</div>
+                        <div class="text-xs text-gray-400">Batch: {{ s.date }} → {{ s.endDate || s.date }}</div>
+                      </td>
+                      <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
+                      <td>
+                        {{ s.students }}
+                        <span class="text-xs text-gray-400" v-if="Number.isFinite(s.totalSlots)">/ {{ s.totalSlots }}</span>
+                      </td>
+                      <td>
+                        <span class="pill" :class="getStatusClassByBooked(s.students, s.totalSlots)">
+                          {{ getStatusLabelByBooked(s.students, s.totalSlots) }}
+                        </span>
+                      </td>
+                      <td class="whitespace-nowrap">
+                        <div class="action-btns">
+                          <button class="action-view" @click="openScheduleModal(s)" type="button">View</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="modal-foot">
+              <button @click="closeDateModal" class="btn-cancel" type="button">Close</button>
             </div>
           </div>
-
-          <div class="flex justify-end mt-6">
-            <button
-              @click="closeDateModal"
-              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-              type="button"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        </transition>
       </div>
-    </div>
+    </transition>
 
-    <!-- SCHEDULE DETAILS MODAL -->
-    <div v-if="showScheduleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-blue-800">Schedule Details</h3>
-            <button @click="closeScheduleModal" class="text-gray-400 hover:text-gray-600 text-xl" type="button">✕</button>
-          </div>
+    <!-- ===================== SCHEDULE DETAILS MODAL ===================== -->
+    <transition name="modal-fade">
+      <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
+        <transition name="modal-scale">
+          <div class="modal-card modal-card-sm">
+            <div class="modal-head modal-head-blue">
+              <h3 class="modal-title">Schedule Details</h3>
+              <button class="modal-close-btn" @click="closeScheduleModal" type="button">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-          <div class="space-y-2">
-            <div><span class="font-semibold">Course:</span> {{ selectedCourseName }}</div>
-            <div>
-              <span class="font-semibold">Start:</span>
-              {{ formatDateOrTBA(selectedSchedule.date) }}
-              <span class="text-gray-500">({{ selectedSchedule.day || "" }})</span>
+            <div class="modal-body">
+              <div class="detail-row"><span class="detail-label">Course:</span> {{ selectedCourseName }}</div>
+              <div class="detail-row">
+                <span class="detail-label">Start:</span>
+                {{ formatDateOrTBA(selectedSchedule.date) }}
+                <span class="text-gray-500">({{ selectedSchedule.day || "" }})</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">End:</span>
+                {{ formatDateOrTBA(selectedSchedule.endDate) }}
+              </div>
+              <div class="detail-row"><span class="detail-label">Time:</span> {{ selectedSchedule.startTime }} - {{ selectedSchedule.endTime }}</div>
+              <div class="detail-row">
+                <span class="detail-label">Students:</span>
+                {{ selectedSchedule.students }}
+                <span v-if="Number.isFinite(selectedSchedule.totalSlots)">/ {{ selectedSchedule.totalSlots }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Status:</span>
+                <span class="pill" :class="getStatusClassByBooked(selectedSchedule.students, selectedSchedule.totalSlots)">
+                  {{ getStatusLabelByBooked(selectedSchedule.students, selectedSchedule.totalSlots) }}
+                </span>
+              </div>
             </div>
-            <div>
-              <span class="font-semibold">End:</span>
-              {{ formatDateOrTBA(selectedSchedule.endDate) }}
-            </div>
-            <div><span class="font-semibold">Time:</span> {{ selectedSchedule.startTime }} - {{ selectedSchedule.endTime }}</div>
-            <div>
-              <span class="font-semibold">Students:</span>
-              {{ selectedSchedule.students }}
-              <span v-if="Number.isFinite(selectedSchedule.totalSlots)">/ {{ selectedSchedule.totalSlots }}</span>
-            </div>
-            <div>
-              <span class="font-semibold">Status:</span>
-              <span :class="getStatusClassByBooked(selectedSchedule.students, selectedSchedule.totalSlots)">
-                {{ getStatusLabelByBooked(selectedSchedule.students, selectedSchedule.totalSlots) }}
-              </span>
-            </div>
-          </div>
 
-          <div class="flex justify-end mt-6">
-            <button
-              @click="closeScheduleModal"
-              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
-              type="button"
-            >
-              Close
-            </button>
+            <div class="modal-foot">
+              <button @click="closeScheduleModal" class="btn-cancel" type="button">Close</button>
+            </div>
           </div>
-        </div>
+        </transition>
       </div>
-    </div>
-
+    </transition>
   </TrainerLayout>
 </template>
 
@@ -719,10 +656,10 @@ export default {
 
     const statusBadgeClass = (status) => {
       switch (status) {
-        case "active": return "bg-green-100 text-green-800";
-        case "upcoming": return "bg-yellow-100 text-yellow-800";
-        case "completed": return "bg-gray-100 text-gray-800";
-        default: return "bg-gray-100 text-gray-800";
+        case "active": return "text-green-600";
+        case "upcoming": return "text-amber-600";
+        case "completed": return "text-gray-600";
+        default: return "text-gray-600";
       }
     };
 
@@ -1102,8 +1039,8 @@ export default {
         return Number.isFinite(t) && t > 0 ? b >= t : false;
       });
 
-      if (allFull) return "bg-red-50";
-      if (hasAnySlots) return "bg-green-50";
+      if (allFull) return "cal-cell-full";
+      if (hasAnySlots) return "cal-cell-slots";
       return "";
     };
 
@@ -1252,3 +1189,171 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+/* ========== PAGE HEADER ========== */
+.page-header-row { margin-bottom: 4px; }
+.page-title { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.page-subtitle { font-size: 0.85rem; color: #6b7280; margin: 4px 0 0; }
+.info-note { font-size: 0.8rem; color: #374151; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 14px; }
+.info-note-error { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+
+/* ========== SEARCH ========== */
+.search-box { position: relative; flex: 1; max-width: 380px; }
+.search-icon-svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #9ca3af; }
+.search-input-modern { width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; color: #111827 !important; background: #fff !important; }
+.search-input-modern:focus { border-color: #1d4ed8; }
+
+/* ========== TAB / ACTION GROUP ========== */
+.tab-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ========== STATS ========== */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.stat-mini { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-mini-value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.stat-mini-label { font-size: 0.78rem; color: #6b7280; font-weight: 500; }
+.stat-blue { color: #1d4ed8; }
+.stat-sky { color: #0284c7; }
+.stat-green { color: #059669; }
+.stat-amber { color: #d97706; }
+.stat-purple { color: #7c3aed; }
+.stat-red { color: #dc2626; }
+
+/* ========== LOADING ========== */
+.loading-block { text-align: center; padding: 48px 0; color: #6b7280; }
+.spinner-ring { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #e5e7eb; border-top-color: #1d4ed8; animation: spin 0.8s linear infinite; margin: 0 auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ========== PANEL ========== */
+.panel-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; padding: 20px; }
+.panel-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.panel-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+
+/* ========== FILTERS ========== */
+.filters-panel { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; }
+.filter-field { display: flex; flex-direction: column; gap: 4px; }
+.filter-label { font-size: 0.7rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* ========== MODERN SELECT ========== */
+.select-modern-sm {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  padding: 9px 36px 9px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
+  font-size: 0.82rem; font-weight: 600; color: #374151; cursor: pointer; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+.select-modern-sm:hover { border-color: #bfdbfe; }
+.select-modern-sm:focus { border-color: #1d4ed8; box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15); background-color: #eff6ff; }
+
+.pg-btn { padding: 9px 16px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
+.pg-btn:hover:not(.pg-disabled) { border-color: #1d4ed8; color: #1d4ed8; }
+.pg-btn-accent { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.pg-btn-accent:hover { background: #1e40af; color: #fff; }
+.pg-disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ========== CALENDAR ========== */
+.calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.cal-nav-btn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; color: #1d4ed8; font-size: 1.1rem; cursor: pointer; transition: all 0.2s; }
+.cal-nav-btn:hover { background: #eff6ff; border-color: #1d4ed8; }
+.cal-month-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-weekday { font-size: 0.7rem; font-weight: 700; color: #1d4ed8; padding: 8px 0; text-transform: uppercase; }
+.cal-cell { padding: 8px 4px; border: 1px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.15s; position: relative; min-height: 54px; }
+.cal-cell-current { background: #fff; }
+.cal-cell-outside { background: #f9fafb; color: #d1d5db; }
+.cal-cell:hover { border-color: #bfdbfe; }
+.cal-cell-today { border-color: #1d4ed8 !important; border-width: 2px; }
+.cal-cell-sunday { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+.cal-cell-range { background: #eff6ff; }
+.cal-cell-slots { background: #ecfdf5; border-color: #a7f3d0; }
+.cal-cell-full { background: #fef2f2; border-color: #fecaca; }
+.cal-day-num { font-weight: 600; font-size: 0.85rem; }
+.cal-slot-info { font-size: 0.65rem; margin-top: 4px; font-weight: 600; }
+.cal-slot-muted { color: #1d4ed8; font-weight: 500; }
+
+.calendar-legend { margin-top: 16px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.8rem; color: #6b7280; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+.dot-green { background: #10b981; }
+.dot-red { background: #ef4444; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+.legend-swatch-blue { background: #eff6ff; border: 1px solid #bfdbfe; }
+.legend-swatch-green { background: #d1fae5; }
+.legend-swatch-red { background: #fee2e2; }
+.legend-swatch-today { background: #fff; border: 2px solid #1d4ed8; }
+.legend-swatch-sunday { background: #e5e7eb; }
+
+/* ========== TABLE ========== */
+.table-wrap { overflow-x: auto; }
+.modern-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.modern-table th { text-align: left; padding: 11px 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.modern-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+.modern-table tbody tr:hover { background: #f9fafb; }
+.thead-blue th { background: #1d4ed8; color: #fff; border-bottom: none; }
+.empty-cell { text-align: center; color: #9ca3af; padding: 30px !important; }
+
+/* ========== PILLS ========== */
+.pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.text-red-600 { color: #dc2626; background: #fee2e2; }
+.text-green-600 { color: #059669; background: #d1fae5; }
+.text-amber-600 { color: #d97706; background: #fef3c7; }
+.text-gray-600.pill { color: #4b5563; background: #f3f4f6; }
+
+/* ========== ACTION BUTTONS ========== */
+.action-btns { display: flex; gap: 6px; }
+.action-view { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; background: #1d4ed8; color: #fff; border: none; cursor: pointer; transition: all 0.2s; }
+.action-view:hover { background: #1e40af; }
+
+/* ========== PAGINATION ========== */
+.pagination-bar { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; flex-wrap: wrap; gap: 10px; }
+.page-info { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
+.page-btns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ========== MODAL ========== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+.modal-card-sm { max-width: 420px; }
+.modal-card-lg { max-width: 720px; }
+.modal-head { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; flex-shrink: 0; }
+.modal-head-blue { background: #eff6ff; }
+.modal-title { font-size: 1.1rem; font-weight: 700; color: #111827; margin: 0; }
+.modal-close-btn { padding: 6px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; transition: all 0.2s; }
+.modal-close-btn:hover { background: #f3f4f6; color: #111827; }
+.modal-body { padding: 20px; }
+.modal-body-scroll { overflow-y: auto; flex: 1; padding: 20px; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; flex-shrink: 0; }
+.detail-row { padding: 8px 0; font-size: 0.88rem; color: #374151; border-bottom: 1px solid #f9fafb; }
+.detail-label { font-weight: 600; color: #111827; margin-right: 6px; }
+
+.btn-cancel { padding: 9px 18px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #374151; cursor: pointer; transition: all 0.2s; }
+.btn-cancel:hover { background: #f3f4f6; }
+
+/* ========== ANIMATIONS ========== */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-scale-enter-active { transition: all 0.25s ease; }
+.modal-scale-leave-active { transition: all 0.15s ease; }
+.modal-scale-enter-from { opacity: 0; transform: scale(0.95) translateY(10px); }
+.modal-scale-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
+
+/* ========== MISC ========== */
+.font-medium { font-weight: 500; } .font-semibold { font-weight: 600; }
+.text-sm { font-size: 0.85rem; } .text-xs { font-size: 0.72rem; }
+.text-gray-400 { color: #9ca3af; } .text-gray-500 { color: #6b7280; } .text-gray-600 { color: #4b5563; }
+.text-blue-700 { color: #1d4ed8; }
+.w-5 { width: 20px; } .h-5 { height: 20px; }
+.flex { display: flex; } .flex-wrap { flex-wrap: wrap; } .items-center { align-items: center; }
+.justify-between { justify-content: space-between; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-6 { gap: 24px; }
+.mb-4 { margin-bottom: 16px; } .mb-5 { margin-bottom: 20px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; }
+.ml-2 { margin-left: 8px; }
+.whitespace-nowrap { white-space: nowrap; }
+
+@media (max-width: 768px) {
+  .search-box { max-width: 100%; }
+  .calendar-grid { gap: 3px; }
+  .cal-cell { padding: 5px; min-height: 44px; }
+}
+</style>
