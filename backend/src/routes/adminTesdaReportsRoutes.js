@@ -14,6 +14,9 @@ router.get("/top-courses", ctrl.getTopCourses);
 router.get("/gender-breakdown", ctrl.getGenderBreakdown);
 router.get("/detailed", ctrl.getDetailed);
 
+// certificates
+router.get("/certificates-summary", ctrl.getIssuedCertificatesSummary);
+
 // exports
 router.get("/export/overview", ctrl.exportOverview);
 router.get("/export/top-courses", ctrl.exportTopCourses);

@@ -3475,25 +3475,15 @@ attendancePage.value = 1;
 
 
     // ===================== CERTIFICATE REPORT =====================
+    // ✅ FIXED: kinukuha na direkta sa /certificates-summary endpoint
+    // (galing sa `certificates` table, base sa `issued_at`) — hindi na
+    // basta bilang ng detailedRows/reservation dates. Kaya makukuha na
+    // rin ngayon yung mga ONLINE reservations na na-release ang
+    // certificate sa ibang buwan kesa sa booking date.
     function normalizeCourseType(row) {
       const text = `${row.course_name || ""} ${row.course_code || ""} ${row.course_type || ""}`.toUpperCase();
       if (text.includes("TDC") || text.includes("THEORETICAL")) return "tdc";
       return "pdc";
-    }
-
-    function normalizeSex(value) {
-      const s = String(value || "").trim().toLowerCase();
-      if (s.startsWith("f")) return "Female";
-      return "Male";
-    }
-
-    function normalizePurpose(value) {
-      const s = String(value || "").trim();
-      if (!s) return "Application for new Driver's License";
-      const u = s.toUpperCase();
-      if (u.includes("ADDITIONAL")) return "Application for Additional DL code";
-      if (u.includes("NEW")) return "Application for new Driver's License";
-      return s;
     }
 
     function normalizeDLCode(value) {
@@ -3501,91 +3491,31 @@ attendancePage.value = 1;
       return s || "A";
     }
 
-    function rowDateForCertificate(row) {
-      return row.certificate_created_at || row.generated_at || row.issued_at || row.completed_at || row.created_at || row.course_end || row.schedule_date || row.course_start || "";
-    }
-
-    function certificateMonthLabel(value) {
+    function certificateMonthLabelFallback(value) {
       const [y, m] = String(value || "").split("-");
       const d = new Date(Number(y || new Date().getFullYear()), Number(m || 1) - 1, 1);
       return d.toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
     }
 
-    function rowsForSelectedCertificateMonth() {
-      const monthKey = String(certificateMonth.value || "");
-      return (detailedRows.value || []).filter((row) => {
-        const raw = rowDateForCertificate(row);
-        if (!raw || !monthKey) return true;
-        const d = new Date(raw);
-        if (Number.isNaN(d.getTime())) return true;
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === monthKey;
-      });
-    }
-
-    const certificateReport = computed(() => {
-      const rows = rowsForSelectedCertificateMonth();
-
-      const countBy = (items, getter, keys = []) => {
-        const out = {};
-        keys.forEach((k) => (out[k] = 0));
-        items.forEach((item) => {
-          const key = getter(item) || "-";
-          out[key] = Number(out[key] || 0) + 1;
-        });
-        return out;
-      };
-
-      if (reportMode.value === "tesda") {
-        const tesdaRows = rows;
-        const courseCounts = countBy(tesdaRows, (r) => r.course_name || "Unspecified Course");
-        const trainerCounts = countBy(tesdaRows, (r) => r.trainer_name || r.instructor_name || "No trainer assigned");
-        const courseOrder = Object.keys(courseCounts).sort((a, b) => a.localeCompare(b));
-        const trainerOrder = Object.keys(trainerCounts).sort((a, b) => a.localeCompare(b));
-
-        return {
-          monthLabel: certificateMonthLabel(certificateMonth.value),
-          tesdaTotal: tesdaRows.length,
-          tesdaCourseRows: courseOrder.map((label) => ({ label, count: Number(courseCounts[label] || 0) })),
-          tesdaTrainerRows: trainerOrder.map((label) => ({ label, count: Number(trainerCounts[label] || 0) })),
-          tdcTotal: 0,
-          pdcTotal: 0,
-          tdc: { sex: { Male: 0, Female: 0 } },
-          pdc: { sex: { Male: 0, Female: 0 } },
-          trainingPurposeRows: [],
-          dlCodeRows: [],
-          dlCodeTotal: 0,
-        };
-      }
-
-      const tdcRows = rows.filter((r) => normalizeCourseType(r) === "tdc");
-      const pdcRows = rows.filter((r) => normalizeCourseType(r) === "pdc");
-
-      const purposeOrder = ["Application for new Driver's License", "Application for Additional DL code"];
-      const dlOrder = ["A", "A1", "B", "B1", "B2", "BE", "C", "D", "CE"];
-      const purposeCounts = countBy(pdcRows, (r) => normalizePurpose(r.training_purpose), purposeOrder);
-      const dlCounts = countBy(pdcRows, (r) => normalizeDLCode(r.dl_code), dlOrder);
-
-      Object.keys(purposeCounts).forEach((k) => {
-        if (!purposeOrder.includes(k)) purposeOrder.push(k);
-      });
-      Object.keys(dlCounts).forEach((k) => {
-        if (!dlOrder.includes(k)) dlOrder.push(k);
-      });
-
+    function emptyCertificateReport(monthValue) {
       return {
-        monthLabel: certificateMonthLabel(certificateMonth.value),
+        monthLabel: certificateMonthLabelFallback(monthValue),
         tesdaTotal: 0,
         tesdaCourseRows: [],
         tesdaTrainerRows: [],
-        tdcTotal: tdcRows.length,
-        pdcTotal: pdcRows.length,
-        tdc: { sex: countBy(tdcRows, (r) => normalizeSex(r.gender), ["Male", "Female"]) },
-        pdc: { sex: countBy(pdcRows, (r) => normalizeSex(r.gender), ["Male", "Female"]) },
-        trainingPurposeRows: purposeOrder.map((label) => ({ label, count: Number(purposeCounts[label] || 0) })),
-        dlCodeRows: dlOrder.map((label) => ({ label, count: Number(dlCounts[label] || 0) })),
-        dlCodeTotal: dlOrder.reduce((sum, key) => sum + Number(dlCounts[key] || 0), 0),
+        tdcTotal: 0,
+        pdcTotal: 0,
+        tdc: { sex: { Male: 0, Female: 0 } },
+        pdc: { sex: { Male: 0, Female: 0 } },
+        trainingPurposeRows: [],
+        dlCodeRows: [],
+        dlCodeTotal: 0,
       };
-    });
+    }
+
+    const certificateReport = ref(emptyCertificateReport(certificateMonth.value));
+    const certificateLoading = ref(false);
+    const certificateError = ref("");
 
     function buildCertificateTables() {
       const r = certificateReport.value;
@@ -3648,12 +3578,41 @@ attendancePage.value = 1;
       ];
     }
 
-    async function reloadCertificateReport() {
+async function reloadCertificateReport() {
       const r = getMonthRange(certificateMonth.value);
       certificateMonth.value = r.month;
-      // Certificate summary uses the already loaded detailed records when possible.
-      // Loading detailed here keeps the certificate preview updated without changing the detailed month filter.
-      await loadDetailed();
+
+      certificateLoading.value = true;
+      certificateError.value = "";
+
+      try {
+        // ✅ Direktang tumatawag na sa backend gamit ang certificateMonth,
+        // hiwalay sa detailedMonth/detailedTabFilters — kaya tama na ang
+        // buwan na kino-query, hindi na basta yung huling na-load na range
+        // ng Detailed Reports tab.
+        const endpoint =
+          reportMode.value === "tesda"
+            ? `/api/admin/tesda-reports/certificates-summary?month=${encodeURIComponent(certificateMonth.value)}`
+            : `/api/admin/reports/certificates-summary?month=${encodeURIComponent(certificateMonth.value)}`;
+
+        const json = await apiGet(endpoint);
+
+        if (json.status === "success" && json.data) {
+          certificateReport.value = {
+            ...emptyCertificateReport(certificateMonth.value),
+            ...json.data,
+            tdc: json.data.tdc || { sex: { Male: 0, Female: 0 } },
+            pdc: json.data.pdc || { sex: { Male: 0, Female: 0 } },
+          };
+        } else {
+          certificateReport.value = emptyCertificateReport(certificateMonth.value);
+        }
+      } catch (e) {
+        certificateError.value = e?.message || "Failed to load issued certificates report.";
+        certificateReport.value = emptyCertificateReport(certificateMonth.value);
+      } finally {
+        certificateLoading.value = false;
+      }
     }
 
     function exportCertificateReport() {
@@ -4610,6 +4569,8 @@ attendancePage.value = 1;
       // certificates
       certificateMonth,
       certificateReport,
+      certificateLoading,
+      certificateError,
       reloadCertificateReport,
       exportCertificateReport,
 

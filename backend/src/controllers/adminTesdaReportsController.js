@@ -859,6 +859,7 @@ exports.exportDetailed = async (req, res) => {
     const gender = safeStr(req.query.gender).toLowerCase();
     const status = safeStr(req.query.status).toLowerCase();
     const q = safeStr(req.query.q);
+    const source = safeStr(req.query.source).toUpperCase();
 
     let where = `WHERE tsr.created_at >= ? AND tsr.created_at < ?`;
     const params = [from, to];
@@ -1263,6 +1264,93 @@ exports.exportAll = async (req, res) => {
     return res.status(500).json({
       status: "error",
       message: "Failed to export TESDA all",
+      debug: err.sqlMessage || err.message,
+    });
+  }
+};
+
+// GET /api/admin/tesda-reports/certificates-summary?month=2026-07
+exports.getIssuedCertificatesSummary = async (req, res) => {
+  try {
+    const monthInput = safeStr(req.query.month);
+
+    const now = new Date();
+    const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(monthInput)
+      ? monthInput
+      : defaultMonth;
+
+    const [year, m] = month.split("-").map(Number);
+    const from = `${year}-${String(m).padStart(2, "0")}-01`;
+    const nextYear = m === 12 ? year + 1 : year;
+    const nextMonth = m === 12 ? 1 : m + 1;
+    const to = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+
+    const monthLabel = new Date(year, m - 1, 1)
+      .toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      .toUpperCase();
+
+    // ✅ Direkta sa `certificates` table, base sa issued_at (petsa nang
+    // talagang na-release ang certificate) — hindi sa reservation created_at.
+    const [rows] = await pool.execute(
+      `
+      SELECT
+        cert.certificate_id,
+        cert.issued_at,
+        tc.course_name,
+        CONCAT_WS(' ', tr.firstname, tr.lastname) AS trainer_name
+      FROM certificates cert
+      JOIN tesda_schedule_reservations tsr
+        ON tsr.reservation_id = cert.reservation_id
+      LEFT JOIN tesda_schedules ts ON ts.schedule_id = tsr.schedule_id
+      LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
+      LEFT JOIN trainers tr ON tr.trainer_id = ts.trainer_id
+      WHERE cert.certificate_type = 'TESDA'
+        AND cert.status = 'issued'
+        AND cert.issued_at >= ?
+        AND cert.issued_at < ?
+      ORDER BY cert.issued_at DESC
+      `,
+      [from, to],
+    );
+
+    const courseMap = new Map();
+    const trainerMap = new Map();
+
+    for (const row of rows) {
+      const courseLabel = row.course_name || "Unspecified Course";
+      const trainerLabel =
+        row.trainer_name && row.trainer_name.trim()
+          ? row.trainer_name.trim()
+          : "No trainer assigned";
+
+      courseMap.set(courseLabel, (courseMap.get(courseLabel) || 0) + 1);
+      trainerMap.set(trainerLabel, (trainerMap.get(trainerLabel) || 0) + 1);
+    }
+
+    const tesdaCourseRows = Array.from(courseMap.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    const tesdaTrainerRows = Array.from(trainerMap.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return res.json({
+      status: "success",
+      data: {
+        month,
+        monthLabel,
+        tesdaTotal: rows.length,
+        tesdaCourseRows,
+        tesdaTrainerRows,
+      },
+    });
+  } catch (err) {
+    console.error("TESDA getIssuedCertificatesSummary error:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to load TESDA issued certificates summary",
       debug: err.sqlMessage || err.message,
     });
   }
