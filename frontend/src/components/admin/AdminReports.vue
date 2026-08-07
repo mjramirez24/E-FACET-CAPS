@@ -3,70 +3,70 @@
   <AdminLayout>
     <!-- Header-left: search + SWITCH -->
     <template #header-left>
-      <div class="flex items-center gap-3 w-full">
-        <input
-          type="text"
-          placeholder="Search in tables..."
-          v-model="searchQuery"
-          class="w-1/3 p-2 rounded-md text-gray-800 focus:outline-none"
-        />
-
-        <!-- ✅ SINGLE SWITCH BUTTON -->
-        <button
-          @click="toggleReportMode"
-          class="px-4 py-2 rounded-md text-sm font-semibold shadow-sm border"
-          :class="reportMode === 'driving'
-            ? 'bg-green-700 text-white border-green-700 hover:bg-green-800'
-            : 'bg-blue-700 text-white border-blue-700 hover:bg-blue-800'"
-          :title="reportMode === 'driving' ? 'Switch to TESDA' : 'Switch to Driving'"
-        >
-          <span v-if="reportMode === 'driving'">🚗 Driving</span>
-          <span v-else>🎓 TESDA</span>
-          <span class="ml-2 opacity-90">⇄</span>
-        </button>
-      </div>
-    </template>
-
-    <div class="space-y-6">
-      <!-- PAGE HEADER -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h2 class="text-lg font-bold text-green-800">
-            📈 Analytics & Reports —
-            <span class="font-extrabold" :class="reportMode==='driving' ? 'text-green-800' : 'text-blue-800'">
-              {{ reportModeLabel }}
-            </span>
-          </h2>
+        <div class="flex items-center gap-3 w-full">
+          <div class="search-box" style="max-width: 320px;">
+            <svg class="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search in tables..."
+              v-model="searchQuery"
+              class="search-input-modern"
+            />
+          </div>
         </div>
-      </div>
+      </template>
+
+    <!-- PAGE HEADER -->
+        <div class="page-header-row mb-5">
+          <div class="flex justify-between items-center w-full flex-wrap gap-3">
+            <div>
+              <h2 class="page-title">
+                📈 Analytics &amp; Reports
+                <span class="page-title-accent" :class="reportMode==='driving' ? 'accent-green' : 'accent-blue'">
+                  — {{ reportModeLabel }}
+                </span>
+              </h2>
+              <p class="page-subtitle">Enrollment, revenue, attendance and certificate insights.</p>
+            </div>
+
+            <!-- ✅ SINGLE SWITCH BUTTON -->
+            <button
+              @click="toggleReportMode"
+              class="tab-btn"
+              :class="reportMode === 'driving' ? 'tab-active-green' : 'tab-active-blue'"
+              :title="reportMode === 'driving' ? 'Switch to TESDA' : 'Switch to Driving'"
+            >
+              <span v-if="reportMode === 'driving'">🚗 Driving</span>
+              <span v-else>🎓 TESDA</span>
+              <span class="ml-1 opacity-90">⇄</span>
+            </button>
+          </div>
 
       <!-- TOP SUMMARY -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start" :class="reportMode === 'driving' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'">
-        <div class="rounded-2xl border border-green-100 bg-green-50 p-4 min-h-[118px] flex flex-col justify-center">
-          <p class="text-sm text-green-700 font-semibold">Total Enrolled</p>
-          <h3 class="text-3xl font-extrabold text-green-800 mt-2 leading-none">{{ summary.totalEnrolled }}</h3>
+      <div class="kpi-grid mb-5" :class="reportMode === 'driving' ? 'kpi-grid-4' : 'kpi-grid-3'">
+        <div class="kpi-card kpi-green">
+          <p class="kpi-label">Total Enrolled</p>
+          <h3 class="kpi-value">{{ summary.totalEnrolled }}</h3>
         </div>
 
-        <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 min-h-[118px] flex flex-col justify-center">
-          <p class="text-sm text-blue-700 font-semibold">{{ reportMode === 'tesda' ? 'TESDA Active Courses' : 'Most Popular Course' }}</p>
-          <h3 v-if="reportMode === 'tesda'" class="text-3xl font-extrabold text-blue-800 mt-2 leading-none">{{ tesdaActiveCourseCount }}</h3>
-          <h3 v-else class="text-xl font-extrabold text-blue-800 mt-2 leading-snug line-clamp-2">{{ summary.mostPopularCourse || "-" }}</h3>
+        <div class="kpi-card kpi-blue">
+          <p class="kpi-label">{{ reportMode === 'tesda' ? 'TESDA Active Courses' : 'Most Popular Course' }}</p>
+          <h3 v-if="reportMode === 'tesda'" class="kpi-value">{{ tesdaActiveCourseCount }}</h3>
+          <h3 v-else class="kpi-value kpi-value-text">{{ summary.mostPopularCourse || "-" }}</h3>
         </div>
 
         <!-- ✅ DRIVING ONLY: REVENUE CARD -->
-        <div v-if="reportMode === 'driving'" class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 min-h-[118px] flex flex-col justify-center">
-          <p class="text-sm text-emerald-700 font-semibold">💰 Verified Revenue</p>
-          <h3 class="text-3xl font-extrabold text-emerald-800 mt-2 leading-none">
-            {{ formatCurrency(summary.totalRevenuePeso) }}
-          </h3>
+        <div v-if="reportMode === 'driving'" class="kpi-card kpi-emerald">
+          <p class="kpi-label">💰 Verified Revenue</p>
+          <h3 class="kpi-value">{{ formatCurrency(summary.totalRevenuePeso) }}</h3>
         </div>
 
         <!-- ✅ TESDA ONLY: Attendance KPI -->
-        <div v-else class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 min-h-[118px] flex flex-col justify-center">
-          <p class="text-sm text-emerald-700 font-semibold">📌 Attendance Rate</p>
-          <h3 class="text-3xl font-extrabold text-emerald-800 mt-2 leading-none">
-            {{ tesdaKpiLabel }}
-          </h3>
+        <div v-else class="kpi-card kpi-emerald">
+          <p class="kpi-label">📌 Attendance Rate</p>
+          <h3 class="kpi-value">{{ tesdaKpiLabel }}</h3>
         </div>
 
         <!-- ✅ DRIVING ONLY: compact clickable forecast card -->
@@ -74,34 +74,28 @@
           v-if="reportMode === 'driving'"
           type="button"
           @click="openForecastModal"
-          class="relative overflow-hidden text-left rounded-2xl border border-violet-200 bg-violet-50 p-4 min-h-[118px] shadow-sm transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md group"
+          class="kpi-card kpi-violet kpi-card-clickable"
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-violet-700">🔮 Enrollment Forecast</p>
+              <p class="kpi-label">🔮 Enrollment Forecast</p>
               <div class="mt-2 flex items-end gap-2">
-                <h3 class="text-3xl font-extrabold text-violet-900 leading-none">{{ forecast.nextForecast }}</h3>
-                <span class="pb-0.5 text-xs font-medium text-gray-500">students</span>
+                <h3 class="kpi-value" style="margin:0;">{{ forecast.nextForecast }}</h3>
+                <span class="kpi-unit">students</span>
               </div>
-              <p class="mt-2 text-xs text-gray-600">
-                Prediction Range: <b class="text-violet-800">{{ forecast.low }}–{{ forecast.high }}</b>
-              </p>
-              <p class="mt-1 truncate text-xs text-gray-600">
-                Highest Course: <b>{{ forecast.topCourse || '-' }}</b>
-              </p>
+              <p class="kpi-subtext">Prediction Range: <b>{{ forecast.low }}–{{ forecast.high }}</b></p>
+              <p class="kpi-subtext truncate">Highest Course: <b>{{ forecast.topCourse || '-' }}</b></p>
             </div>
-            <span class="shrink-0 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-700 group-hover:bg-violet-700 group-hover:text-white">
-              View
-            </span>
+            <span class="pill pill-violet-outline">View</span>
           </div>
         </button>
       </div>
 
       <!-- TABS -->
-      <div class="flex flex-wrap gap-2">
+      <div class="tab-group mb-5">
         <button
-          class="px-3 py-2 rounded-md text-sm font-medium border"
-          :class="activeTab==='overview' ? tabActive : tabInactive"
+          class="tab-btn"
+          :class="activeTab==='overview' ? 'tab-active-green' : 'tab-inactive'"
           @click="activeTab='overview'"
         >
           Overview
@@ -110,16 +104,16 @@
         <!-- ✅ DRIVING ONLY: Revenue -->
         <button
           v-if="reportMode === 'driving'"
-          class="px-3 py-2 rounded-md text-sm font-medium border"
-          :class="activeTab==='revenue' ? tabActive : tabInactive"
+          class="tab-btn"
+          :class="activeTab==='revenue' ? 'tab-active-green' : 'tab-inactive'"
           @click="activeTab='revenue'"
         >
           Revenue
         </button>
 
         <button
-          class="px-3 py-2 rounded-md text-sm font-medium border"
-          :class="activeTab==='detailed' ? tabActive : tabInactive"
+          class="tab-btn"
+          :class="activeTab==='detailed' ? 'tab-active-green' : 'tab-inactive'"
           @click="activeTab='detailed'"
         >
           Detailed Reports
@@ -128,8 +122,8 @@
         <!-- ✅ TESDA ONLY: Attendance -->
         <button
           v-if="reportMode === 'tesda'"
-          class="px-3 py-2 rounded-md text-sm font-medium border"
-          :class="activeTab==='attendance' ? tabActive : tabInactive"
+          class="tab-btn"
+          :class="activeTab==='attendance' ? 'tab-active-blue' : 'tab-inactive'"
           @click="activeTab='attendance'"
         >
           Attendance
@@ -137,8 +131,8 @@
 
         <!-- ✅ Issued Certificates (Driving / TESDA) -->
         <button
-          class="px-3 py-2 rounded-md text-sm font-medium border"
-          :class="activeTab==='exams' ? tabActive : tabInactive"
+          class="tab-btn"
+          :class="activeTab==='exams' ? 'tab-active-green' : 'tab-inactive'"
           @click="activeTab='exams'"
         >
           Issued Certificates
@@ -146,141 +140,90 @@
       </div>
 
       <!-- ===================== OVERVIEW ===================== -->
-      <div v-if="activeTab === 'overview'" class="space-y-6">
+      <div v-if="activeTab === 'overview'" class="stack-6">
         <!-- OVERVIEW FILTERS -->
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5">
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 flex-1">
-              <div class="w-56">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-                <select v-model="overviewFilters.dateRange" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="allMonths">All Months</option>
-                  <option value="thisMonth">This Month</option>
-                  <option value="lastMonth">Last Month</option>
-                  <option value="thisYear">This Year</option>
-                  <option value="custom">Custom</option>
-                </select>
-                <div v-if="overviewFilters.dateRange === 'custom'" class="mt-2 grid grid-cols-2 gap-2">
-                  <input v-model="overviewFilters.customFrom" type="date" class="p-2 border border-gray-300 rounded-md text-xs" />
-                  <input v-model="overviewFilters.customTo" type="date" class="p-2 border border-gray-300 rounded-md text-xs" />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Course (Trend)</label>
-                <select v-model="overviewFilters.courseId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All courses</option>
-                  <option v-for="c in courses" :key="c.id" :value="String(c.id)">
-                    {{ c.course_name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Trend Period</label>
-                <div class="flex gap-1">
-                  <button
-                    @click="setTrendPeriod('day')"
-                    :class="trendPeriod==='day' ? btnActive : btnInactive"
-                    class="text-sm px-2 py-1 rounded"
-                  >Day</button>
-
-                  <button
-                    @click="setTrendPeriod('week')"
-                    :class="trendPeriod==='week' ? btnActive : btnInactive"
-                    class="text-sm px-2 py-1 rounded"
-                  >Week</button>
-
-                  <button
-                    @click="setTrendPeriod('month')"
-                    :class="trendPeriod==='month' ? btnActive : btnInactive"
-                    class="text-sm px-2 py-1 rounded"
-                  >Month</button>
-                </div>
-              </div>
-
-              <div v-if="reportMode === 'driving'">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Forecast Horizon</label>
-                <select v-model="forecastHorizon" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                  <option
-                    v-for="option in forecastHorizonOptions"
-                    :key="option.value"
-                    :value="option.value"
-                  >
-                    {{ option.label }}
-                  </option>
-                </select>
+        <div class="panel-card" style="padding: 20px;">
+          <div class="filters-panel" style="background: transparent; border: none; padding: 0;">
+            <div class="filter-field">
+              <label class="filter-label">Date Range</label>
+              <select v-model="overviewFilters.dateRange" class="select-modern-sm" style="width: 200px;">
+                <option value="allMonths">All Months</option>
+                <option value="thisMonth">This Month</option>
+                <option value="lastMonth">Last Month</option>
+                <option value="thisYear">This Year</option>
+                <option value="custom">Custom</option>
+              </select>
+              <div v-if="overviewFilters.dateRange === 'custom'" class="mt-2 grid grid-cols-2 gap-2">
+                <input v-model="overviewFilters.customFrom" type="date" class="date-input-modern" style="width: 130px;" />
+                <input v-model="overviewFilters.customTo" type="date" class="date-input-modern" style="width: 130px;" />
               </div>
             </div>
 
-            <div class="flex flex-wrap gap-2 items-end">
-              <button
-                @click="reloadOverview()"
-                class="px-3 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm font-medium"
-              >
-                Apply
-              </button>
+            <div class="filter-field">
+              <label class="filter-label">Course (Trend)</label>
+              <select v-model="overviewFilters.courseId" class="select-modern-sm" style="width: 220px;">
+                <option value="">All courses</option>
+                <option v-for="c in courses" :key="c.id" :value="String(c.id)">
+                  {{ c.course_name }}
+                </option>
+              </select>
+            </div>
 
-              <button
-                @click="openExport('overview')"
-                class="px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium"
-              >
-                📤 Export Overview
-              </button>
+            <div class="filter-field">
+              <label class="filter-label">Trend Period</label>
+              <div class="toggle-row">
+                <button type="button" @click="setTrendPeriod('day')" class="toggle-btn" :class="trendPeriod==='day' ? 'toggle-btn-active-green' : ''">Day</button>
+                <button type="button" @click="setTrendPeriod('week')" class="toggle-btn" :class="trendPeriod==='week' ? 'toggle-btn-active-green' : ''">Week</button>
+                <button type="button" @click="setTrendPeriod('month')" class="toggle-btn" :class="trendPeriod==='month' ? 'toggle-btn-active-green' : ''">Month</button>
+              </div>
+            </div>
+
+            <div v-if="reportMode === 'driving'" class="filter-field">
+              <label class="filter-label">Forecast Horizon</label>
+              <select v-model="forecastHorizon" class="select-modern-sm" style="width: 170px;">
+                <option v-for="option in forecastHorizonOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+
+            <button @click="reloadOverview()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
+            <button @click="openExport('overview')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Overview</button>
+          </div>
+
+          <div class="mt-3 flex items-center justify-between flex-wrap gap-2">
+            <p class="filter-note">Last updated: {{ lastUpdated }}</p>
+            <div class="flex gap-2 flex-wrap">
+              <button @click="downloadChartImage('trend')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">🖼️ Trend PNG</button>
+              <button @click="downloadChartImage('topCourses')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">🖼️ Top Courses PNG</button>
+              <button @click="downloadChartImage('gender')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">🖼️ Gender PNG</button>
             </div>
           </div>
 
-          <div class="mt-3 flex items-center justify-between">
-            <p class="text-xs text-gray-500">Last updated: {{ lastUpdated }}</p>
-            <div class="flex gap-2">
-              <button @click="downloadChartImage('trend')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">🖼️ Trend PNG</button>
-              <button @click="downloadChartImage('topCourses')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">🖼️ Top Courses PNG</button>
-              <button @click="downloadChartImage('gender')" class="text-xs px-3 py-2 border rounded hover:bg-gray-50">🖼️ Gender PNG</button>
-            </div>
-          </div>
-
-          <div v-if="overviewError" class="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-            {{ overviewError }}
-          </div>
+          <div v-if="overviewError" class="alert-error mt-3">{{ overviewError }}</div>
         </div>
 
         <!-- OVERVIEW CHARTS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <!-- Enrollment Trend -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+          <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <h3 class="text-green-800 font-semibold">Enrollment Trend</h3>
-              </div>
-              <button
-                @click="openExport('overview-trend')"
-                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-              >
-                📤 Export Trend
-              </button>
+              <h3 class="panel-title">Enrollment Trend</h3>
+              <button @click="openExport('overview-trend')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Trend</button>
             </div>
 
             <div class="h-64">
               <VChart ref="trendChartRef" :option="trendOption" autoresize />
             </div>
 
-            <div class="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-              <p v-if="overviewLoading" class="text-xs text-gray-500 mt-2">Loading overview…</p>
-            </div>
+            <p v-if="overviewLoading" class="filter-note mt-2">Loading overview…</p>
           </div>
 
           <!-- Top Courses -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+          <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <h3 class="text-green-800 font-semibold">Top Courses</h3>
-              </div>
-              <button
-                @click="openExport('overview-top-courses')"
-                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-              >
-                📤 Export Courses
-              </button>
+              <h3 class="panel-title">Top Courses</h3>
+              <button @click="openExport('overview-top-courses')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Courses</button>
             </div>
 
             <div class="h-64">
@@ -289,17 +232,10 @@
           </div>
 
           <!-- Gender Distribution -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+          <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <h3 class="text-green-800 font-semibold">Students by Gender</h3>
-              </div>
-              <button
-                @click="openExport('overview-gender')"
-                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-              >
-                📤 Export Gender
-              </button>
+              <h3 class="panel-title">Students by Gender</h3>
+              <button @click="openExport('overview-gender')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Gender</button>
             </div>
 
             <div class="h-64">
@@ -308,303 +244,234 @@
           </div>
 
           <!-- Course Monthly Summary -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+          <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <h3 class="text-green-800 font-semibold">Course Enrollments per Month</h3>
-              </div>
-
-              <button
-                @click="openExport('overview-monthly')"
-                class="text-xs px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-              >
-                📤 Export Monthly
-              </button>
+              <h3 class="panel-title">Course Enrollments per Month</h3>
+              <button @click="openExport('overview-monthly')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Monthly</button>
             </div>
 
-            <div class="overflow-x-auto">
-              <table class="min-w-full border border-gray-200 text-sm">
-                <thead class="bg-gray-100">
+            <div class="table-wrap">
+              <table class="modern-table">
+                <thead class="thead-green">
                   <tr>
-                    <th class="py-2 px-3 text-left">Month</th>
-                    <th class="py-2 px-3 text-left">Course</th>
-                    <th class="py-2 px-3 text-left">Enrollments</th>
+                    <th>Month</th>
+                    <th>Course</th>
+                    <th>Enrollments</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="(r, i) in courseMonthlyPreview"
-                    :key="i"
-                    class="border-b border-gray-100 hover:bg-gray-50"
-                  >
-                    <td class="py-2 px-3">{{ r.month_label || "-" }}</td>
-                    <td class="py-2 px-3">{{ r.course_name || "-" }}</td>
-                    <td class="py-2 px-3 font-semibold">{{ r.count ?? 0 }}</td>
+                  <tr v-for="(r, i) in courseMonthlyPreview" :key="i">
+                    <td>{{ r.month_label || "-" }}</td>
+                    <td>{{ r.course_name || "-" }}</td>
+                    <td class="font-medium">{{ r.count ?? 0 }}</td>
                   </tr>
 
                   <tr v-if="!overviewLoading && courseMonthlyPreview.length === 0">
-                    <td colspan="3" class="py-6 text-center text-gray-500">No data</td>
+                    <td colspan="3" class="empty-cell">No data</td>
                   </tr>
 
                   <tr v-if="overviewLoading">
-                    <td colspan="3" class="py-6 text-center text-gray-500">Loading…</td>
+                    <td colspan="3" class="empty-cell">Loading…</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-
           </div>
         </div>
       </div>
 
       <!-- ===================== REVENUE (DRIVING ONLY) ===================== -->
-      <div v-else-if="activeTab === 'revenue' && reportMode === 'driving'" class="space-y-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            <div>
-              <h3 class="text-green-800 font-semibold">💰 Revenue Analytics</h3>
-            </div>
-
-            <div class="flex flex-wrap gap-3 items-end">
-              <div class="w-52">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Date Range</label>
-                <select v-model="revenueTabFilters.dateRange" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="thisMonth">This Month</option>
-                  <option value="lastMonth">Last Month</option>
-                  <option value="thisYear">This Year</option>
-                  <option value="allMonths">All Months</option>
-                  <option value="custom">Custom</option>
-                </select>
-                <div v-if="revenueTabFilters.dateRange === 'custom'" class="mt-2 grid grid-cols-2 gap-2">
-                  <input v-model="revenueTabFilters.customFrom" type="date" class="p-2 border border-gray-300 rounded-md text-xs" />
-                  <input v-model="revenueTabFilters.customTo" type="date" class="p-2 border border-gray-300 rounded-md text-xs" />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Course</label>
-                <select v-model="revenueTabFilters.courseId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All</option>
-                  <option v-for="c in courses" :key="c.id" :value="String(c.id)">
-                    {{ c.course_name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
-                <select v-model="revenueTabFilters.payment_method" class="w-40 p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">All</option>
-                  <option value="GCASH">GCASH</option>
-                  <option value="CASH">CASH</option>
-                </select>
-              </div>
-
-              <button @click="reloadRevenue()" class="text-sm px-3 py-2 bg-green-700 text-white rounded hover:bg-green-800">
-                Apply
-              </button>
-
-              <button @click="openExport('revenue')" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
-                📤 Export Revenue
-              </button>
-            </div>
+      <div v-else-if="activeTab === 'revenue' && reportMode === 'driving'" class="stack-6">
+        <div class="panel-card" style="padding: 20px;">
+          <div class="flex items-start justify-between gap-3 mb-1">
+            <h3 class="panel-title">💰 Revenue Analytics</h3>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-              <p class="text-sm text-emerald-700 font-medium">Verified Revenue</p>
-              <h3 class="text-2xl font-bold text-emerald-800 mt-1">
-                {{ formatCurrency(revenueStats.verifiedRevenuePeso) }}
-              </h3>
+          <div class="filters-panel" style="background: transparent; border: none; padding: 14px 0 0;">
+            <div class="filter-field">
+              <label class="filter-label">Date Range</label>
+              <select v-model="revenueTabFilters.dateRange" class="select-modern-sm" style="width: 190px;">
+                <option value="thisMonth">This Month</option>
+                <option value="lastMonth">Last Month</option>
+                <option value="thisYear">This Year</option>
+                <option value="allMonths">All Months</option>
+                <option value="custom">Custom</option>
+              </select>
+              <div v-if="revenueTabFilters.dateRange === 'custom'" class="mt-2 grid grid-cols-2 gap-2">
+                <input v-model="revenueTabFilters.customFrom" type="date" class="date-input-modern" style="width: 130px;" />
+                <input v-model="revenueTabFilters.customTo" type="date" class="date-input-modern" style="width: 130px;" />
+              </div>
             </div>
-            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-              <p class="text-sm text-green-700 font-medium">Verified Payments</p>
-              <h3 class="text-2xl font-bold text-green-800 mt-1">{{ revenueStats.verifiedCount }}</h3>
+
+            <div class="filter-field">
+              <label class="filter-label">Course</label>
+              <select v-model="revenueTabFilters.courseId" class="select-modern-sm" style="width: 220px;">
+                <option value="">All</option>
+                <option v-for="c in courses" :key="c.id" :value="String(c.id)">
+                  {{ c.course_name }}
+                </option>
+              </select>
             </div>
-            <button
-              type="button"
-              @click="openForecastModal"
-              class="text-left bg-violet-50 p-4 rounded-xl border border-violet-100 hover:border-violet-300 hover:bg-violet-100 transition"
-            >
-              <p class="text-sm text-violet-700 font-semibold">Forecast Revenue</p>
-              <h3 class="text-2xl font-extrabold text-violet-900 mt-1">
-                {{ formatCurrency(revenueStats.forecastRevenuePeso) }}
-              </h3>
-              <p class="text-xs text-gray-500 mt-1">Based on {{ revenueForecastCourseLabel }}</p>
-              <p class="text-xs text-gray-600 mt-2">
-                Revenue Range:
-                <b class="text-violet-800">{{ formatCurrency(revenueForecastLowPeso) }}–{{ formatCurrency(revenueForecastHighPeso) }}</b>
-              </p>
+
+            <div class="filter-field">
+              <label class="filter-label">Payment Method</label>
+              <select v-model="revenueTabFilters.payment_method" class="select-modern-sm" style="width: 150px;">
+                <option value="">All</option>
+                <option value="GCASH">GCASH</option>
+                <option value="CASH">CASH</option>
+              </select>
+            </div>
+
+            <button @click="reloadRevenue()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
+            <button @click="openExport('revenue')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Revenue</button>
+          </div>
+
+          <div class="kpi-grid kpi-grid-3 mt-5">
+            <div class="kpi-card kpi-emerald">
+              <p class="kpi-label">Verified Revenue</p>
+              <h3 class="kpi-value" style="font-size:1.6rem;">{{ formatCurrency(revenueStats.verifiedRevenuePeso) }}</h3>
+            </div>
+            <div class="kpi-card kpi-green">
+              <p class="kpi-label">Verified Payments</p>
+              <h3 class="kpi-value" style="font-size:1.6rem;">{{ revenueStats.verifiedCount }}</h3>
+            </div>
+            <button type="button" @click="openForecastModal" class="kpi-card kpi-violet kpi-card-clickable">
+              <p class="kpi-label">Forecast Revenue</p>
+              <h3 class="kpi-value" style="font-size:1.6rem;">{{ formatCurrency(revenueStats.forecastRevenuePeso) }}</h3>
+              <p class="kpi-subtext">Based on {{ revenueForecastCourseLabel }}</p>
+              <p class="kpi-subtext">Revenue Range: <b>{{ formatCurrency(revenueForecastLowPeso) }}–{{ formatCurrency(revenueForecastHighPeso) }}</b></p>
             </button>
           </div>
 
-          <div v-if="revenueError" class="mt-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-            {{ revenueError }}
-          </div>
+          <div v-if="revenueError" class="alert-error mt-4">{{ revenueError }}</div>
         </div>
 
         <!-- Revenue Table -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-3">
-            <div>
-              <h4 class="text-green-800 font-semibold">Payments (preview)</h4>
-            </div>
+        <div class="panel-card">
+          <div class="panel-header-bar" style="align-items: flex-start; flex-direction: column; gap: 10px;">
+            <div class="flex justify-between items-end w-full flex-wrap gap-3">
+              <h4 class="panel-title">Payments (preview)</h4>
 
-            <div class="flex flex-wrap gap-3 items-end">
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Rows per page</label>
-                <select v-model.number="revenuePageSize" class="w-28 p-2 border border-gray-300 rounded-md text-sm">
-                  <option :value="10">10</option>
-                  <option :value="25">25</option>
-                  <option :value="50">50</option>
-                  <option :value="100">100</option>
-                </select>
-              </div>
-
-              <div class="text-xs text-gray-600">
-                Showing {{ revenuePageStart }}–{{ revenuePageEnd }} of {{ revenueFiltered.length }}
+              <div class="filters-panel" style="padding: 0; background: transparent; border: none;">
+                <div class="filter-field">
+                  <label class="filter-label">Rows per page</label>
+                  <select v-model.number="revenuePageSize" class="select-modern-sm" style="width: 90px;">
+                    <option :value="10">10</option>
+                    <option :value="25">25</option>
+                    <option :value="50">50</option>
+                    <option :value="100">100</option>
+                  </select>
+                </div>
+                <div class="filter-note" style="align-self: center;">
+                  Showing {{ revenuePageStart }}–{{ revenuePageEnd }} of {{ revenueFiltered.length }}
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="min-w-full border border-gray-200 text-sm">
-              <thead class="bg-gray-200">
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead class="thead-green">
                 <tr>
-                  <th class="py-2 px-3 text-left">Student</th>
-                  <th class="py-2 px-3 text-left">Course</th>
-                  <th class="py-2 px-3 text-left">Method</th>
-                  <th class="py-2 px-3 text-left">Amount</th>
-                  <th class="py-2 px-3 text-left">Created</th>
+                  <th>Student</th>
+                  <th>Course</th>
+                  <th>Method</th>
+                  <th>Amount</th>
+                  <th>Created</th>
                 </tr>
               </thead>
 
               <tbody>
-                <tr
-                  v-for="p in revenuePaginated"
-                  :key="p.id || `${p.created_at}-${p.fullname}`"
-                  class="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td class="py-2 px-3">{{ p.fullname || '-' }}</td>
-                  <td class="py-2 px-3">{{ p.course_name || '-' }}</td>
-                  <td class="py-2 px-3">{{ normalizePaymentMethod(p.payment_method) || '-' }}</td>
-                  <td class="py-2 px-3">{{ formatCurrency(p.amount_peso || 0) }}</td>
-                  <td class="py-2 px-3">{{ p.created_at ? formatDate(p.created_at) : '-' }}</td>
+                <tr v-for="p in revenuePaginated" :key="p.id || `${p.created_at}-${p.fullname}`">
+                  <td>{{ p.fullname || '-' }}</td>
+                  <td>{{ p.course_name || '-' }}</td>
+                  <td>{{ normalizePaymentMethod(p.payment_method) || '-' }}</td>
+                  <td class="font-medium">{{ formatCurrency(p.amount_peso || 0) }}</td>
+                  <td>{{ p.created_at ? formatDate(p.created_at) : '-' }}</td>
                 </tr>
 
                 <tr v-if="!revenueLoading && revenueFiltered.length === 0">
-                  <td colspan="5" class="py-6 text-center text-gray-500">No payments loaded</td>
+                  <td colspan="5" class="empty-cell">No payments loaded</td>
                 </tr>
 
                 <tr v-if="revenueLoading">
-                  <td colspan="5" class="py-6 text-center text-gray-500">Loading payments…</td>
+                  <td colspan="5" class="empty-cell">Loading payments…</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div v-if="revenueTotalPages > 1" class="mt-4 flex justify-between items-center">
-            <button
-              class="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-              :disabled="revenuePage === 1"
-              @click="revenuePage--"
-            >
-              ← Prev
-            </button>
+          <div v-if="revenueTotalPages > 1" class="pagination-bar">
+            <button class="pg-btn" :class="{ 'pg-disabled': revenuePage === 1 }" :disabled="revenuePage === 1" @click="revenuePage--">◀ Prev</button>
 
-            <div class="flex gap-1 flex-wrap justify-center">
+            <div class="page-btns">
               <button
                 v-for="p in revenuePageButtons"
                 :key="p"
-                class="px-3 py-2 border rounded text-sm"
-                :class="p === revenuePage ? 'bg-green-700 text-white border-green-700' : 'hover:bg-gray-50'"
+                class="pg-btn"
+                :class="p === revenuePage ? 'pg-btn-accent' : ''"
                 @click="revenuePage = p"
               >
                 {{ p }}
               </button>
             </div>
 
-            <button
-              class="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-              :disabled="revenuePage === revenueTotalPages"
-              @click="revenuePage++"
-            >
-              Next →
-            </button>
+            <button class="pg-btn" :class="{ 'pg-disabled': revenuePage === revenueTotalPages }" :disabled="revenuePage === revenueTotalPages" @click="revenuePage++">Next ▶</button>
           </div>
         </div>
       </div>
 
       <!-- ===================== DETAILED REPORTS ===================== -->
-      <div v-else-if="activeTab === 'detailed'" class="space-y-6">
+      <div v-else-if="activeTab === 'detailed'" class="stack-6">
         <!-- DRIVING: month-only detailed certificate-style report -->
         <template v-if="reportMode === 'driving'">
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-              <div class="flex flex-wrap gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Report Month</label>
-                  <input
-                    v-model="detailedMonth"
-                    type="month"
-                    class="w-48 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-                  />
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                  <select v-model="detailedTabFilters.courseId" class="w-64 p-2 border border-gray-300 rounded-md text-sm">
-                    <option value="">All courses</option>
-                    <option v-for="c in courses" :key="c.id" :value="String(c.id)">
-                      {{ c.course_name }}
-                    </option>
-                  </select>
-                </div>
+          <div class="panel-card" style="padding: 20px;">
+            <div class="filters-panel" style="background: transparent; border: none; padding: 0;">
+              <div class="filter-field">
+                <label class="filter-label">Report Month</label>
+                <input v-model="detailedMonth" type="month" class="date-input-modern" style="width: 180px;" />
               </div>
 
-              <div class="flex flex-wrap gap-2 items-end">
-                <button @click="reloadDetailed()" class="text-sm px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800">
-                  Apply
-                </button>
-
-                <button @click="openExport('detailed')" class="text-sm px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
-                  📤 Export Detailed
-                </button>
+              <div class="filter-field">
+                <label class="filter-label">Course</label>
+                <select v-model="detailedTabFilters.courseId" class="select-modern-sm" style="width: 240px;">
+                  <option value="">All courses</option>
+                  <option v-for="c in courses" :key="c.id" :value="String(c.id)">
+                    {{ c.course_name }}
+                  </option>
+                </select>
               </div>
+
+              <button @click="reloadDetailed()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
+              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Detailed</button>
             </div>
 
-            <div v-if="detailedError" class="mt-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-              {{ detailedError }}
-            </div>
+            <div v-if="detailedError" class="alert-error mt-4">{{ detailedError }}</div>
           </div>
 
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div class="panel-card" style="padding: 16px;">
             <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
               <div>
-                <h3 class="text-lg font-bold text-green-800">📋 Detailed Reports</h3>
-                <p class="text-xs text-gray-500">
+                <h3 class="panel-title">📋 Detailed Reports</h3>
+                <p class="filter-note mt-1">
                   Showing {{ detailedFiltered.length }} record{{ detailedFiltered.length === 1 ? '' : 's' }}
                 </p>
               </div>
 
-              <div class="flex flex-wrap gap-2 items-end">
-                <button @click="openExport('detailed')" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
-                  📤 Export Detailed
-                </button>
-              </div>
+              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald">📤 Export Detailed</button>
             </div>
 
-            <div v-if="detailedLoading" class="mb-4 py-3 text-center text-gray-500 border rounded-lg bg-gray-50">
+            <div v-if="detailedLoading" class="empty-cell" style="border: 1px dashed #e5e7eb; border-radius: 10px;">
               Loading detailed reports…
             </div>
 
-            <div v-if="!detailedLoading && detailedFiltered.length === 0" class="mb-4 py-3 text-center text-gray-500 border rounded-lg bg-gray-50">
+            <div v-if="!detailedLoading && detailedFiltered.length === 0" class="empty-cell" style="border: 1px dashed #e5e7eb; border-radius: 10px;">
               No data for your filters
             </div>
 
             <div class="space-y-6">
               <!-- TDC Preview -->
-              <div class="mx-auto bg-white border border-gray-300 rounded-lg p-4 overflow-x-auto">
+              <div class="doc-preview">
                 <div class="min-w-[980px]">
                   <div class="relative text-center mb-3">
                     <img src="/facet-logo.png" alt="FACET Logo" class="absolute left-6 top-0 w-20 h-20 object-contain" />
@@ -617,33 +484,33 @@
                     <p class="text-xs font-extrabold text-red-700 uppercase mt-2">{{ detailedReportMonthLabel }}</p>
                   </div>
 
-                  <table class="w-full border border-black text-[10px]">
+                  <table class="doc-table">
                     <thead>
-                      <tr class="bg-blue-100">
-                        <th class="border border-black px-1 py-1 w-10">No.</th>
-                        <th class="border border-black px-1 py-1 w-28">Client ID</th>
-                        <th class="border border-black px-1 py-1">Full Name</th>
-                        <th class="border border-black px-1 py-1 w-24">Birthdate<br />(MM/DD/YY)</th>
-                        <th class="border border-black px-1 py-1 w-12">Sex<br />(M/F)</th>
-                        <th class="border border-black px-1 py-1 w-40">Instructor Name</th>
-                        <th class="border border-black px-1 py-1 w-20">Course<br />Start</th>
-                        <th class="border border-black px-1 py-1 w-20">Course<br />End</th>
+                      <tr class="doc-thead-blue">
+                        <th class="w-10">No.</th>
+                        <th class="w-28">Client ID</th>
+                        <th>Full Name</th>
+                        <th class="w-24">Birthdate<br />(MM/DD/YY)</th>
+                        <th class="w-12">Sex<br />(M/F)</th>
+                        <th class="w-40">Instructor Name</th>
+                        <th class="w-20">Course<br />Start</th>
+                        <th class="w-20">Course<br />End</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="(row, idx) in detailedTdcRows" :key="`tdc-${row.reservation_id || idx}`">
-                        <td class="border border-black px-1 py-1 text-center">{{ idx + 1 }}</td>
-                        <td class="border border-black px-1 py-1">{{ row.lto_client_id || '-' }}</td>
-                        <td class="border border-black px-1 py-1 font-semibold">{{ row.fullname || row.group_label || '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ row.gender ? (String(row.gender).toLowerCase().startsWith('m') ? 'M' : 'F') : '-' }}</td>
-                        <td class="border border-black px-1 py-1">{{ row.instructor_name || row.trainer_name || '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ (row.course_start || row.schedule_date) ? formatDateShort(row.course_start || row.schedule_date) : '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ (row.course_end || row.schedule_date) ? formatDateShort(row.course_end || row.schedule_date) : '-' }}</td>
+                        <td class="text-center">{{ idx + 1 }}</td>
+                        <td>{{ row.lto_client_id || '-' }}</td>
+                        <td class="font-semibold">{{ row.fullname || row.group_label || '-' }}</td>
+                        <td class="text-center">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
+                        <td class="text-center">{{ row.gender ? (String(row.gender).toLowerCase().startsWith('m') ? 'M' : 'F') : '-' }}</td>
+                        <td>{{ row.instructor_name || row.trainer_name || '-' }}</td>
+                        <td class="text-center">{{ (row.course_start || row.schedule_date) ? formatDateShort(row.course_start || row.schedule_date) : '-' }}</td>
+                        <td class="text-center">{{ (row.course_end || row.schedule_date) ? formatDateShort(row.course_end || row.schedule_date) : '-' }}</td>
                       </tr>
 
                       <tr v-if="detailedTdcRows.length === 0">
-                        <td colspan="8" class="border border-black px-2 py-6 text-center text-gray-500">No TDC records</td>
+                        <td colspan="8" class="empty-cell">No TDC records</td>
                       </tr>
                     </tbody>
                   </table>
@@ -651,7 +518,7 @@
               </div>
 
               <!-- PDC Preview -->
-              <div class="mx-auto bg-white border border-gray-300 rounded-lg p-4 overflow-x-auto">
+              <div class="doc-preview">
                 <div class="min-w-[1080px]">
                   <div class="relative text-center mb-3">
                     <img src="/facet-logo.png" alt="FACET Logo" class="absolute left-6 top-0 w-20 h-20 object-contain" />
@@ -664,37 +531,37 @@
                     <p class="text-xs font-extrabold text-red-700 uppercase mt-2">{{ detailedReportMonthLabel }}</p>
                   </div>
 
-                  <table class="w-full border border-black text-[10px]">
+                  <table class="doc-table">
                     <thead>
-                      <tr class="bg-blue-100">
-                        <th class="border border-black px-1 py-1 w-9">No.</th>
-                        <th class="border border-black px-1 py-1 w-28">Client ID</th>
-                        <th class="border border-black px-1 py-1">Full Name</th>
-                        <th class="border border-black px-1 py-1 w-24">Birthdate<br />(MM/DD/YY)</th>
-                        <th class="border border-black px-1 py-1 w-10">Sex<br />(M/F)</th>
-                        <th class="border border-black px-1 py-1 w-40">Instructor Name</th>
-                        <th class="border border-black px-1 py-1 w-20">Course<br />Start</th>
-                        <th class="border border-black px-1 py-1 w-20">Course<br />End</th>
-                        <th class="border border-black px-1 py-1 w-14">DL<br />Code</th>
-                        <th class="border border-black px-1 py-1 w-24">Training<br />Purpose</th>
+                      <tr class="doc-thead-blue">
+                        <th class="w-9">No.</th>
+                        <th class="w-28">Client ID</th>
+                        <th>Full Name</th>
+                        <th class="w-24">Birthdate<br />(MM/DD/YY)</th>
+                        <th class="w-10">Sex<br />(M/F)</th>
+                        <th class="w-40">Instructor Name</th>
+                        <th class="w-20">Course<br />Start</th>
+                        <th class="w-20">Course<br />End</th>
+                        <th class="w-14">DL<br />Code</th>
+                        <th class="w-24">Training<br />Purpose</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="(row, idx) in detailedPdcRows" :key="`pdc-${row.reservation_id || idx}`">
-                        <td class="border border-black px-1 py-1 text-center">{{ idx + 1 }}</td>
-                        <td class="border border-black px-1 py-1">{{ row.lto_client_id || '-' }}</td>
-                        <td class="border border-black px-1 py-1 font-semibold">{{ row.fullname || row.group_label || '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ row.gender ? (String(row.gender).toLowerCase().startsWith('m') ? 'M' : 'F') : '-' }}</td>
-                        <td class="border border-black px-1 py-1">{{ row.instructor_name || row.trainer_name || '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ (row.course_start || row.schedule_date) ? formatDateShort(row.course_start || row.schedule_date) : '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ (row.course_end || row.schedule_date) ? formatDateShort(row.course_end || row.schedule_date) : '-' }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ normalizeDLCode(row.dl_code) }}</td>
-                        <td class="border border-black px-1 py-1 text-center">{{ shortTrainingPurpose(row.training_purpose) }}</td>
+                        <td class="text-center">{{ idx + 1 }}</td>
+                        <td>{{ row.lto_client_id || '-' }}</td>
+                        <td class="font-semibold">{{ row.fullname || row.group_label || '-' }}</td>
+                        <td class="text-center">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
+                        <td class="text-center">{{ row.gender ? (String(row.gender).toLowerCase().startsWith('m') ? 'M' : 'F') : '-' }}</td>
+                        <td>{{ row.instructor_name || row.trainer_name || '-' }}</td>
+                        <td class="text-center">{{ (row.course_start || row.schedule_date) ? formatDateShort(row.course_start || row.schedule_date) : '-' }}</td>
+                        <td class="text-center">{{ (row.course_end || row.schedule_date) ? formatDateShort(row.course_end || row.schedule_date) : '-' }}</td>
+                        <td class="text-center">{{ normalizeDLCode(row.dl_code) }}</td>
+                        <td class="text-center">{{ shortTrainingPurpose(row.training_purpose) }}</td>
                       </tr>
 
                       <tr v-if="detailedPdcRows.length === 0">
-                        <td colspan="10" class="border border-black px-2 py-6 text-center text-gray-500">No PDC records</td>
+                        <td colspan="10" class="empty-cell">No PDC records</td>
                       </tr>
                     </tbody>
                   </table>
@@ -706,76 +573,72 @@
 
         <!-- TESDA: original detailed table behavior -->
         <template v-else>
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-              <div class="flex flex-wrap gap-4">
-                <div class="w-52">
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-                  <select v-model="detailedTabFilters.dateRange" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                    <option value="thisMonth">This Month</option>
-                    <option value="lastMonth">Last Month</option>
-                    <option value="thisYear">This Year</option>
-                    <option value="allMonths">All Months</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                  <div v-if="detailedTabFilters.dateRange === 'custom'" class="mt-2 grid grid-cols-2 gap-2">
-                    <input v-model="detailedTabFilters.customFrom" type="date" class="p-2 border border-gray-300 rounded-md text-xs" />
-                    <input v-model="detailedTabFilters.customTo" type="date" class="p-2 border border-gray-300 rounded-md text-xs" />
-                  </div>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                  <select v-model="detailedTabFilters.courseId" class="w-56 p-2 border border-gray-300 rounded-md text-sm">
-                    <option value="">All</option>
-                    <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.course_name }}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Group by</label>
-                  <select v-model="detailedTabFilters.groupBy" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                    <option value="raw">Raw</option>
-                    <option value="day">Daily</option>
-                    <option value="week">Weekly</option>
-                    <option value="month">Monthly</option>
-                    <option value="year">Yearly</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Source</label>
-                  <select v-model="detailedTabFilters.source" class="w-36 p-2 border border-gray-300 rounded-md text-sm">
-                    <option value="">All</option>
-                    <option value="ONLINE">ONLINE</option>
-                    <option value="WALKIN">WALKIN</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Sort</label>
-                  <select v-model="detailedTabFilters.sort" class="w-44 p-2 border border-gray-300 rounded-md text-sm">
-                    <option value="created_desc">Created (newest)</option>
-                    <option value="created_asc">Created (oldest)</option>
-                    <option value="name_asc">Name (A–Z)</option>
-                    <option value="name_desc">Name (Z–A)</option>
-                  </select>
+          <div class="panel-card" style="padding: 20px;">
+            <div class="filters-panel" style="background: transparent; border: none; padding: 0;">
+              <div class="filter-field">
+                <label class="filter-label">Date Range</label>
+                <select v-model="detailedTabFilters.dateRange" class="select-modern-sm" style="width: 190px;">
+                  <option value="thisMonth">This Month</option>
+                  <option value="lastMonth">Last Month</option>
+                  <option value="thisYear">This Year</option>
+                  <option value="allMonths">All Months</option>
+                  <option value="custom">Custom</option>
+                </select>
+                <div v-if="detailedTabFilters.dateRange === 'custom'" class="mt-2 grid grid-cols-2 gap-2">
+                  <input v-model="detailedTabFilters.customFrom" type="date" class="date-input-modern" style="width: 130px;" />
+                  <input v-model="detailedTabFilters.customTo" type="date" class="date-input-modern" style="width: 130px;" />
                 </div>
               </div>
 
-              <div class="flex flex-wrap gap-2 items-end">
-                <button @click="reloadDetailed()" class="text-sm px-3 py-2 bg-green-700 text-white rounded hover:bg-green-800">Apply</button>
-                <button @click="openExport('detailed')" class="text-sm px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">📤 Export Detailed</button>
-                <button @click="columnsOpen = !columnsOpen" class="text-sm px-3 py-2 border rounded hover:bg-gray-50">{{ columnsOpen ? 'Hide' : 'Show' }} Columns</button>
+              <div class="filter-field">
+                <label class="filter-label">Course</label>
+                <select v-model="detailedTabFilters.courseId" class="select-modern-sm" style="width: 220px;">
+                  <option value="">All</option>
+                  <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.course_name }}</option>
+                </select>
               </div>
+
+              <div class="filter-field">
+                <label class="filter-label">Group by</label>
+                <select v-model="detailedTabFilters.groupBy" class="select-modern-sm" style="width: 160px;">
+                  <option value="raw">Raw</option>
+                  <option value="day">Daily</option>
+                  <option value="week">Weekly</option>
+                  <option value="month">Monthly</option>
+                  <option value="year">Yearly</option>
+                </select>
+              </div>
+
+              <div class="filter-field">
+                <label class="filter-label">Source</label>
+                <select v-model="detailedTabFilters.source" class="select-modern-sm" style="width: 140px;">
+                  <option value="">All</option>
+                  <option value="ONLINE">ONLINE</option>
+                  <option value="WALKIN">WALKIN</option>
+                </select>
+              </div>
+
+              <div class="filter-field">
+                <label class="filter-label">Sort</label>
+                <select v-model="detailedTabFilters.sort" class="select-modern-sm" style="width: 180px;">
+                  <option value="created_desc">Created (newest)</option>
+                  <option value="created_asc">Created (oldest)</option>
+                  <option value="name_asc">Name (A–Z)</option>
+                  <option value="name_desc">Name (Z–A)</option>
+                </select>
+              </div>
+
+              <button @click="reloadDetailed()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
+              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Detailed</button>
+              <button @click="columnsOpen = !columnsOpen" class="pg-btn" style="align-self: flex-end;">{{ columnsOpen ? 'Hide' : 'Show' }} Columns</button>
             </div>
 
-            <div v-if="columnsOpen" class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <div v-if="columnsOpen" class="info-box mt-4">
               <div class="flex items-center justify-between gap-3">
-                <p class="text-xs text-gray-600 font-semibold">Column visibility</p>
+                <p class="filter-label" style="margin:0;">Column visibility</p>
                 <div class="flex gap-2">
-                  <button @click="applyColumnPreset('minimal')" class="text-xs px-3 py-2 border rounded hover:bg-white">Minimal</button>
-                  <button @click="applyColumnPreset('all')" class="text-xs px-3 py-2 border rounded hover:bg-white">Show all</button>
+                  <button @click="applyColumnPreset('minimal')" class="pg-btn" style="padding: 6px 12px; font-size: 0.75rem;">Minimal</button>
+                  <button @click="applyColumnPreset('all')" class="pg-btn" style="padding: 6px 12px; font-size: 0.75rem;">Show all</button>
                 </div>
               </div>
 
@@ -787,19 +650,19 @@
               </div>
             </div>
 
-            <div v-if="detailedError" class="mt-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">{{ detailedError }}</div>
+            <div v-if="detailedError" class="alert-error mt-4">{{ detailedError }}</div>
           </div>
 
-          <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
-            <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+          <div class="panel-card">
+            <div class="panel-header-bar">
               <div>
-                <h3 class="text-lg font-bold text-green-800">📋 Detailed Reports</h3>
-                <p class="text-xs text-gray-500">Showing {{ detailedPageStart }}–{{ detailedPageEnd }} of {{ detailedFiltered.length }}</p>
+                <h3 class="panel-title">📋 Detailed Reports</h3>
+                <p class="filter-note mt-1">Showing {{ detailedPageStart }}–{{ detailedPageEnd }} of {{ detailedFiltered.length }}</p>
               </div>
 
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Rows per page</label>
-                <select v-model.number="detailedPageSize" class="w-28 p-2 border border-gray-300 rounded-md text-sm">
+              <div class="filter-field">
+                <label class="filter-label">Rows per page</label>
+                <select v-model.number="detailedPageSize" class="select-modern-sm" style="width: 90px;">
                   <option :value="10">10</option>
                   <option :value="25">25</option>
                   <option :value="50">50</option>
@@ -808,115 +671,109 @@
               </div>
             </div>
 
-            <table class="min-w-full border border-gray-200 text-sm">
-              <thead class="bg-gray-200 text-gray-900">
-                <tr>
-                  <th class="py-2 px-3 text-left">No.</th>
-                  <th v-if="visibleColumns.fullname" class="py-2 px-3 text-left">Full Name</th>
-                  <th v-if="visibleColumns.birthday" class="py-2 px-3 text-left">Birthdate</th>
-                  <th v-if="visibleColumns.gender" class="py-2 px-3 text-left">Sex</th>
-                  <th v-if="visibleColumns.instructor_name" class="py-2 px-3 text-left">Trainer</th>
-                  <th v-if="visibleColumns.course_name" class="py-2 px-3 text-left">Course</th>
-                  <th v-if="visibleColumns.course_start" class="py-2 px-3 text-left">Course Start</th>
-                  <th v-if="visibleColumns.course_end" class="py-2 px-3 text-left">Course End</th>
-                  <th v-if="visibleColumns.reservation_source" class="py-2 px-3 text-left">Source</th>
-                  <th v-if="visibleColumns.created_at" class="py-2 px-3 text-left">Created</th>
-                  <th v-if="visibleColumns.nationality" class="py-2 px-3 text-left">Nationality</th>
-                  <th v-if="visibleColumns.civil_status" class="py-2 px-3 text-left">Civil Status</th>
-                  <th v-if="visibleColumns.address" class="py-2 px-3 text-left">Address</th>
-                </tr>
-              </thead>
+            <div class="table-wrap">
+              <table class="modern-table">
+                <thead class="thead-green">
+                  <tr>
+                    <th>No.</th>
+                    <th v-if="visibleColumns.fullname">Full Name</th>
+                    <th v-if="visibleColumns.birthday">Birthdate</th>
+                    <th v-if="visibleColumns.gender">Sex</th>
+                    <th v-if="visibleColumns.instructor_name">Trainer</th>
+                    <th v-if="visibleColumns.course_name">Course</th>
+                    <th v-if="visibleColumns.course_start">Course Start</th>
+                    <th v-if="visibleColumns.course_end">Course End</th>
+                    <th v-if="visibleColumns.reservation_source">Source</th>
+                    <th v-if="visibleColumns.created_at">Created</th>
+                    <th v-if="visibleColumns.nationality">Nationality</th>
+                    <th v-if="visibleColumns.civil_status">Civil Status</th>
+                    <th v-if="visibleColumns.address">Address</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                <tr v-for="(row, idx) in detailedPaginated" :key="row.reservation_id || row.group_key || idx" class="border-b border-gray-100 hover:bg-gray-50">
-                  <td class="py-2 px-3">{{ detailedPageStart + idx }}</td>
-                  <td v-if="visibleColumns.fullname" class="py-2 px-3">{{ row.fullname || row.group_label || '-' }}</td>
-                  <td v-if="visibleColumns.birthday" class="py-2 px-3">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
-                  <td v-if="visibleColumns.gender" class="py-2 px-3">{{ row.gender ? (String(row.gender).toLowerCase() === 'male' ? 'M' : 'F') : '-' }}</td>
-                  <td v-if="visibleColumns.instructor_name" class="py-2 px-3">{{ row.trainer_name || row.instructor_name || '-' }}</td>
-                  <td v-if="visibleColumns.course_name" class="py-2 px-3">{{ row.course_name || '-' }}</td>
-                  <td v-if="visibleColumns.course_start" class="py-2 px-3">{{ (row.course_start || row.schedule_date) ? formatDate(row.course_start || row.schedule_date) : '-' }}</td>
-                  <td v-if="visibleColumns.course_end" class="py-2 px-3">{{ (row.course_end || row.schedule_date) ? formatDate(row.course_end || row.schedule_date) : '-' }}</td>
-                  <td v-if="visibleColumns.reservation_source" class="py-2 px-3">{{ row.reservation_source || '-' }}</td>
-                  <td v-if="visibleColumns.created_at" class="py-2 px-3">{{ row.created_at ? formatDate(row.created_at) : '-' }}</td>
-                  <td v-if="visibleColumns.nationality" class="py-2 px-3">{{ row.nationality || '-' }}</td>
-                  <td v-if="visibleColumns.civil_status" class="py-2 px-3">{{ row.civil_status || '-' }}</td>
-                  <td v-if="visibleColumns.address" class="py-2 px-3">{{ row.address || '-' }}</td>
-                </tr>
+                <tbody>
+                  <tr v-for="(row, idx) in detailedPaginated" :key="row.reservation_id || row.group_key || idx">
+                    <td>{{ detailedPageStart + idx }}</td>
+                    <td v-if="visibleColumns.fullname">{{ row.fullname || row.group_label || '-' }}</td>
+                    <td v-if="visibleColumns.birthday">{{ row.birthday ? formatDateShort(row.birthday) : '-' }}</td>
+                    <td v-if="visibleColumns.gender">{{ row.gender ? (String(row.gender).toLowerCase() === 'male' ? 'M' : 'F') : '-' }}</td>
+                    <td v-if="visibleColumns.instructor_name">{{ row.trainer_name || row.instructor_name || '-' }}</td>
+                    <td v-if="visibleColumns.course_name">{{ row.course_name || '-' }}</td>
+                    <td v-if="visibleColumns.course_start">{{ (row.course_start || row.schedule_date) ? formatDate(row.course_start || row.schedule_date) : '-' }}</td>
+                    <td v-if="visibleColumns.course_end">{{ (row.course_end || row.schedule_date) ? formatDate(row.course_end || row.schedule_date) : '-' }}</td>
+                    <td v-if="visibleColumns.reservation_source">{{ row.reservation_source || '-' }}</td>
+                    <td v-if="visibleColumns.created_at">{{ row.created_at ? formatDate(row.created_at) : '-' }}</td>
+                    <td v-if="visibleColumns.nationality">{{ row.nationality || '-' }}</td>
+                    <td v-if="visibleColumns.civil_status">{{ row.civil_status || '-' }}</td>
+                    <td v-if="visibleColumns.address">{{ row.address || '-' }}</td>
+                  </tr>
 
-                <tr v-if="!detailedLoading && detailedFiltered.length === 0">
-                  <td :colspan="detailedColspanComputed" class="py-8 text-center text-gray-500">No data for your filters</td>
-                </tr>
+                  <tr v-if="!detailedLoading && detailedFiltered.length === 0">
+                    <td :colspan="detailedColspanComputed" class="empty-cell">No data for your filters</td>
+                  </tr>
 
-                <tr v-if="detailedLoading">
-                  <td :colspan="detailedColspanComputed" class="py-8 text-center text-gray-500">Loading detailed reports…</td>
-                </tr>
-              </tbody>
-            </table>
+                  <tr v-if="detailedLoading">
+                    <td :colspan="detailedColspanComputed" class="empty-cell">Loading detailed reports…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-            <div v-if="detailedTotalPages > 1" class="p-4 flex justify-between items-center">
-              <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50" :disabled="detailedPage === 1" @click="detailedPage--">← Prev</button>
-              <div class="flex gap-1 flex-wrap justify-center">
-                <button v-for="p in detailedPageButtons" :key="p" class="px-3 py-2 border rounded text-sm" :class="p === detailedPage ? 'bg-green-700 text-white border-green-700' : 'hover:bg-gray-50'" @click="detailedPage = p">{{ p }}</button>
+            <div v-if="detailedTotalPages > 1" class="pagination-bar">
+              <button class="pg-btn" :class="{ 'pg-disabled': detailedPage === 1 }" :disabled="detailedPage === 1" @click="detailedPage--">◀ Prev</button>
+              <div class="page-btns">
+                <button v-for="p in detailedPageButtons" :key="p" class="pg-btn" :class="p === detailedPage ? 'pg-btn-accent' : ''" @click="detailedPage = p">{{ p }}</button>
               </div>
-              <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50" :disabled="detailedPage === detailedTotalPages" @click="detailedPage++">Next →</button>
+              <button class="pg-btn" :class="{ 'pg-disabled': detailedPage === detailedTotalPages }" :disabled="detailedPage === detailedTotalPages" @click="detailedPage++">Next ▶</button>
             </div>
           </div>
         </template>
       </div>
 
       <!-- ===================== ATTENDANCE (TESDA ONLY) ===================== -->
-      <div v-else-if="activeTab === 'attendance' && reportMode === 'tesda'" class="space-y-5">
+      <div v-else-if="activeTab === 'attendance' && reportMode === 'tesda'" class="stack-5">
         <!-- Clean Attendance Summary -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div class="rounded-xl border border-blue-100 bg-blue-50 p-3">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-blue-700">Students</p>
-            <h3 class="mt-1 text-2xl font-extrabold text-blue-900">{{ attendanceSummary.totalStudents }}</h3>
+        <div class="kpi-grid kpi-grid-5">
+          <div class="kpi-card kpi-blue kpi-card-sm">
+            <p class="kpi-label">Students</p>
+            <h3 class="kpi-value" style="font-size:1.5rem;">{{ attendanceSummary.totalStudents }}</h3>
           </div>
-          <div class="rounded-xl border border-green-100 bg-green-50 p-3">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-green-700">Present</p>
-            <h3 class="mt-1 text-2xl font-extrabold text-green-800">{{ attendanceSummary.present }}</h3>
+          <div class="kpi-card kpi-green kpi-card-sm">
+            <p class="kpi-label">Present</p>
+            <h3 class="kpi-value" style="font-size:1.5rem;">{{ attendanceSummary.present }}</h3>
           </div>
-          <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-yellow-700">Late</p>
-            <h3 class="mt-1 text-2xl font-extrabold text-yellow-700">{{ attendanceSummary.late }}</h3>
+          <div class="kpi-card kpi-amber kpi-card-sm">
+            <p class="kpi-label">Late</p>
+            <h3 class="kpi-value" style="font-size:1.5rem;">{{ attendanceSummary.late }}</h3>
           </div>
-          <div class="rounded-xl border border-red-100 bg-red-50 p-3">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-red-700">Absent</p>
-            <h3 class="mt-1 text-2xl font-extrabold text-red-700">{{ attendanceSummary.absent }}</h3>
+          <div class="kpi-card kpi-red kpi-card-sm">
+            <p class="kpi-label">Absent</p>
+            <h3 class="kpi-value" style="font-size:1.5rem;">{{ attendanceSummary.absent }}</h3>
           </div>
-          <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Rate</p>
-            <h3 class="mt-1 text-2xl font-extrabold text-emerald-800">{{ attendanceRate }}%</h3>
+          <div class="kpi-card kpi-emerald kpi-card-sm">
+            <p class="kpi-label">Rate</p>
+            <h3 class="kpi-value" style="font-size:1.5rem;">{{ attendanceRate }}%</h3>
           </div>
         </div>
 
         <!-- Course picker: per-course attendance -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-gray-100 pb-3">
+        <div class="panel-card" style="padding: 20px;">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3" style="border-bottom: 1px solid #f3f4f6;">
             <div>
-              <h3 class="text-lg font-extrabold text-green-800">📚 Select Course</h3>
-              <p class="text-xs text-gray-500">Select one course first. Attendance records, calendar, and follow-up list will be based on that course only.</p>
+              <h3 class="panel-title">📚 Select Course</h3>
+              <p class="filter-note mt-1">Select one course first. Attendance records, calendar, and follow-up list will be based on that course only.</p>
             </div>
-            <button
-              type="button"
-              @click="openAttendanceCourseModal"
-              class="px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-bold hover:bg-green-800 transition"
-            >
-              Select Course
-            </button>
+            <button type="button" @click="openAttendanceCourseModal" class="pg-btn pg-btn-accent">Select Course</button>
           </div>
 
-          <div class="mt-4 rounded-xl border border-green-100 bg-green-50 p-4">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-green-700">Selected Course</p>
+          <div class="info-box mt-4" style="background:#f0fdf4; border-color:#bbf7d0;">
+            <p class="filter-label" style="margin:0; color:#059669;">Selected Course</p>
             <div class="mt-2 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div>
-                <h4 class="text-lg font-extrabold text-green-900">{{ selectedAttendanceCourseLabel }}</h4>
-                <p class="mt-1 text-xs text-green-800">
+                <h4 class="font-extrabold" style="color:#065f46; font-size:1.05rem;">{{ selectedAttendanceCourseLabel }}</h4>
+                <p class="mt-1 text-xs" style="color:#047857;">
                   Trainer(s):
-                  <span v-if="selectedAttendanceCourseTrainers.length" class="font-bold">
-                    {{ selectedAttendanceCourseTrainers.join(', ') }}
-                  </span>
+                  <span v-if="selectedAttendanceCourseTrainers.length" class="font-bold">{{ selectedAttendanceCourseTrainers.join(', ') }}</span>
                   <span v-else class="font-semibold text-gray-500 italic">No trainer assigned</span>
                 </p>
               </div>
@@ -924,80 +781,56 @@
           </div>
 
           <!-- Basic filters only -->
-          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">From</label>
-              <input
-                v-model="attendanceFilters.from"
-                type="date"
-                @change="attendancePage = 1; loadAttendance()"
-                class="w-full p-2 border border-gray-300 rounded-lg text-sm"
-              />
+          <div class="filters-panel mt-4" style="background: transparent; border: none; padding: 0;">
+            <div class="filter-field">
+              <label class="filter-label">From</label>
+              <input v-model="attendanceFilters.from" type="date" @change="attendancePage = 1; loadAttendance()" class="date-input-modern" style="width: 150px;" />
             </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">To</label>
-              <input
-                v-model="attendanceFilters.to"
-                type="date"
-                @change="attendancePage = 1; loadAttendance()"
-                class="w-full p-2 border border-gray-300 rounded-lg text-sm"
-              />
+            <div class="filter-field">
+              <label class="filter-label">To</label>
+              <input v-model="attendanceFilters.to" type="date" @change="attendancePage = 1; loadAttendance()" class="date-input-modern" style="width: 150px;" />
             </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">Status</label>
-              <select
-                v-model="attendanceFilters.status"
-                @change="attendancePage = 1; loadAttendance()"
-                class="w-full p-2 border border-gray-300 rounded-lg text-sm"
-              >
+            <div class="filter-field">
+              <label class="filter-label">Status</label>
+              <select v-model="attendanceFilters.status" @change="attendancePage = 1; loadAttendance()" class="select-modern-sm" style="width: 140px;">
                 <option value="">All</option>
                 <option value="Present">Present</option>
                 <option value="Late">Late</option>
                 <option value="Absent">Absent</option>
               </select>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">Rows</label>
-              <select v-model.number="attendancePageSize" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+            <div class="filter-field">
+              <label class="filter-label">Rows</label>
+              <select v-model.number="attendancePageSize" class="select-modern-sm" style="width: 90px;">
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
               </select>
             </div>
-            <div class="flex items-end gap-2">
-              <button @click="loadAttendance" class="w-full px-3 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 text-sm font-bold">Apply</button>
-            </div>
+            <button @click="loadAttendance" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
           </div>
 
           <!-- Separate action tabs / less crowded -->
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gray-50 border border-gray-200 p-3">
+          <div class="toolbar-row mt-4">
             <div class="flex flex-wrap gap-2">
-              <button @click="toggleAttendancePanel('calendar')" class="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100 text-xs font-bold">
-                {{ attendanceShowCalendar ? 'Hide' : 'Show' }} Calendar
-              </button>
-              <button @click="toggleAttendancePanel('warnings')" class="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100 text-xs font-bold">
-                {{ attendanceShowWarnings ? 'Hide' : 'Show' }} Alerts
-              </button>
-              <button @click="toggleAttendancePanel('history')" class="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100 text-xs font-bold">
-                {{ attendanceShowHistory ? 'Hide' : 'Show' }} History
-              </button>
-              <button @click="toggleAttendancePanel('columns')" class="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100 text-xs font-bold">
-                {{ attendanceColumnsOpen ? 'Hide' : 'Show' }} Columns
-              </button>
+              <button @click="toggleAttendancePanel('calendar')" class="pg-btn">{{ attendanceShowCalendar ? 'Hide' : 'Show' }} Calendar</button>
+              <button @click="toggleAttendancePanel('warnings')" class="pg-btn">{{ attendanceShowWarnings ? 'Hide' : 'Show' }} Alerts</button>
+              <button @click="toggleAttendancePanel('history')" class="pg-btn">{{ attendanceShowHistory ? 'Hide' : 'Show' }} History</button>
+              <button @click="toggleAttendancePanel('columns')" class="pg-btn">{{ attendanceColumnsOpen ? 'Hide' : 'Show' }} Columns</button>
             </div>
 
             <div class="flex flex-wrap gap-2">
-              <button @click="exportAttendance('xlsx')" class="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-xs font-bold">📤 Excel</button>
-              <button @click="exportAttendance('pdf')" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-bold">📄 PDF</button>
+              <button @click="exportAttendance('xlsx')" class="pg-btn pg-btn-emerald">📤 Excel</button>
+              <button @click="exportAttendance('pdf')" class="pg-btn pg-btn-red">📄 PDF</button>
             </div>
           </div>
 
-          <p class="mt-2 text-xs text-gray-500">Viewing course: <b class="text-green-700">{{ selectedAttendanceCourseLabel }}</b></p>
+          <p class="filter-note mt-2">Viewing course: <b style="color:#059669;">{{ selectedAttendanceCourseLabel }}</b></p>
 
-          <div v-if="attendanceColumnsOpen" ref="attendanceColumnsSectionRef" class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p class="mb-2 text-xs font-bold text-gray-600">Visible columns</p>
+          <div v-if="attendanceColumnsOpen" ref="attendanceColumnsSectionRef" class="info-box mt-3">
+            <p class="filter-label" style="margin-bottom: 8px;">Visible columns</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
-              <label v-for="col in attendanceColumnOptions" :key="col.key" class="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-3 py-2">
+              <label v-for="col in attendanceColumnOptions" :key="col.key" class="inline-flex items-center gap-2" style="background:#fff; border:1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px;">
                 <input type="checkbox" v-model="attendanceVisibleColumns[col.key]" />
                 <span>{{ col.label }}</span>
               </label>
@@ -1006,37 +839,26 @@
         </div>
 
         <!-- Course Modal -->
-        <div
-          v-if="attendanceCourseModalOpen"
-          class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 p-4"
-          @click.self="attendanceCourseModalOpen = false"
-        >
-          <div class="w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200">
-            <div class="flex items-center justify-between gap-3 border-b border-gray-100 p-4">
+        <div v-if="attendanceCourseModalOpen" class="modal-overlay" @click.self="attendanceCourseModalOpen = false">
+          <div class="modal-card modal-card-xl">
+            <div class="modal-head modal-head-green">
               <div>
-                <h3 class="text-lg font-extrabold text-green-800">📚 Select TESDA Course</h3>
-                <p class="text-xs text-gray-500">Choose one course. Courses without assigned trainers are clearly marked.</p>
+                <h3 class="modal-title">📚 Select TESDA Course</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Choose one course. Courses without assigned trainers are clearly marked.</p>
               </div>
-              <button
-                type="button"
-                @click="attendanceCourseModalOpen = false"
-                class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold hover:bg-gray-50"
-              >
-                ✕
+              <button type="button" @click="attendanceCourseModalOpen = false" class="modal-close-btn">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div class="p-4 border-b border-gray-100">
-              <input
-                v-model="attendanceCourseSearch"
-                type="text"
-                placeholder="Search course or assigned trainer..."
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-              />
+            <div style="padding: 16px 20px; border-bottom: 1px solid #f3f4f6;">
+              <input v-model="attendanceCourseSearch" type="text" placeholder="Search course or assigned trainer..." class="date-input-modern" style="width: 100%;" />
             </div>
 
-            <div class="max-h-[60vh] overflow-y-auto p-4">
-              <div v-if="attendanceCourseTrainerLoading" class="py-8 text-center text-gray-500">Loading course assignments…</div>
+            <div class="modal-body-scroll">
+              <div v-if="attendanceCourseTrainerLoading" class="empty-cell">Loading course assignments…</div>
 
               <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <button
@@ -1044,25 +866,21 @@
                   :key="course.id"
                   type="button"
                   @click="selectAttendanceCourse(course)"
-                  class="text-left rounded-xl border p-4 transition hover:bg-green-50 hover:border-green-300"
-                  :class="String(attendanceFilters.courseId) === String(course.id) ? 'border-green-600 bg-green-50 ring-2 ring-green-200' : 'border-gray-200 bg-white'"
+                  class="course-pick-card"
+                  :class="String(attendanceFilters.courseId) === String(course.id) ? 'course-pick-active' : ''"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <h4 class="font-extrabold text-gray-900 truncate">{{ course.course_name }}</h4>
                       <p class="mt-1 text-xs text-gray-500">{{ course.course_code || 'TESDA Course' }}</p>
                     </div>
-                    <span class="shrink-0 rounded-full bg-green-100 px-2 py-1 text-[11px] font-bold text-green-700">Select</span>
+                    <span class="pill pill-green">Select</span>
                   </div>
 
-                  <div class="mt-3 rounded-lg bg-gray-50 border border-gray-100 p-3">
-                    <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Assigned Trainer(s)</p>
+                  <div class="info-box mt-3">
+                    <p class="filter-label" style="margin:0;">Assigned Trainer(s)</p>
                     <div v-if="getCourseTrainerNames(course.id).length" class="mt-2 flex flex-wrap gap-2">
-                      <span
-                        v-for="trainerName in getCourseTrainerNames(course.id)"
-                        :key="`${course.id}-${trainerName}`"
-                        class="rounded-full bg-white border border-green-100 px-2 py-1 text-xs font-bold text-green-800"
-                      >
+                      <span v-for="trainerName in getCourseTrainerNames(course.id)" :key="`${course.id}-${trainerName}`" class="pill pill-green-outline">
                         {{ trainerName }}
                       </span>
                     </div>
@@ -1070,7 +888,7 @@
                   </div>
                 </button>
 
-                <div v-if="!attendanceCourseOptions.length" class="md:col-span-2 py-8 text-center text-gray-500">No course found.</div>
+                <div v-if="!attendanceCourseOptions.length" class="md:col-span-2 empty-cell">No course found.</div>
               </div>
             </div>
           </div>
@@ -1078,21 +896,21 @@
 
         <!-- Calendar + Follow-up -->
         <div v-if="attendanceShowCalendar || attendanceShowWarnings" ref="attendanceCalendarSectionRef" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div v-if="attendanceShowCalendar" class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div v-if="attendanceShowCalendar" class="lg:col-span-2 panel-card" style="padding: 16px;">
             <div class="flex items-center justify-between mb-3">
               <div>
-                <h3 class="font-bold text-green-800">📅 Attendance Calendar</h3>
-                <p class="text-xs text-gray-500">Click a date to filter records.</p>
+                <h3 class="panel-title">📅 Attendance Calendar</h3>
+                <p class="filter-note mt-1">Click a date to filter records.</p>
               </div>
-              <button @click="attendanceFilters.from = ''; attendanceFilters.to = ''; attendancePage = 1; loadAttendance()" class="text-xs px-3 py-2 border rounded-lg hover:bg-gray-50">Clear Range</button>
+              <button @click="attendanceFilters.from = ''; attendanceFilters.to = ''; attendancePage = 1; loadAttendance()" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">Clear Range</button>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 max-h-[360px] overflow-y-auto pr-1">
               <button
                 v-for="day in attendanceCalendarDays"
                 :key="day.date"
                 @click="attendanceFilters.from = day.date; attendanceFilters.to = day.date; attendancePage = 1; loadAttendance()"
-                class="text-left rounded-xl border p-3 hover:bg-gray-50 transition"
-                :class="attendanceFilters.from === day.date && attendanceFilters.to === day.date ? 'ring-2 ring-green-500 border-green-300' : 'border-gray-200'"
+                class="cal-day-card"
+                :class="attendanceFilters.from === day.date && attendanceFilters.to === day.date ? 'cal-day-active' : ''"
               >
                 <p class="text-xs text-gray-500">{{ formatDate(day.date) }}</p>
                 <p class="mt-1 text-sm font-bold" :class="day.complete ? 'text-green-700' : day.total ? 'text-yellow-700' : 'text-red-700'">
@@ -1105,22 +923,18 @@
             </div>
           </div>
 
-          <div v-if="attendanceShowWarnings" ref="attendanceWarningsSectionRef" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4" :class="attendanceShowCalendar ? '' : 'lg:col-span-3'">
+          <div v-if="attendanceShowWarnings" ref="attendanceWarningsSectionRef" class="panel-card" style="padding: 16px;" :class="attendanceShowCalendar ? '' : 'lg:col-span-3'">
             <div class="flex items-center justify-between mb-3">
-              <h3 class="font-bold text-amber-700">⚡ Attendance Alerts</h3>
-              <span class="text-xs text-gray-500">{{ atRiskStudents.length }} alert(s)</span>
+              <h3 class="panel-title" style="color:#b45309;">⚡ Attendance Alerts</h3>
+              <span class="filter-note">{{ atRiskStudents.length }} alert(s)</span>
             </div>
             <div v-if="atRiskStudents.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-1">
-              <div v-for="s in atRiskStudents" :key="s.name" class="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+              <div v-for="s in atRiskStudents" :key="s.name" class="alert-card">
                 <div class="flex items-start justify-between gap-2">
-                  <p class="font-semibold text-amber-900 truncate">{{ s.name }}</p>
-                  <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold" :class="s.severityClass">
-                    {{ s.severity }}
-                  </span>
+                  <p class="font-semibold truncate" style="color:#78350f;">{{ s.name }}</p>
+                  <span class="pill" :class="s.severityClass">{{ s.severity }}</span>
                 </div>
-                <p class="mt-1 text-xs text-amber-700">
-                  {{ s.absent }} absent • {{ s.late }} late • {{ s.rate }}% attendance
-                </p>
+                <p class="mt-1 text-xs" style="color:#b45309;">{{ s.absent }} absent • {{ s.late }} late • {{ s.rate }}% attendance</p>
                 <p class="mt-1 text-[11px] text-gray-500">{{ s.reason }}</p>
               </div>
             </div>
@@ -1129,65 +943,63 @@
         </div>
 
         <!-- Attendance Records Table -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div class="panel-card">
+          <div class="panel-header-bar">
             <div>
-              <h3 class="text-lg font-bold text-green-800">🧑‍🎓 Student Attendance</h3>
-              <p class="text-xs text-gray-500">Showing {{ attendancePageStart }}–{{ attendancePageEnd }} of {{ attendanceDisplayRows.length }} record(s)</p>
+              <h3 class="panel-title">🧑‍🎓 Student Attendance</h3>
+              <p class="filter-note mt-1">Showing {{ attendancePageStart }}–{{ attendancePageEnd }} of {{ attendanceDisplayRows.length }} record(s)</p>
             </div>
-            <div class="rounded-lg bg-green-50 border border-green-100 px-3 py-2 text-xs text-green-800 font-bold">
-              {{ selectedAttendanceCourseLabel }}
-            </div>
+            <div class="pill pill-green-outline" style="padding: 8px 14px;">{{ selectedAttendanceCourseLabel }}</div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-              <thead class="bg-gray-100 text-gray-900">
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead class="thead-green">
                 <tr>
-                  <th v-if="attendanceVisibleColumns.student" class="py-3 px-3 text-left">Student</th>
-                  <th v-if="attendanceVisibleColumns.course" class="py-3 px-3 text-left">Course</th>
-                  <th v-if="attendanceVisibleColumns.trainer" class="py-3 px-3 text-left">Trainer</th>
-                  <th v-if="attendanceVisibleColumns.date" class="py-3 px-3 text-left">Date</th>
-                  <th v-if="attendanceVisibleColumns.session" class="py-3 px-3 text-left">Session</th>
-                  <th v-if="attendanceVisibleColumns.remarks" class="py-3 px-3 text-left">Remarks</th>
-                  <th v-if="attendanceVisibleColumns.status" class="py-3 px-3 text-left">Status</th>
-                  <th v-if="attendanceVisibleColumns.rate" class="py-3 px-3 text-left">Rate</th>
-                  <th v-if="attendanceVisibleColumns.eligibility" class="py-3 px-3 text-left">Eligibility</th>
+                  <th v-if="attendanceVisibleColumns.student">Student</th>
+                  <th v-if="attendanceVisibleColumns.course">Course</th>
+                  <th v-if="attendanceVisibleColumns.trainer">Trainer</th>
+                  <th v-if="attendanceVisibleColumns.date">Date</th>
+                  <th v-if="attendanceVisibleColumns.session">Session</th>
+                  <th v-if="attendanceVisibleColumns.remarks">Remarks</th>
+                  <th v-if="attendanceVisibleColumns.status">Status</th>
+                  <th v-if="attendanceVisibleColumns.rate">Rate</th>
+                  <th v-if="attendanceVisibleColumns.eligibility">Eligibility</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in attendancePaginated" :key="row.key" class="border-b border-gray-100 hover:bg-gray-50">
-                  <td v-if="attendanceVisibleColumns.student" class="py-3 px-3 font-semibold text-gray-800">{{ row.student }}</td>
-                  <td v-if="attendanceVisibleColumns.course" class="py-3 px-3">{{ row.course }}</td>
-                  <td v-if="attendanceVisibleColumns.trainer" class="py-3 px-3">{{ row.trainer }}</td>
-                  <td v-if="attendanceVisibleColumns.date" class="py-3 px-3">{{ formatDate(row.date) }}</td>
-                  <td v-if="attendanceVisibleColumns.session" class="py-3 px-3">{{ row.session }}</td>
-                  <td v-if="attendanceVisibleColumns.remarks" class="py-3 px-3 text-gray-600">{{ row.raw?.remarks || '—' }}</td>
-                  <td v-if="attendanceVisibleColumns.status" class="py-3 px-3"><span class="px-2 py-1 rounded-full text-xs font-semibold" :class="attendanceStatusClass(row.status)">{{ row.status }}</span></td>
-                  <td v-if="attendanceVisibleColumns.rate" class="py-3 px-3 font-semibold">{{ row.studentRate }}%</td>
-                  <td v-if="attendanceVisibleColumns.eligibility" class="py-3 px-3"><span class="px-2 py-1 rounded-full text-xs font-semibold" :class="row.eligible ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ row.eligible ? 'Eligible' : 'Not Eligible' }}</span></td>
+                <tr v-for="row in attendancePaginated" :key="row.key">
+                  <td v-if="attendanceVisibleColumns.student" class="font-medium">{{ row.student }}</td>
+                  <td v-if="attendanceVisibleColumns.course">{{ row.course }}</td>
+                  <td v-if="attendanceVisibleColumns.trainer">{{ row.trainer }}</td>
+                  <td v-if="attendanceVisibleColumns.date">{{ formatDate(row.date) }}</td>
+                  <td v-if="attendanceVisibleColumns.session">{{ row.session }}</td>
+                  <td v-if="attendanceVisibleColumns.remarks" class="text-gray-600">{{ row.raw?.remarks || '—' }}</td>
+                  <td v-if="attendanceVisibleColumns.status"><span class="pill" :class="attendanceStatusClass(row.status)">{{ row.status }}</span></td>
+                  <td v-if="attendanceVisibleColumns.rate" class="font-semibold">{{ row.studentRate }}%</td>
+                  <td v-if="attendanceVisibleColumns.eligibility"><span class="pill" :class="row.eligible ? 'pill-green' : 'pill-red'">{{ row.eligible ? 'Eligible' : 'Not Eligible' }}</span></td>
                 </tr>
                 <tr v-if="!attendanceDisplayRows.length">
-                  <td :colspan="attendanceVisibleColspan" class="py-8 text-center text-gray-500">No attendance records found</td>
+                  <td :colspan="attendanceVisibleColspan" class="empty-cell">No attendance records found</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div v-if="attendanceTotalPages > 1" class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50" :disabled="attendancePage === 1" @click="attendancePage--">← Prev</button>
-            <div class="flex gap-1 flex-wrap justify-center">
-              <button v-for="p in attendancePageButtons" :key="p" class="px-3 py-2 border rounded text-sm" :class="p === attendancePage ? 'bg-green-700 text-white border-green-700' : 'hover:bg-gray-50'" @click="attendancePage = p">{{ p }}</button>
+          <div v-if="attendanceTotalPages > 1" class="pagination-bar">
+            <button class="pg-btn" :class="{ 'pg-disabled': attendancePage === 1 }" :disabled="attendancePage === 1" @click="attendancePage--">◀ Prev</button>
+            <div class="page-btns">
+              <button v-for="p in attendancePageButtons" :key="p" class="pg-btn" :class="p === attendancePage ? 'pg-btn-accent' : ''" @click="attendancePage = p">{{ p }}</button>
             </div>
-            <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50" :disabled="attendancePage === attendanceTotalPages" @click="attendancePage++">Next →</button>
+            <button class="pg-btn" :class="{ 'pg-disabled': attendancePage === attendanceTotalPages }" :disabled="attendancePage === attendanceTotalPages" @click="attendancePage++">Next ▶</button>
           </div>
         </div>
 
         <!-- Per Student Attendance History -->
-        <div v-if="attendanceShowHistory" ref="attendanceHistorySectionRef" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-          <h3 class="text-lg font-bold text-green-800 mb-3">📊 Per Student Attendance History</h3>
+        <div v-if="attendanceShowHistory" ref="attendanceHistorySectionRef" class="panel-card" style="padding: 16px;">
+          <h3 class="panel-title mb-3">📊 Per Student Attendance History</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            <div v-for="student in attendanceHistoryPaginated" :key="student.name" class="border border-gray-200 rounded-xl p-4">
+            <div v-for="student in attendanceHistoryPaginated" :key="student.name" class="history-card">
               <div class="flex items-center justify-between gap-2">
                 <div class="min-w-0">
                   <p class="font-bold text-gray-800 truncate">{{ student.name }}</p>
@@ -1195,11 +1007,11 @@
                 </div>
                 <span class="text-sm font-bold">{{ student.rate }}%</span>
               </div>
-              <div class="mt-3 h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div class="h-2 rounded-full" :class="student.rate >= 80 ? 'bg-green-600' : student.rate >= 60 ? 'bg-yellow-500' : 'bg-red-600'" :style="{ width: student.rate + '%' }"></div>
+              <div class="mt-3 history-bar-track">
+                <div class="history-bar-fill" :class="student.rate >= 80 ? 'bar-green' : student.rate >= 60 ? 'bar-amber' : 'bar-red'" :style="{ width: student.rate + '%' }"></div>
               </div>
               <div class="mt-3 flex flex-wrap gap-2">
-                <span v-for="item in student.timeline.slice(0, 5)" :key="item.key" class="text-xs px-2 py-1 rounded-full" :class="attendanceStatusClass(item.status)">{{ formatDate(item.date) }} — {{ item.status }}</span>
+                <span v-for="item in student.timeline.slice(0, 5)" :key="item.key" class="pill" :class="attendanceStatusClass(item.status)">{{ formatDate(item.date) }} — {{ item.status }}</span>
               </div>
             </div>
           </div>
@@ -1207,61 +1019,35 @@
       </div>
 
       <!-- ===================== ISSUED CERTIFICATES (DRIVING / TESDA) ===================== -->
-      <div v-else-if="activeTab === 'exams'" class="space-y-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+      <div v-else-if="activeTab === 'exams'" class="stack-6">
+        <div class="panel-card" style="padding: 20px;">
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
             <div>
-              <h3 class="text-green-800 font-bold text-lg">📄 Issued Certificates of Completion</h3>
-              <p class="text-xs text-gray-500 mt-1">
+              <h3 class="panel-title">📄 Issued Certificates of Completion</h3>
+              <p class="filter-note mt-1">
                 {{ reportMode === 'tesda' ? 'TESDA certificate summary by course.' : 'Driving certificate summary by TDC/PDC.' }}
               </p>
             </div>
 
-            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Report Month</label>
-                <input
-                  v-model="certificateMonth"
-                  type="month"
-                  class="w-44 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-                />
+            <div class="filters-panel" style="background: transparent; border: none; padding: 0;">
+              <div class="filter-field">
+                <label class="filter-label">Report Month</label>
+                <input v-model="certificateMonth" type="month" class="date-input-modern" style="width: 170px;" />
               </div>
-              <button
-                @click="reloadCertificateReport()"
-                class="text-sm px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800"
-              >
-                Apply
-              </button>
-              <button
-                @click="exportCertificateReport()"
-                class="text-sm px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
-              >
-                📤 Export
-              </button>
+              <button @click="reloadCertificateReport()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
+              <button @click="exportCertificateReport()" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export</button>
             </div>
           </div>
 
-          <div class="max-w-5xl mx-auto bg-white border border-gray-300 rounded-lg p-6 overflow-x-auto">
+          <div class="doc-preview" style="max-width: 60rem; margin: 0 auto;">
             <div class="min-w-[760px]">
               <!-- Header -->
               <div class="relative text-center mb-5">
                 <img src="/facet-logo.png" alt="FACET Logo" class="absolute left-0 top-0 w-14 h-14 object-contain" />
-                <img
-                  v-if="reportMode === 'tesda'"
-                  src="/tesda-logo.png"
-                  alt="TESDA Logo"
-                  class="absolute right-0 top-0 w-14 h-14 object-contain"
-                />
-                <img
-                  v-else
-                  src="/lto-logo.png"
-                  alt="LTO Logo"
-                  class="absolute right-0 top-0 w-14 h-14 object-contain"
-                />
+                <img v-if="reportMode === 'tesda'" src="/tesda-logo.png" alt="TESDA Logo" class="absolute right-0 top-0 w-14 h-14 object-contain" />
+                <img v-else src="/lto-logo.png" alt="LTO Logo" class="absolute right-0 top-0 w-14 h-14 object-contain" />
 
-                <p class="text-sm font-bold text-red-700">
-                  First Asian Cognizance Executive Training Institute (FACET Institute) Corp.
-                </p>
+                <p class="text-sm font-bold text-red-700">First Asian Cognizance Executive Training Institute (FACET Institute) Corp.</p>
                 <p class="text-xs font-semibold text-red-600">Holy Spirit, Barcenaga, Naujan, Oriental Mindoro</p>
                 <h4 class="mt-4 text-sm font-extrabold text-black uppercase leading-tight">
                   Total No. of Issued Certificates of Completion<br />
@@ -1270,149 +1056,146 @@
                 </h4>
                 <p v-if="reportMode === 'tesda'" class="text-xs font-semibold mt-1">TESDA Training Report</p>
                 <p v-else class="text-xs font-semibold mt-1">LTO Regional Office No. 4B</p>
-                <p class="text-xs">
-                  For the Month of
-                  <span class="font-bold uppercase">{{ certificateReport.monthLabel }}</span>
-                </p>
+                <p class="text-xs">For the Month of <span class="font-bold uppercase">{{ certificateReport.monthLabel }}</span></p>
               </div>
 
               <!-- TESDA CERTIFICATE REPORT -->
               <template v-if="reportMode === 'tesda'">
-                <table class="w-full border border-black text-xs mb-7">
+                <table class="doc-table mb-7">
                   <thead>
-                    <tr class="bg-[#c9c19a]">
-                      <th class="border border-black px-2 py-1 text-left">Summary</th>
-                      <th class="border border-black px-2 py-1 text-center w-36">TOTAL</th>
+                    <tr class="doc-thead-olive">
+                      <th class="text-left">Summary</th>
+                      <th class="w-36">TOTAL</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td class="border border-black px-2 py-1 font-bold">A. TESDA Training Certificates Issued</td>
-                      <td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.tesdaTotal }}</td>
+                      <td class="font-bold">A. TESDA Training Certificates Issued</td>
+                      <td class="text-center font-bold">{{ certificateReport.tesdaTotal }}</td>
                     </tr>
                     <tr>
-                      <td class="border border-black px-2 py-1 font-bold">B. Courses with Issued Certificates</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ certificateReport.tesdaCourseRows.length }}</td>
+                      <td class="font-bold">B. Courses with Issued Certificates</td>
+                      <td class="text-center">{{ certificateReport.tesdaCourseRows.length }}</td>
                     </tr>
                   </tbody>
                 </table>
 
                 <h4 class="text-center text-sm font-bold mb-1">TESDA Certificates by Course</h4>
-                <table class="w-4/5 mx-auto border border-black text-xs mb-8">
+                <table class="doc-table w-4/5 mx-auto mb-8">
                   <thead>
-                    <tr class="bg-[#c9c19a]">
-                      <th class="border border-black px-2 py-1">Course</th>
-                      <th class="border border-black px-2 py-1 w-40">No. of Issued<br />Certificates</th>
+                    <tr class="doc-thead-olive">
+                      <th>Course</th>
+                      <th class="w-40">No. of Issued<br />Certificates</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr class="bg-blue-100"><td colspan="2" class="border border-black px-2 py-1 font-bold">By Course</td></tr>
+                    <tr class="doc-subrow"><td colspan="2" class="font-bold">By Course</td></tr>
                     <tr v-for="row in certificateReport.tesdaCourseRows" :key="row.label">
-                      <td class="border border-black px-2 py-1">{{ row.label }}</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ row.count }}</td>
+                      <td>{{ row.label }}</td>
+                      <td class="text-center">{{ row.count }}</td>
                     </tr>
                     <tr v-if="certificateReport.tesdaCourseRows.length === 0">
-                      <td colspan="2" class="border border-black px-2 py-6 text-center text-gray-500">No issued TESDA certificates</td>
+                      <td colspan="2" class="empty-cell">No issued TESDA certificates</td>
                     </tr>
-                    <tr><td class="border border-black px-2 py-1 text-right font-bold">Total</td><td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.tesdaTotal }}</td></tr>
+                    <tr><td class="text-right font-bold">Total</td><td class="text-center font-bold">{{ certificateReport.tesdaTotal }}</td></tr>
                   </tbody>
                 </table>
 
                 <h4 class="text-center text-sm font-bold mb-1">TESDA Certificates by Trainer</h4>
-                <table class="w-4/5 mx-auto border border-black text-xs">
+                <table class="doc-table w-4/5 mx-auto">
                   <thead>
-                    <tr class="bg-[#c9c19a]">
-                      <th class="border border-black px-2 py-1">Trainer</th>
-                      <th class="border border-black px-2 py-1 w-40">No. of Issued<br />Certificates</th>
+                    <tr class="doc-thead-olive">
+                      <th>Trainer</th>
+                      <th class="w-40">No. of Issued<br />Certificates</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr class="bg-blue-100"><td colspan="2" class="border border-black px-2 py-1 font-bold">By Trainer</td></tr>
+                    <tr class="doc-subrow"><td colspan="2" class="font-bold">By Trainer</td></tr>
                     <tr v-for="row in certificateReport.tesdaTrainerRows" :key="row.label">
-                      <td class="border border-black px-2 py-1">{{ row.label }}</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ row.count }}</td>
+                      <td>{{ row.label }}</td>
+                      <td class="text-center">{{ row.count }}</td>
                     </tr>
                     <tr v-if="certificateReport.tesdaTrainerRows.length === 0">
-                      <td colspan="2" class="border border-black px-2 py-6 text-center text-gray-500">No trainer data</td>
+                      <td colspan="2" class="empty-cell">No trainer data</td>
                     </tr>
-                    <tr><td class="border border-black px-2 py-1 text-right font-bold">Total</td><td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.tesdaTotal }}</td></tr>
+                    <tr><td class="text-right font-bold">Total</td><td class="text-center font-bold">{{ certificateReport.tesdaTotal }}</td></tr>
                   </tbody>
                 </table>
               </template>
 
               <!-- DRIVING CERTIFICATE REPORT -->
               <template v-else>
-                <table class="w-full border border-black text-xs mb-7">
+                <table class="doc-table mb-7">
                   <thead>
-                    <tr class="bg-[#c9c19a]">
-                      <th class="border border-black px-2 py-1 text-left"></th>
-                      <th class="border border-black px-2 py-1 text-center w-36">TOTAL</th>
+                    <tr class="doc-thead-olive">
+                      <th class="text-left"></th>
+                      <th class="w-36">TOTAL</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td class="border border-black px-2 py-1 font-bold">A. Theoretical Driving Course (TDC)</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ certificateReport.tdcTotal }}</td>
+                      <td class="font-bold">A. Theoretical Driving Course (TDC)</td>
+                      <td class="text-center">{{ certificateReport.tdcTotal }}</td>
                     </tr>
                     <tr>
-                      <td class="border border-black px-2 py-1 font-bold">B. Practical Driving Course(PDC)</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ certificateReport.pdcTotal }}</td>
+                      <td class="font-bold">B. Practical Driving Course(PDC)</td>
+                      <td class="text-center">{{ certificateReport.pdcTotal }}</td>
                     </tr>
                   </tbody>
                 </table>
 
                 <h4 class="text-center text-sm font-bold mb-1">Theoretical Driving Course (TDC)</h4>
-                <table class="w-3/4 mx-auto border border-black text-xs mb-8">
+                <table class="doc-table w-3/4 mx-auto mb-8">
                   <thead>
-                    <tr class="bg-[#c9c19a]">
-                      <th class="border border-black px-2 py-1">Categories</th>
-                      <th class="border border-black px-2 py-1 w-40">No. of Issued<br />Certificates</th>
+                    <tr class="doc-thead-olive">
+                      <th>Categories</th>
+                      <th class="w-40">No. of Issued<br />Certificates</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr class="bg-blue-100"><td colspan="2" class="border border-black px-2 py-1 font-bold">By Sex</td></tr>
-                    <tr><td class="border border-black px-2 py-1">Male</td><td class="border border-black px-2 py-1 text-center">{{ certificateReport.tdc.sex.Male }}</td></tr>
-                    <tr><td class="border border-black px-2 py-1">Female</td><td class="border border-black px-2 py-1 text-center">{{ certificateReport.tdc.sex.Female }}</td></tr>
-                    <tr><td class="border border-black px-2 py-1 text-right font-bold">Total</td><td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.tdcTotal }}</td></tr>
+                    <tr class="doc-subrow"><td colspan="2" class="font-bold">By Sex</td></tr>
+                    <tr><td>Male</td><td class="text-center">{{ certificateReport.tdc.sex.Male }}</td></tr>
+                    <tr><td>Female</td><td class="text-center">{{ certificateReport.tdc.sex.Female }}</td></tr>
+                    <tr><td class="text-right font-bold">Total</td><td class="text-center font-bold">{{ certificateReport.tdcTotal }}</td></tr>
                   </tbody>
                 </table>
 
                 <h4 class="text-center text-sm font-bold mb-1">Practical Driving Course (PDC)</h4>
-                <table class="w-3/4 mx-auto border border-black text-xs mb-7">
+                <table class="doc-table w-3/4 mx-auto mb-7">
                   <thead>
-                    <tr class="bg-[#c9c19a]">
-                      <th class="border border-black px-2 py-1">Categories</th>
-                      <th class="border border-black px-2 py-1 w-40">No. of Issued<br />Certificates</th>
+                    <tr class="doc-thead-olive">
+                      <th>Categories</th>
+                      <th class="w-40">No. of Issued<br />Certificates</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr class="bg-blue-100"><td colspan="2" class="border border-black px-2 py-1 font-bold">By Sex</td></tr>
-                    <tr><td class="border border-black px-2 py-1">Male</td><td class="border border-black px-2 py-1 text-center">{{ certificateReport.pdc.sex.Male }}</td></tr>
-                    <tr><td class="border border-black px-2 py-1">Female</td><td class="border border-black px-2 py-1 text-center">{{ certificateReport.pdc.sex.Female }}</td></tr>
-                    <tr><td class="border border-black px-2 py-1 text-right font-bold">Total</td><td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.pdcTotal }}</td></tr>
+                    <tr class="doc-subrow"><td colspan="2" class="font-bold">By Sex</td></tr>
+                    <tr><td>Male</td><td class="text-center">{{ certificateReport.pdc.sex.Male }}</td></tr>
+                    <tr><td>Female</td><td class="text-center">{{ certificateReport.pdc.sex.Female }}</td></tr>
+                    <tr><td class="text-right font-bold">Total</td><td class="text-center font-bold">{{ certificateReport.pdcTotal }}</td></tr>
 
-                    <tr class="bg-blue-100"><td colspan="2" class="border border-black px-2 py-1 font-bold">By Training Purpose</td></tr>
+                    <tr class="doc-subrow"><td colspan="2" class="font-bold">By Training Purpose</td></tr>
                     <tr v-for="row in certificateReport.trainingPurposeRows" :key="row.label">
-                      <td class="border border-black px-2 py-1">{{ row.label }}</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ row.count }}</td>
+                      <td>{{ row.label }}</td>
+                      <td class="text-center">{{ row.count }}</td>
                     </tr>
-                    <tr><td class="border border-black px-2 py-1 text-right font-bold">Total</td><td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.pdcTotal }}</td></tr>
+                    <tr><td class="text-right font-bold">Total</td><td class="text-center font-bold">{{ certificateReport.pdcTotal }}</td></tr>
                   </tbody>
                 </table>
 
-                <table class="w-3/4 mx-auto border border-black text-xs">
+                <table class="doc-table w-3/4 mx-auto">
                   <thead>
-                    <tr class="bg-blue-100">
-                      <th class="border border-black px-2 py-1">By DL Code</th>
-                      <th class="border border-black px-2 py-1 w-40">No. of Issued<br />Certificates</th>
+                    <tr class="doc-subrow">
+                      <th>By DL Code</th>
+                      <th class="w-40">No. of Issued<br />Certificates</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="row in certificateReport.dlCodeRows" :key="row.label">
-                      <td class="border border-black px-2 py-1 text-center">{{ row.label }}</td>
-                      <td class="border border-black px-2 py-1 text-center">{{ row.count }}</td>
+                      <td class="text-center">{{ row.label }}</td>
+                      <td class="text-center">{{ row.count }}</td>
                     </tr>
-                    <tr><td class="border border-black px-2 py-1 text-right font-bold">Total</td><td class="border border-black px-2 py-1 text-center font-bold">{{ certificateReport.dlCodeTotal }}</td></tr>
+                    <tr><td class="text-right font-bold">Total</td><td class="text-center font-bold">{{ certificateReport.dlCodeTotal }}</td></tr>
                   </tbody>
                 </table>
               </template>
@@ -1422,257 +1205,240 @@
       </div>
 
       <!-- ===================== FORECAST DETAILS MODAL (DRIVING ONLY) ===================== -->
-      <div
-        v-if="forecastModalOpen && reportMode === 'driving'"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        @click.self="forecastModalOpen = false"
-      >
-        <div class="w-full max-w-6xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col">
-          <div class="p-5 border-b border-gray-200 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h3 class="text-xl font-extrabold text-gray-900">Enrollment Forecast</h3>
-              <p class="text-sm text-gray-500 mt-1">Driving courses only • {{ forecastPeriodLabel }}</p>
-            </div>
-            <button
-              @click="forecastModalOpen = false"
-              class="px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50"
-            >
-              ✖ Close
-            </button>
-          </div>
+      <transition name="modal-fade">
+        <div v-if="forecastModalOpen && reportMode === 'driving'" class="modal-overlay" @click.self="forecastModalOpen = false">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-xl" style="max-width: 1100px;">
+              <div class="modal-head modal-head-blue">
+                <div>
+                  <h3 class="modal-title">Enrollment Forecast</h3>
+                  <p class="text-xs text-gray-500 mt-0.5">Driving courses only • {{ forecastPeriodLabel }}</p>
+                </div>
+                <button @click="forecastModalOpen = false" class="modal-close-btn">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-          <div class="overflow-y-auto p-5 space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div class="rounded-2xl border border-violet-100 bg-violet-50 p-4">
-                <p class="text-xs font-semibold text-violet-700">Predicted Enrollment</p>
-                <h4 class="text-3xl font-extrabold text-violet-900 mt-1">{{ forecast.nextForecast }}</h4>
-                <p class="text-xs text-gray-500 mt-1">{{ forecastPeriodLabel }}</p>
-              </div>
-              <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                <p class="text-xs font-semibold text-slate-600">Prediction Range</p>
-                <h4 class="text-2xl font-extrabold text-slate-900 mt-1">{{ forecast.low }}–{{ forecast.high }}</h4>
-                <p class="text-xs text-gray-500 mt-1">Low and high possible output</p>
-              </div>
-              <div class="rounded-2xl border border-green-100 bg-green-50 p-4">
-                <p class="text-xs font-semibold text-green-700">Highest Forecast Course</p>
-                <h4 class="text-lg font-extrabold text-green-900 mt-1 leading-tight">{{ forecast.topCourse || '-' }}</h4>
-                <p class="text-xs text-gray-500 mt-1">Most likely high demand</p>
-              </div>
-              <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p class="text-xs font-semibold text-blue-700">Data Basis</p>
-                <h4 class="text-2xl font-extrabold text-blue-900 mt-1">{{ forecast.dataPoints }}</h4>
-                <p class="text-xs text-gray-500 mt-1">Historical records used</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
-              <div class="lg:col-span-3 rounded-2xl border border-gray-200 bg-white p-4">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                  <div>
-                    <h4 class="font-bold text-gray-900">Forecast vs Past Enrollment</h4>
-                    <p class="text-xs text-gray-500">Line graph showing past enrollment and forecast point.</p>
+              <div class="modal-body-scroll">
+                <div class="kpi-grid kpi-grid-4 mb-5">
+                  <div class="kpi-card kpi-violet kpi-card-sm">
+                    <p class="kpi-label">Predicted Enrollment</p>
+                    <h4 class="kpi-value" style="font-size:1.7rem;">{{ forecast.nextForecast }}</h4>
+                    <p class="kpi-subtext">{{ forecastPeriodLabel }}</p>
+                  </div>
+                  <div class="kpi-card kpi-slate kpi-card-sm">
+                    <p class="kpi-label">Prediction Range</p>
+                    <h4 class="kpi-value" style="font-size:1.4rem;">{{ forecast.low }}–{{ forecast.high }}</h4>
+                    <p class="kpi-subtext">Low and high possible output</p>
+                  </div>
+                  <div class="kpi-card kpi-green kpi-card-sm">
+                    <p class="kpi-label">Highest Forecast Course</p>
+                    <h4 class="kpi-value kpi-value-text" style="font-size:1.05rem;">{{ forecast.topCourse || '-' }}</h4>
+                    <p class="kpi-subtext">Most likely high demand</p>
+                  </div>
+                  <div class="kpi-card kpi-blue kpi-card-sm">
+                    <p class="kpi-label">Data Basis</p>
+                    <h4 class="kpi-value" style="font-size:1.4rem;">{{ forecast.dataPoints }}</h4>
+                    <p class="kpi-subtext">Historical records used</p>
                   </div>
                 </div>
-                <div class="h-72">
-                  <VChart :option="forecastLineOption" autoresize />
+
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
+                  <div class="lg:col-span-3 panel-card" style="padding: 16px;">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                      <div>
+                        <h4 class="panel-title">Forecast vs Past Enrollment</h4>
+                        <p class="filter-note mt-1">Line graph showing past enrollment and forecast point.</p>
+                      </div>
+                    </div>
+                    <div class="h-72">
+                      <VChart :option="forecastLineOption" autoresize />
+                    </div>
+                  </div>
+
+                  <div class="lg:col-span-2 panel-card" style="padding: 16px;">
+                    <h4 class="panel-title mb-3">Past Enrollment Basis</h4>
+                    <div class="table-wrap">
+                      <table class="modern-table" style="font-size: 0.72rem;">
+                        <thead class="thead-green">
+                          <tr>
+                            <th>Course</th>
+                            <th v-for="m in forecastHistoryLabels" :key="m" class="text-center">{{ m }}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="row in forecastHistoryMatrix" :key="row.course">
+                            <td class="font-semibold">{{ row.course }}</td>
+                            <td v-for="m in forecastHistoryLabels" :key="m" class="text-center">{{ row.values[m] || 0 }}</td>
+                          </tr>
+                          <tr v-if="forecastHistoryMatrix.length === 0">
+                            <td :colspan="forecastHistoryLabels.length + 1" class="empty-cell">No historical data.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="panel-card" style="padding: 16px;">
+                  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
+                    <div>
+                      <h4 class="panel-title">Course Forecast Breakdown</h4>
+                      <p class="filter-note mt-1">Per-course prediction with past basis, forecast, prediction range, and trend.</p>
+                    </div>
+                  </div>
+
+                  <div class="table-wrap">
+                    <table class="modern-table">
+                      <thead class="thead-green">
+                        <tr>
+                          <th>Course</th>
+                          <th class="text-center">Past 3 Periods</th>
+                          <th class="text-center">Forecast</th>
+                          <th class="text-center">Low</th>
+                          <th class="text-center">High</th>
+                          <th class="text-center">Trend</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="row in courseForecastRows" :key="row.course">
+                          <td class="font-semibold">{{ row.course }}</td>
+                          <td class="text-center font-mono">{{ row.historyLabel }}</td>
+                          <td class="text-center font-extrabold" style="color:#6d28d9;">{{ row.forecast }}</td>
+                          <td class="text-center">{{ row.low }}</td>
+                          <td class="text-center">{{ row.high }}</td>
+                          <td class="text-center">
+                            <span class="pill" :class="forecastTrendClass(row.trend)">{{ row.trend }}</span>
+                          </td>
+                        </tr>
+                        <tr v-if="courseForecastRows.length === 0">
+                          <td colspan="6" class="empty-cell">No forecast data available yet.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              <div class="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-4">
-                <h4 class="font-bold text-gray-900 mb-3">Past Enrollment Basis</h4>
-                <div class="overflow-x-auto">
-                  <table class="min-w-full text-xs border border-gray-200 bg-white">
-                    <thead class="bg-gray-100">
-                      <tr>
-                        <th class="py-2 px-2 border text-left">Course</th>
-                        <th v-for="m in forecastHistoryLabels" :key="m" class="py-2 px-2 border text-center">{{ m }}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="row in forecastHistoryMatrix" :key="row.course">
-                        <td class="py-2 px-2 border font-semibold">{{ row.course }}</td>
-                        <td v-for="m in forecastHistoryLabels" :key="m" class="py-2 px-2 border text-center">{{ row.values[m] || 0 }}</td>
-                      </tr>
-                      <tr v-if="forecastHistoryMatrix.length === 0">
-                        <td :colspan="forecastHistoryLabels.length + 1" class="py-5 text-center text-gray-500 border">No historical data.</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+              <div class="modal-foot">
+                <button @click="forecastModalOpen = false" class="btn-cancel">Close</button>
               </div>
             </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-4">
-              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
-                <div>
-                  <h4 class="font-bold text-gray-900">Course Forecast Breakdown</h4>
-                  <p class="text-xs text-gray-500">Per-course prediction with past basis, forecast, prediction range, and trend.</p>
-                </div>
-              </div>
-
-              <div class="overflow-x-auto">
-                <table class="min-w-full border border-gray-200 text-sm">
-                  <thead class="bg-gray-100 text-gray-900">
-                    <tr>
-                      <th class="py-2 px-3 text-left border">Course</th>
-                      <th class="py-2 px-3 text-center border">Past 3 Periods</th>
-                      <th class="py-2 px-3 text-center border">Forecast</th>
-                      <th class="py-2 px-3 text-center border">Low</th>
-                      <th class="py-2 px-3 text-center border">High</th>
-                      <th class="py-2 px-3 text-center border">Trend</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="row in courseForecastRows" :key="row.course" class="hover:bg-gray-50">
-                      <td class="py-2 px-3 border font-semibold text-gray-900">{{ row.course }}</td>
-                      <td class="py-2 px-3 border text-center font-mono">{{ row.historyLabel }}</td>
-                      <td class="py-2 px-3 border text-center font-extrabold text-violet-800">{{ row.forecast }}</td>
-                      <td class="py-2 px-3 border text-center">{{ row.low }}</td>
-                      <td class="py-2 px-3 border text-center">{{ row.high }}</td>
-                      <td class="py-2 px-3 border text-center">
-                        <span class="px-2 py-1 rounded-full text-xs font-bold" :class="forecastTrendClass(row.trend)">
-                          {{ row.trend }}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr v-if="courseForecastRows.length === 0">
-                      <td colspan="6" class="py-6 text-center text-gray-500 border">No forecast data available yet.</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          </transition>
         </div>
-      </div>
+      </transition>
 
       <!-- ===================== EXPORT MODAL ===================== -->
-      <div v-if="exportOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-          <div class="p-4 border-b flex items-center justify-between">
-            <div>
-              <h3 class="text-lg font-bold text-green-800">📤 Export Builder</h3>
-            </div>
-            <button @click="exportOpen=false" class="px-3 py-2 border rounded hover:bg-gray-50">✖</button>
-          </div>
-
-          <div class="p-4 space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Target</label>
-                <select v-model="exportTarget" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="all">All (Overview + Detailed{{ reportMode==='driving' ? ' + Revenue' : '' }})</option>
-                  <option value="overview">Overview (all overview datasets)</option>
-                  <option value="overview-trend">Overview - Enrollment Trend</option>
-                  <option value="overview-top-courses">Overview - Top Courses</option>
-                  <option value="overview-gender">Overview - Gender</option>
-                  <option value="overview-monthly">Overview - Course Enrollments per Month</option>
-                  <option v-if="reportMode==='driving'" value="certificates">Issued Certificates Report</option>
-                  <option v-if="reportMode==='driving'" value="revenue">Revenue table</option>
-                  <option v-if="reportMode==='tesda'" value="attendance">TESDA Attendance</option>
-                  <option value="detailed">Detailed report</option>
-                </select>
+      <transition name="modal-fade">
+        <div v-if="exportOpen" class="modal-overlay">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-xl" style="max-width: 900px;">
+              <div class="modal-head modal-head-green">
+                <h3 class="modal-title">📤 Export Builder</h3>
+                <button @click="exportOpen=false" class="modal-close-btn">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Format</label>
-                <select v-model="exportFormat" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="xlsx">Excel (.xlsx)</option>
-                  <option value="pdf">PDF</option>
-                  <option value="csv">CSV</option>
-                </select>
-              </div>
+              <div class="modal-body-scroll">
+                <div class="form-grid">
+                  <div>
+                    <label class="form-label">Target</label>
+                    <select v-model="exportTarget" class="form-input">
+                      <option value="all">All (Overview + Detailed{{ reportMode==='driving' ? ' + Revenue' : '' }})</option>
+                      <option value="overview">Overview (all overview datasets)</option>
+                      <option value="overview-trend">Overview - Enrollment Trend</option>
+                      <option value="overview-top-courses">Overview - Top Courses</option>
+                      <option value="overview-gender">Overview - Gender</option>
+                      <option value="overview-monthly">Overview - Course Enrollments per Month</option>
+                      <option v-if="reportMode==='driving'" value="certificates">Issued Certificates Report</option>
+                      <option v-if="reportMode==='driving'" value="revenue">Revenue table</option>
+                      <option v-if="reportMode==='tesda'" value="attendance">TESDA Attendance</option>
+                      <option value="detailed">Detailed report</option>
+                    </select>
+                  </div>
 
-              <div v-if="!(exportTarget === 'detailed' && reportMode === 'driving' && exportFormat === 'pdf')">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Scope</label>
-                <select v-model="exportScope" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="all">All rows (filtered)</option>
-                  <option value="page">Current page only</option>
-                </select>
-              </div>
-            </div>
+                  <div>
+                    <label class="form-label">Format</label>
+                    <select v-model="exportFormat" class="form-input">
+                      <option value="xlsx">Excel (.xlsx)</option>
+                      <option value="pdf">PDF</option>
+                      <option value="csv">CSV</option>
+                    </select>
+                  </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div v-if="exportTarget === 'detailed' && reportMode === 'driving'">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Report Month</label>
-                <input
-                  v-model="detailedMonth"
-                  type="month"
-                  class="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-                />
-              </div>
+                  <div v-if="!(exportTarget === 'detailed' && reportMode === 'driving' && exportFormat === 'pdf')">
+                    <label class="form-label">Scope</label>
+                    <select v-model="exportScope" class="form-input">
+                      <option value="all">All rows (filtered)</option>
+                      <option value="page">Current page only</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                <select v-model="exportCourseId" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="">Use current tab filter / All</option>
-                  <option v-for="c in courses" :key="c.id" :value="String(c.id)">
-                    {{ c.course_name }}
-                  </option>
-                </select>
-              </div>
+                  <div v-if="exportTarget === 'detailed' && reportMode === 'driving'">
+                    <label class="form-label">Report Month</label>
+                    <input v-model="detailedMonth" type="month" class="form-input" />
+                  </div>
 
-              <div v-if="!(exportTarget === 'detailed' && reportMode === 'driving' && exportFormat === 'pdf')">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Template</label>
-                <select v-model="exportTemplate" class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                  <option value="custom">Custom (selected columns)</option>
-                  <option value="pdc">PDC-style list (like your picture)</option>
-                  <option value="minimal">Minimal list</option>
-                </select>
-              </div>
+                  <div>
+                    <label class="form-label">Course</label>
+                    <select v-model="exportCourseId" class="form-input">
+                      <option value="">Use current tab filter / All</option>
+                      <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.course_name }}</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">File name</label>
-                <input v-model="exportFileName" class="w-full p-2 border border-gray-300 rounded-md text-sm" />
-              </div>
-            </div>
+                  <div v-if="!(exportTarget === 'detailed' && reportMode === 'driving' && exportFormat === 'pdf')">
+                    <label class="form-label">Template</label>
+                    <select v-model="exportTemplate" class="form-input">
+                      <option value="custom">Custom (selected columns)</option>
+                      <option value="pdc">PDC-style list (like your picture)</option>
+                      <option value="minimal">Minimal list</option>
+                    </select>
+                  </div>
 
-            <div
-              v-if="(exportTarget === 'detailed' && !(reportMode === 'driving' && exportFormat === 'pdf')) || exportTarget === 'revenue'"
-              class="bg-gray-50 border border-gray-200 rounded-lg p-3"
-            >
-              <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-gray-700">Columns</p>
-                <div class="flex gap-2">
-                  <button @click="selectExportColumns('fromVisible')" class="text-xs px-3 py-2 border rounded hover:bg-white">
-                    Use table columns
-                  </button>
-                  <button @click="selectExportColumns('all')" class="text-xs px-3 py-2 border rounded hover:bg-white">
-                    Select all
-                  </button>
-                  <button @click="selectExportColumns('none')" class="text-xs px-3 py-2 border rounded hover:bg-white">
-                    Clear
-                  </button>
+                  <div class="form-col-2">
+                    <label class="form-label">File name</label>
+                    <input v-model="exportFileName" class="form-input" />
+                  </div>
                 </div>
-              </div>
 
-              <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-                <label
-                  v-for="col in exportColumnOptions"
-                  :key="col.key"
-                  class="inline-flex items-center gap-2 text-sm"
+                <div
+                  v-if="(exportTarget === 'detailed' && !(reportMode === 'driving' && exportFormat === 'pdf')) || exportTarget === 'revenue'"
+                  class="info-box mt-4"
                 >
-                  <input type="checkbox" v-model="exportColumns[col.key]" />
-                  <span>{{ col.label }}</span>
-                </label>
+                  <div class="flex items-center justify-between">
+                    <p class="filter-label" style="margin:0;">Columns</p>
+                    <div class="flex gap-2">
+                      <button @click="selectExportColumns('fromVisible')" class="pg-btn" style="padding:6px 12px; font-size:0.72rem;">Use table columns</button>
+                      <button @click="selectExportColumns('all')" class="pg-btn" style="padding:6px 12px; font-size:0.72rem;">Select all</button>
+                      <button @click="selectExportColumns('none')" class="pg-btn" style="padding:6px 12px; font-size:0.72rem;">Clear</button>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <label v-for="col in exportColumnOptions" :key="col.key" class="inline-flex items-center gap-2 text-sm">
+                      <input type="checkbox" v-model="exportColumns[col.key]" />
+                      <span>{{ col.label }}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div v-if="exportError" class="alert-error mt-4">{{ exportError }}</div>
+              </div>
+
+              <div class="modal-foot">
+                <button @click="exportOpen=false" class="btn-cancel">Cancel</button>
+                <button @click="runExport()" class="btn-save btn-green">Export Now</button>
               </div>
             </div>
-
-            <div class="flex flex-wrap gap-2 justify-end">
-              <button @click="exportOpen=false" class="px-4 py-2 border rounded hover:bg-gray-50">
-                Cancel
-              </button>
-              <button @click="runExport()" class="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800">
-                Export Now
-              </button>
-            </div>
-
-            <div v-if="exportError" class="p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
-              {{ exportError }}
-            </div>
-          </div>
+          </transition>
         </div>
-      </div>
+      </transition>
 
       <!-- hidden canvases -->
       <div class="hidden">
@@ -1734,6 +1500,7 @@ export default {
       if (mode === "driving") await loadRevenue();
       if (mode === "tesda") {
         await loadAttendanceTrainers();
+        await loadAttendanceCourseTrainers();
         await loadAttendance();
       }
 
@@ -2471,6 +2238,7 @@ export default {
 
     watch(activeTab, async (tab) => {
       if (tab === "attendance" && reportMode.value === "tesda") {
+        await loadAttendanceCourseTrainers();
         await loadAttendance();
       }
     });
@@ -4580,3 +4348,195 @@ async function reloadCertificateReport() {
   },
 };
 </script>
+
+<style scoped>
+/* ========== SHARED LAYOUT / TOKENS (from AdminSchedule.vue design system) ========== */
+.stack-5 > * + * { margin-top: 20px; }
+.stack-6 > * + * { margin-top: 24px; }
+
+/* ========== PAGE HEADER ========== */
+.page-header-row { margin-bottom: 4px; }
+.page-title { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.page-title-accent { font-weight: 800; }
+.accent-green { color: #059669; }
+.accent-blue { color: #1d4ed8; }
+.page-subtitle { font-size: 0.85rem; color: #6b7280; margin: 4px 0 0; }
+.info-note { font-size: 0.75rem; color: #6b7280; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; }
+.filter-note { font-size: 0.75rem; color: #9ca3af; }
+
+/* ========== SEARCH ========== */
+.search-box { position: relative; flex: 1; }
+.search-icon-svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #9ca3af; }
+.search-input-modern { width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; color: #111827 !important; background: #fff !important; }
+.search-input-modern:focus { border-color: #10b981; }
+
+/* ========== TABS ========== */
+.tab-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.tab-btn { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; border: 2px solid #e5e7eb; cursor: pointer; transition: all 0.2s; background: #fff; color: #6b7280; }
+.tab-inactive:hover { border-color: #d1d5db; color: #374151; }
+.tab-active-green { background: #10b981; color: #fff; border-color: #10b981; }
+.tab-active-blue { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+/* ========== PANEL ========== */
+.panel-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; }
+.panel-header-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; flex-wrap: wrap; gap: 10px; }
+.panel-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+
+/* ========== FILTERS ========== */
+.filters-panel { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; }
+.filter-field { display: flex; flex-direction: column; gap: 4px; }
+.filter-label { font-size: 0.7rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; }
+.toggle-row { display: flex; gap: 4px; }
+
+/* ========== MODERN SELECT / INPUT ========== */
+.select-modern-sm {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  padding: 9px 36px 9px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
+  font-size: 0.82rem; font-weight: 600; color: #374151; cursor: pointer; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+.select-modern-sm:hover { border-color: #a7f3d0; }
+.select-modern-sm:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); background-color: #f0fdf4; }
+
+.date-input-modern { padding: 9px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.82rem; font-weight: 600; color: #374151; outline: none; transition: border-color 0.2s; background: #fff; }
+.date-input-modern:focus { border-color: #10b981; }
+
+.pg-btn { padding: 9px 16px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
+.pg-btn:hover:not(.pg-disabled) { border-color: #10b981; color: #059669; }
+.pg-btn-accent { background: #10b981; color: #fff; border-color: #10b981; }
+.pg-btn-accent:hover { background: #059669; color: #fff; }
+.pg-btn-emerald { background: #059669; color: #fff; border-color: #059669; }
+.pg-btn-emerald:hover { background: #047857; color: #fff; }
+.pg-btn-red { background: #ef4444; color: #fff; border-color: #ef4444; }
+.pg-btn-red:hover { background: #dc2626; color: #fff; }
+.pg-disabled { opacity: 0.4; cursor: not-allowed; }
+
+.toolbar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+
+/* ========== KPI CARDS ========== */
+.kpi-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 640px) { .kpi-grid-3 { grid-template-columns: repeat(3, 1fr); } .kpi-grid-4 { grid-template-columns: repeat(2, 1fr); } .kpi-grid-5 { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .kpi-grid-4 { grid-template-columns: repeat(4, 1fr); } .kpi-grid-5 { grid-template-columns: repeat(5, 1fr); } }
+
+.kpi-card { border-radius: 16px; border: 1px solid #e5e7eb; padding: 16px; min-height: 112px; display: flex; flex-direction: column; justify-content: center; text-align: left; background: #fff; }
+.kpi-card-sm { min-height: auto; padding: 12px; }
+.kpi-card-clickable { cursor: pointer; transition: all 0.2s; }
+.kpi-card-clickable:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+.kpi-label { font-size: 0.75rem; font-weight: 700; margin: 0; opacity: 0.85; }
+.kpi-value { font-size: 1.9rem; font-weight: 800; line-height: 1; margin: 8px 0 0; }
+.kpi-value-text { font-size: 1.15rem; line-height: 1.3; }
+.kpi-unit { font-size: 0.7rem; font-weight: 600; color: #6b7280; padding-bottom: 3px; }
+.kpi-subtext { font-size: 0.72rem; color: #6b7280; margin: 6px 0 0; }
+
+.kpi-green { background: #ecfdf5; border-color: #a7f3d0; } .kpi-green .kpi-label { color: #047857; } .kpi-green .kpi-value { color: #065f46; }
+.kpi-blue { background: #eff6ff; border-color: #bfdbfe; } .kpi-blue .kpi-label { color: #1d4ed8; } .kpi-blue .kpi-value { color: #1e3a8a; }
+.kpi-emerald { background: #ecfdf5; border-color: #a7f3d0; } .kpi-emerald .kpi-label { color: #059669; } .kpi-emerald .kpi-value { color: #065f46; }
+.kpi-violet { background: #f5f3ff; border-color: #ddd6fe; } .kpi-violet .kpi-label { color: #6d28d9; } .kpi-violet .kpi-value { color: #4c1d95; }
+.kpi-amber { background: #fffbeb; border-color: #fde68a; } .kpi-amber .kpi-label { color: #b45309; } .kpi-amber .kpi-value { color: #92400e; }
+.kpi-red { background: #fef2f2; border-color: #fecaca; } .kpi-red .kpi-label { color: #b91c1c; } .kpi-red .kpi-value { color: #991b1b; }
+.kpi-slate { background: #f8fafc; border-color: #e2e8f0; } .kpi-slate .kpi-label { color: #475569; } .kpi-slate .kpi-value { color: #1e293b; }
+
+/* ========== TABLE ========== */
+.table-wrap { overflow-x: auto; }
+.modern-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.modern-table th { text-align: left; padding: 11px 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.modern-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+.modern-table tbody tr:hover { background: #f9fafb; }
+.thead-green th { background: #10b981; color: #fff; border-bottom: none; }
+.empty-cell { text-align: center; color: #9ca3af; padding: 30px !important; }
+
+/* ========== PILLS / BADGES ========== */
+.pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.pill-green { color: #059669; background: #d1fae5; }
+.pill-green-outline { color: #047857; background: #fff; border: 1px solid #a7f3d0; }
+.pill-red { color: #dc2626; background: #fee2e2; }
+.pill-blue { color: #1d4ed8; background: #dbeafe; }
+.pill-amber { color: #b45309; background: #fef3c7; }
+.pill-violet-outline { color: #6d28d9; background: #fff; border: 1px solid #ddd6fe; padding: 6px 12px; font-weight: 700; }
+.pill-gray { color: #4b5563; background: #f3f4f6; }
+
+/* ========== ALERTS / INFO BOXES ========== */
+.alert-error { font-size: 0.8rem; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; }
+.info-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; font-size: 0.85rem; color: #374151; }
+.alert-card { padding: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; }
+
+/* ========== PAGINATION ========== */
+.pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb; flex-wrap: wrap; gap: 10px; }
+.page-info { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
+.page-btns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ========== MODAL ========== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+.modal-card-sm { max-width: 420px; }
+.modal-card-lg { max-width: 720px; }
+.modal-card-xl { max-width: 1000px; }
+.modal-head { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; flex-shrink: 0; }
+.modal-head-green { background: #f0fdf4; }
+.modal-head-blue { background: #eff6ff; }
+.modal-title { font-size: 1.1rem; font-weight: 700; color: #111827; margin: 0; }
+.modal-close-btn { padding: 6px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; transition: all 0.2s; }
+.modal-close-btn:hover { background: #f3f4f6; color: #111827; }
+.modal-body { padding: 20px; }
+.modal-body-scroll { overflow-y: auto; flex: 1; padding: 20px; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; flex-shrink: 0; }
+
+/* ========== FORM ========== */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.form-col-2 { grid-column: span 2; }
+@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } .form-col-2 { grid-column: span 1; } }
+.form-label { display: block; font-size: 0.75rem; font-weight: 700; color: #374151; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+.form-input { width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; background: #fff; }
+.form-input:focus { border-color: #10b981; }
+
+.toggle-btn { padding: 8px 14px; border-radius: 10px; border: 2px solid #e5e7eb; font-size: 0.8rem; font-weight: 600; background: #fff; color: #6b7280; cursor: pointer; transition: all 0.2s; }
+.toggle-btn:hover { border-color: #10b981; }
+.toggle-btn-active-green { background: #10b981; border-color: #10b981; color: #fff; }
+
+/* ========== BUTTONS (footer) ========== */
+.btn-cancel { padding: 9px 18px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #374151; cursor: pointer; transition: all 0.2s; }
+.btn-cancel:hover { background: #f3f4f6; }
+.btn-save { padding: 9px 18px; border: none; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #fff; cursor: pointer; transition: all 0.2s; }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-green { background: #10b981; }
+.btn-green:hover:not(:disabled) { background: #059669; }
+.btn-red { background: #ef4444; }
+.btn-red:hover:not(:disabled) { background: #dc2626; }
+
+/* ========== COURSE PICK CARD (attendance modal) ========== */
+.course-pick-card { text-align: left; border-radius: 14px; border: 1px solid #e5e7eb; padding: 16px; background: #fff; transition: all 0.2s; cursor: pointer; }
+.course-pick-card:hover { border-color: #a7f3d0; background: #f0fdf4; }
+.course-pick-active { border-color: #10b981; background: #f0fdf4; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+
+/* ========== ATTENDANCE CALENDAR / HISTORY ========== */
+.cal-day-card { text-align: left; border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px; background: #fff; transition: all 0.15s; cursor: pointer; }
+.cal-day-card:hover { background: #f9fafb; }
+.cal-day-active { box-shadow: 0 0 0 2px #10b981; border-color: #a7f3d0; }
+
+.history-card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; background: #fff; }
+.history-bar-track { height: 8px; width: 100%; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.history-bar-fill { height: 8px; border-radius: 999px; }
+.bar-green { background: #10b981; }
+.bar-amber { background: #f59e0b; }
+.bar-red { background: #ef4444; }
+
+/* ========== DOCUMENT-STYLE PREVIEW TABLES (government form look, kept close to original) ========== */
+.doc-preview { margin: 0 auto; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; padding: 16px; overflow-x: auto; }
+.doc-table { width: 100%; border: 1px solid #000; border-collapse: collapse; font-size: 10px; }
+.doc-table th, .doc-table td { border: 1px solid #000; padding: 4px 6px; }
+.doc-thead-blue { background: #dbeafe; }
+.doc-thead-olive { background: #c9c19a; }
+.doc-subrow { background: #dbeafe; }
+
+/* ========== ANIMATIONS ========== */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-scale-enter-active { transition: all 0.25s ease; }
+.modal-scale-leave-active { transition: all 0.15s ease; }
+.modal-scale-enter-from { opacity: 0; transform: scale(0.95) translateY(10px); }
+.modal-scale-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
+</style>

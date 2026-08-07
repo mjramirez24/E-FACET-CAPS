@@ -1101,9 +1101,41 @@ COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
           ? Math.round(((present + late) / totalRows) * 100)
           : 0;
 
+        // ✅ Fetch the REAL, live trainer assignment(s) for this course
+                // from tesda_course_trainers — independent of attendance history.
+                let assignedTrainers = [];
+                if (courseId) {
+                  const [trainerRows] = await pool.execute(
+                    `
+                    SELECT
+                      tr.trainer_id AS id,
+                      CONCAT_WS(' ', tr.firstname, tr.lastname) AS name,
+                      tr.status
+                    FROM tesda_course_trainers tct
+                    JOIN trainers tr ON tr.trainer_id = tct.trainer_id
+                    WHERE tct.course_id = ?
+                    `,
+                    [courseId],
+                  );
+                  assignedTrainers = trainerRows;
+                } else {
+                  const [trainerRows] = await pool.execute(
+                    `
+                    SELECT
+                      tr.trainer_id AS id,
+                      CONCAT_WS(' ', tr.firstname, tr.lastname) AS name,
+                      tct.course_id,
+                      tr.status
+                    FROM tesda_course_trainers tct
+                    JOIN trainers tr ON tr.trainer_id = tct.trainer_id
+                    `,
+                  );
+                  assignedTrainers = trainerRows;
+                }
         return res.json({
           status: "success",
           data: rows,
+          trainers: assignedTrainers,
           summary: {
             totalStudents,
             present,
