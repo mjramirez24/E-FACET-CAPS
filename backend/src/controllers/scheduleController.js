@@ -82,7 +82,24 @@ function parseId(param) {
 // - PDC AB: 2 days, 4 hours/day (auto end = start+4h)
 // - PDC A/B: 1 day, 8 hours (auto end = start+8h)
 // ================================
-function getDrivingRule(courseName) {
+function getDrivingRule(courseName, courseCode) {
+  // ✅ Primary: exact match sa course_code — ito yung dapat pinagbabasehan
+  // dahil consistent siya (PDC-A, PDC-B, PDC-AB, TDC), hindi tulad ng
+  // course_name na pwedeng iba-iba ang pagkakasulat. Dati, "PRACTICAL
+  // DRIVING COURSE (AB)" ay hindi natu-tugma ng regex sa baba kaya hindi
+  // na-detect bilang 2-day package ang PDC-AB.
+  const code = String(courseCode || "")
+    .trim()
+    .toUpperCase();
+
+  if (code === "PDC-AB")
+    return { kind: "PDC_AB", days: 2, perDayHours: [4, 4] };
+  if (code === "PDC-A") return { kind: "PDC_A", days: 1, perDayHours: [8] };
+  if (code === "PDC-B") return { kind: "PDC_B", days: 1, perDayHours: [8] };
+  if (code === "TDC") return { kind: "TDC", days: 2, forceFullDay: true };
+
+  // ✅ Fallback: yung lumang name-based detection, sakaling wala o iba
+  // ang course_code sa hinaharap.
   const name = String(courseName || "").trim();
 
   if (
@@ -399,17 +416,16 @@ exports.createSchedule = async (req, res) => {
 
     await conn.beginTransaction();
 
-    const [courseRows] = await conn.execute(
-      `SELECT id, course_name FROM courses WHERE id = ? LIMIT 1`,
-      [Number(course_id)],
-    );
-    if (!courseRows.length) {
-      await conn.rollback();
-      return res
-        .status(404)
-        .json({ status: "error", message: "Course not found" });
-    }
-    const courseName = courseRows[0].course_name;
+const [courseRows] = await conn.execute(
+  `SELECT id, course_name, course_code FROM courses WHERE id = ? LIMIT 1`,
+  [Number(course_id)],
+);
+if (!courseRows.length) {
+  await conn.rollback();
+  return res.status(404).json({ status: "error", message: "Course not found" });
+}
+const courseName = courseRows[0].course_name;
+const courseCode = courseRows[0].course_code;
 
     const [instRows] = await conn.execute(
       `SELECT instructor_id FROM instructors WHERE instructor_id = ? LIMIT 1`,
@@ -424,7 +440,7 @@ exports.createSchedule = async (req, res) => {
 
     const normalizedStatus =
       String(status).toLowerCase() === "closed" ? "closed" : "open";
-    const rule = getDrivingRule(courseName);
+const rule = getDrivingRule(courseName, courseCode);
 
     let sessions = null;
 
