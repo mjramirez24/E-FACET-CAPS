@@ -2351,22 +2351,23 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
 };
 
 // ========================================
-// FORECAST (DRIVING ONLY)
+// FORECAST (DRIVING ONLY) — ML-powered
 // GET /api/admin/reports/forecast
 // ========================================
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
+
 exports.getForecast = async (req, res) => {
   try {
     const mode = String(req.query.report_mode || "driving").toLowerCase();
 
-    // ❌ TESDA walang forecast
     if (mode === "tesda") {
       return res.json({
         status: "success",
-        data: { message: "Forecast not available for TESDA" }
+        data: { message: "Forecast not available for TESDA" },
       });
     }
 
-    // Kunin last 3 months data
+    // ✅ 24 months instead of 3 — kailangan ng ML ng mas maraming history
     const [rows] = await pool.execute(`
       SELECT 
         DATE_FORMAT(sr.created_at, '%Y-%m') AS month,
@@ -2374,75 +2375,81 @@ exports.getForecast = async (req, res) => {
         COUNT(*) AS total
       FROM schedule_reservations sr
       LEFT JOIN courses c ON c.id = sr.course_id
-      WHERE sr.created_at >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+      WHERE sr.created_at >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
       GROUP BY month, sr.course_id
       ORDER BY month ASC
     `);
 
-    // Group by course
     const courseMap = {};
-
-    rows.forEach(r => {
-      if (!courseMap[r.course_name]) {
-        courseMap[r.course_name] = [];
-      }
+    rows.forEach((r) => {
+      if (!courseMap[r.course_name]) courseMap[r.course_name] = [];
       courseMap[r.course_name].push(Number(r.total));
     });
 
-    const result = [];
+// ✅ Parallel processing gamit ang Promise.all — sabay-sabay tatakbo
+    // ang mga courses sa halip na isa-isa (mas mabilis dahil concurrent).
+    const courseNames = Object.keys(courseMap);
 
-    Object.keys(courseMap).forEach(course => {
-      const data = courseMap[course];
+    const result = await Promise.all(
+      courseNames.map(async (course) => {
+        const values = courseMap[course];
+        let mlResult;
 
-      const m1 = data[data.length - 1] || 0;
-      const m2 = data[data.length - 2] || 0;
-      const m3 = data[data.length - 3] || 0;
+        try {
+          const resp = await fetch(`${ML_SERVICE_URL}/forecast`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ course, values, periods_ahead: 1 }),
+          });
+          mlResult = await resp.json();
+        } catch (mlErr) {
+          console.error("ML service unreachable:", mlErr.message);
+          const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+          mlResult = {
+            point: Math.round(avg),
+            low: Math.round(avg * 0.7),
+            high: Math.round(avg * 1.3),
+            model_used: "Fallback Average",
+          };
+        }
 
-      // Weighted Moving Average
-      let forecast = (m1 * 0.5) + (m2 * 0.3) + (m3 * 0.2);
+        const last3 = values.slice(-3);
+        const m1 = last3[last3.length - 1] || 0;
+        const m2 = last3[last3.length - 2] || 0;
+        const m3 = last3[last3.length - 3] || 0;
 
-      // Trend Adjustment
-      let trend = "Stable";
-      let adjustment = 0;
+        let trend = "Stable";
+        if (m1 > m2) trend = "Increasing";
+        else if (m1 < m2) trend = "Decreasing";
 
-      if (m1 > m2) {
-        trend = "Increasing";
-        adjustment = 0.1 * forecast;
-      } else if (m1 < m2) {
-        trend = "Decreasing";
-        adjustment = -0.1 * forecast;
-      }
+        return {
+          course,
+          m1,
+          m2,
+          m3,
+          forecast: mlResult.point,
+          low: mlResult.low,
+          high: mlResult.high,
+          trend,
+          model_used: mlResult.model_used,
+          dataPoints: values.length,
+          explanation:
+            trend === "Increasing"
+              ? "Enrollment trend is increasing based on recent months."
+              : trend === "Decreasing"
+              ? "Enrollment trend is decreasing based on recent months."
+              : "Enrollment is stable.",
+        };
+      })
+    );
 
-      const finalForecast = Math.round(forecast + adjustment);
-
-      result.push({
-        course,
-        m1,
-        m2,
-        m3,
-        forecast: finalForecast,
-        trend,
-        explanation:
-          trend === "Increasing"
-            ? "Enrollment trend is increasing based on recent months."
-            : trend === "Decreasing"
-            ? "Enrollment trend is decreasing based on recent months."
-            : "Enrollment is stable."
-      });
-    });
-
-    return res.json({
-      status: "success",
-      data: result
-    });
-
+    return res.json({ status: "success", data: result });
   } catch (err) {
     console.error("getForecast error:", err);
     return res.status(500).json({
       status: "error",
       message: "Failed to load forecast",
-      debug: err.message
+      debug: err.message,
     });
   }
 };
-

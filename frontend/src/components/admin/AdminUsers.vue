@@ -24,10 +24,10 @@
       <div class="page-top">
         <div>
           <h2 class="page-title">User Management</h2>
-          <p class="page-subtitle">Admins, Instructors, Trainers &amp; Students</p>
+          <p class="page-subtitle">Manage Admins &amp; Students</p>
         </div>
 
-        <div class="header-btn-group">
+                <div class="header-btn-group">
           <select
             v-model="roleFilter"
             class="select-modern"
@@ -65,6 +65,53 @@
           </button>
         </div>
       </div>
+      <!-- 👆 this closes page-top -->
+
+      <!-- Stat Cards -->
+      <div v-if="!statsLoading" class="stats-row">
+        <div class="stat-card stat-card-purple">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <span class="stat-value">{{ userStats.admin }}</span>
+              <span class="stat-label">Admin</span>
+            </div>
+            <div class="stat-icon stat-icon-purple">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card stat-card-green">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <span class="stat-value">{{ userStats.driving_students }}</span>
+              <span class="stat-label">Driving Students</span>
+            </div>
+            <div class="stat-icon stat-icon-green">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card stat-card-blue">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <span class="stat-value">{{ userStats.tesda_students }}</span>
+              <span class="stat-label">TESDA Students</span>
+            </div>
+            <div class="stat-icon stat-icon-blue">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      
 
       <!-- Loading -->
       <div v-if="loading" class="loading-box">
@@ -452,6 +499,14 @@ export default {
     const trackFilter = ref("");
 
     const meta = ref({ total: 0, page: 1, limit: 20, totalPages: 1 });
+    const userStats = ref({
+  admin: 0,
+  driving_instructors: 0,
+  tesda_trainers: 0,
+  driving_students: 0,
+  tesda_students: 0,
+  });
+  const statsLoading = ref(false);
 
     // ✅ default: columns panel hidden
     const showColumnsPanel = ref(false);
@@ -697,6 +752,18 @@ export default {
         }
     };
 
+            const fetchUserStats = async () => {
+        try {
+          statsLoading.value = true;
+          const { data } = await api.get("/admin/users/stats");
+          userStats.value = data?.data || userStats.value;
+        } catch (err) {
+          console.error("fetchUserStats error:", err);
+        } finally {
+          statsLoading.value = false;
+        }
+      };
+
     let searchTimer = null;
     const handleSearch = () => {
       clearTimeout(searchTimer);
@@ -896,6 +963,7 @@ export default {
 
     onMounted(() => {
       fetchUsers();
+      fetchUserStats(); 
       document.addEventListener("mousedown", onDocMouseDown, true);
     });
 
@@ -913,6 +981,9 @@ export default {
       goPage,
       handleSearch,
       onFilterChange,
+      userStats,
+      statsLoading,
+      fetchUserStats,
 
       // columns
       showColumnsPanel,
@@ -1011,6 +1082,21 @@ export default {
 .preset-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .columns-grid { display: flex; flex-wrap: wrap; gap: 16px; }
 .column-check { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #374151; }
+
+/* ========== STAT CARDS ========== */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; }
+.stat-card-inner { display: flex; justify-content: space-between; align-items: flex-start; }
+.stat-info { display: flex; flex-direction: column; }
+.stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+.stat-card-green .stat-value { color: #059669; }
+.stat-card-blue .stat-value { color: #2563eb; }
+.stat-card-purple .stat-value { color: #7c3aed; }
+.stat-label { font-size: 0.8rem; font-weight: 600; color: #374151; margin-top: 6px; }
+.stat-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon-green { background: #d1fae5; color: #059669; }
+.stat-icon-blue { background: #dbeafe; color: #2563eb; }
+.stat-icon-purple { background: #ede9fe; color: #7c3aed; }
 
 /* ========== TABLE ========== */
 .table-wrap { overflow-x: auto; }

@@ -997,16 +997,42 @@ exports.listCompletions = async (req, res) => {
         .toUpperCase();
       const track = rt === "TESDA" ? "tesda" : "driving";
 
+      const isMock = String(r.student_email || "").endsWith("@seedtest.local");
+
       return {
         ...r,
         track,
         age: computeAge(r.birthday),
         sex: normalizeSex(r.gender),
         ui_status,
+        is_mock: isMock,
       };
     });
 
-    return res.json({ status: "success", data: mapped });
+      // ✅ Stats computed from the FULL dataset (kasama ang mock data), split by track
+      const stats = {
+        driving: {
+          issued: mapped.filter((r) => r.track === "driving" && r.ui_status === "issued").length,
+          ready: mapped.filter((r) => r.track === "driving" && r.ui_status === "ready").length,
+          revoked: mapped.filter((r) => r.track === "driving" && r.ui_status === "revoked").length,
+          total: mapped.filter((r) => r.track === "driving").length,
+        },
+        tesda: {
+          issued: mapped.filter((r) => r.track === "tesda" && r.ui_status === "issued").length,
+          ready: mapped.filter((r) => r.track === "tesda" && r.ui_status === "ready").length,
+          revoked: mapped.filter((r) => r.track === "tesda" && r.ui_status === "revoked").length,
+          total: mapped.filter((r) => r.track === "tesda").length,
+        },
+      };
+
+      // ✅ Yung actual listahan lang ang naka-filter (walang mock names)
+      const visibleRows = mapped.filter((r) => !r.is_mock);
+
+      return res.json({
+        status: "success",
+        data: visibleRows,
+        stats,
+      });
   } catch (err) {
     console.error("listCompletions error:", err);
     return res.status(500).json({
@@ -1418,3 +1444,5 @@ exports.revokeTesda = async (req, res) => {
       .json({ status: "error", message: "Failed to revoke certificate" });
   }
 };
+
+exports.generateDrivingPdf = generateDrivingPdf;

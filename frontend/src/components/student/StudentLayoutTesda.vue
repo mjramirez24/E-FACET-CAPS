@@ -55,7 +55,7 @@
 
               <!-- Red dot indicator -->
               <span
-                v-if="hasUnreadMessages"
+                v-if="hasUnseenNotifs"
                 class="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-blue-800 animate-pulse"
               ></span>
             </button>
@@ -91,15 +91,60 @@
                 </div>
 
                 <template v-else>
+                 <!-- New Courses Section -->
+                <div class="border-b border-gray-100">
+                  <div class="px-5 pt-4 pb-1 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">New Courses</span>
+                  </div>
+
+                  <template v-if="hasNewCourses">
+                    <button
+                      v-for="course in visibleNewCourses"
+                      :key="course.id"
+                      @click="goCourses(course)"
+                      class="w-full text-left px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 border-t border-gray-50"
+                    >
+                      <div class="mt-0.5 flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 shadow-inner">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-800 truncate">{{ course.name }}</p>
+                        <p class="text-xs text-gray-500 truncate mt-0.5">{{ course.lastMessage || 'New course added' }}</p>
+                      </div>
+                    </button>
+                  </template>
+
+                  <div v-else class="px-5 py-3.5 flex items-center gap-3 text-gray-400 border-t border-gray-50">
+                    <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span class="text-sm">No new courses</span>
+                  </div>
+                </div>
+
                   <!-- Unread Messages Section -->
                   <div>
+                    <div class="px-5 pt-4 pb-1 flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Unread Messages</span>
+                    </div>
+
                     <!-- Has unread -->
                     <template v-if="hasUnreadMessages">
                       <button
                         v-for="msg in unreadMessages"
                         :key="msg.id"
                         @click="goMessages(msg.id)"
-                        class="w-full text-left px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 border-b border-gray-50 last:border-b-0"
+                        class="w-full text-left px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 border-t border-gray-50"
                       >
                         <div class="mt-0.5 flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-sm font-bold text-blue-700 shadow-inner">
                           {{ getInitials(msg.name) }}
@@ -117,9 +162,9 @@
                     </template>
 
                     <!-- None unread -->
-                    <div v-else class="px-5 py-4 flex flex-col items-center gap-3 text-gray-400">
-                      <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div v-else class="px-5 py-3.5 flex items-center gap-3 text-gray-400 border-t border-gray-50">
+                      <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                         </svg>
                       </div>
@@ -175,6 +220,8 @@ export default {
       dropdownOpen: false,
       notifLoading: false,
       unreadMessages: [],
+      newCourses: [],
+      seenNotifIds: [],
       userData: {
         fullname: '',
         email: ''
@@ -183,9 +230,19 @@ export default {
     };
   },
   computed: {
+      visibleNewCourses() {                         
+    return this.newCourses.filter(c => !this.seenNotifIds.includes(c.id));
+  },
+  hasNewCourses() {                                   
+    return this.visibleNewCourses.length > 0;
+  },
     hasUnreadMessages() {
       return this.unreadMessages.length > 0;
     },
+  hasUnseenNotifs() {                                        // ADD THIS
+    const allIds = [...this.newCourses, ...this.unreadMessages].map(n => n.id);
+    return allIds.some(id => !this.seenNotifIds.includes(id));
+  },
     userInitial() {
       if (this.userData.fullname && this.userData.fullname.trim()) {
         return this.userData.fullname.trim().charAt(0).toUpperCase();
@@ -194,6 +251,7 @@ export default {
     }
   },
   mounted() {
+    this.seenNotifIds = this.loadSeenIds(); 
     this.fetchUserData();
     this.fetchUnreadMessages();
     this._pollTimer = setInterval(this.fetchUnreadMessages, 30000);
@@ -210,6 +268,26 @@ export default {
     window.removeEventListener('resize', this.handleResize);
   },
   methods: {
+    loadSeenIds() {                             // ADD THIS
+    try {
+      const raw = localStorage.getItem('tesda_seen_notif_ids');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+  saveSeenIds() {                             // ADD THIS
+    try {
+      localStorage.setItem('tesda_seen_notif_ids', JSON.stringify(this.seenNotifIds));
+    } catch {
+      // Silent fail
+    }
+  },
+  markAllAsSeen() {                           // ADD THIS
+    const allIds = [...this.newCourses, ...this.unreadMessages].map(n => n.id);
+    this.seenNotifIds = [...new Set([...this.seenNotifIds, ...allIds])];
+    this.saveSeenIds();
+  },
     async fetchUserData() {
       try {
         const profileRes = await fetch('/api/settings/profile', { credentials: 'include' });
@@ -231,14 +309,21 @@ export default {
     },
 
     toggleDropdown() {
-      this.dropdownOpen = !this.dropdownOpen;
-      if (this.dropdownOpen) {
-        this.fetchUnreadMessages();
+      const willOpen = !this.dropdownOpen;
+      this.dropdownOpen = willOpen;
+
+      if (willOpen) {
+        this.fetchUnreadMessages();       // ipapakita muna nang buo habang bukas
+      } else {
+        this.markAllAsSeen();             // pag isinara, saka lang mama-mark as seen
       }
     },
 
     onOutsideClick(e) {
       if (this.$refs.bellWrapper && !this.$refs.bellWrapper.contains(e.target)) {
+        if (this.dropdownOpen) {
+          this.markAllAsSeen();
+        }
         this.dropdownOpen = false;
       }
     },
@@ -249,33 +334,44 @@ export default {
       }
     },
 
-    async fetchUnreadMessages() {
-      this.notifLoading = true;
-      try {
-        const response = await fetch('/api/messages/inbox', { 
-          credentials: 'include' 
-        });
+      async fetchUnreadMessages() {
+        this.notifLoading = true;
+        try {
+          const response = await fetch('/api/messages/inbox', { 
+            credentials: 'include' 
+          });
 
-        if (response.ok) {
-          const inbox = await response.json();
-          if (Array.isArray(inbox)) {
-            this.unreadMessages = inbox
-              .filter(m => m.unreadCount > 0)
-              .slice(0, 5)
-              .map(m => ({
-                id: m.id,
-                name: m.name,
-                unreadCount: m.unreadCount,
-                lastMessage: m.lastMessage || '',
-              }));
+          if (response.ok) {
+            const inbox = await response.json();
+            if (Array.isArray(inbox)) {
+              const isCourseNotif = (m) => typeof m.id === 'string' && m.id.startsWith('notif-');
+
+              this.newCourses = inbox
+                .filter(isCourseNotif)
+                .slice(0, 5)
+                .map(m => ({
+                  id: m.id,
+                  name: m.name,
+                  lastMessage: m.lastMessage || '',
+                }));
+
+              this.unreadMessages = inbox
+                .filter(m => !isCourseNotif(m) && m.unreadCount > 0)
+                .slice(0, 5)
+                .map(m => ({
+                  id: m.id,
+                  name: m.name,
+                  unreadCount: m.unreadCount,
+                  lastMessage: m.lastMessage || '',
+                }));
+            }
           }
+        } catch (err) {
+          // Silent fail
+        } finally {
+          this.notifLoading = false;
         }
-      } catch (err) {
-        // Silent fail
-      } finally {
-        this.notifLoading = false;
-      }
-    },
+      },
 
     goMessages(userId) {
       this.dropdownOpen = false;
@@ -283,6 +379,13 @@ export default {
       if (this.$router) this.$router.push(path);
       else window.location.href = path;
     },
+
+    goCourses(course) {     
+    this.dropdownOpen = false;
+    const path = '/tesda-enrollment';
+    if (this.$router) this.$router.push(path);
+    else window.location.href = path;
+  },
 
     getInitials(name) {
       return String(name || '')

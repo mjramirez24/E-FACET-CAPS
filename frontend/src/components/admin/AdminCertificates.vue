@@ -684,6 +684,10 @@ export default {
     };
 
     const rows = ref([]);
+    const certStats = ref({
+      driving: { issued: 0, ready: 0, revoked: 0, total: 0 },
+      tesda: { issued: 0, ready: 0, revoked: 0, total: 0 },
+    });
     const loading = ref(true);
     const error = ref("");
 
@@ -902,9 +906,9 @@ export default {
       return result;
     });
 
-    const activeIssuedCount = computed(() => activeRowsBase.value.filter((r) => getActiveStatus(r) === "issued").length);
-    const activeRevokedCount = computed(() => activeRowsBase.value.filter((r) => getActiveStatus(r) === "revoked").length);
-    const activeReadyCount = computed(() => activeRowsBase.value.filter((r) => getActiveStatus(r) === "ready").length);
+    const activeIssuedCount = computed(() => certStats.value[activeTab.value]?.issued || 0);
+    const activeRevokedCount = computed(() => certStats.value[activeTab.value]?.revoked || 0);
+    const activeReadyCount = computed(() => certStats.value[activeTab.value]?.ready || 0);
 
     const getInitials = (name) => {
       const safe = String(name || "").trim();
@@ -953,13 +957,16 @@ export default {
       try {
         const res = await api.get(`/admin/certificates/completions`);
         rows.value = res.data.data || [];
+        certStats.value = res.data.stats || {
+          driving: { issued: 0, ready: 0, revoked: 0, total: 0 },
+          tesda: { issued: 0, ready: 0, revoked: 0, total: 0 },
+        };
       } catch (e) {
         error.value = e?.response?.data?.message || e.message || "Failed to load.";
       } finally {
         loading.value = false;
       }
     };
-
 
     const viewActiveCertificate = (row) => {
       if (activeTab.value === "tesda") {
@@ -1233,6 +1240,7 @@ export default {
       onLogoError,
 
       rows,
+      certStats, 
       loading,
       error,
 

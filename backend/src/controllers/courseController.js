@@ -37,6 +37,33 @@ function normalizeRequirements(input) {
   return [];
 }
 
+async function notifyStudentsOfNewCourse(conn, courseId, courseData, track) {
+  const [students] = await conn.query(
+    `SELECT u.id
+     FROM users u
+     JOIN tracks t ON t.track_id = u.track_id
+     WHERE u.role = 'user' 
+       AND t.track_code = ?
+       AND u.email NOT LIKE '%@seedtest.local'`,
+    [track]
+  );
+
+  if (!students.length) return;
+
+  const values = students.map((s) => [
+    s.id,
+    "new_course",
+    "New Course Available",
+    courseData.course_name,
+    courseId,
+  ]);
+
+  await conn.query(
+    `INSERT INTO notifications (user_id, type, title, body, reference_id) VALUES ?`,
+    [values]
+  );
+}
+
 /**
  * ==========================
  * ADMIN ENDPOINTS
@@ -152,12 +179,14 @@ exports.createCourse = async (req, res) => {
       );
     }
 
-await conn.commit();
+    await notifyStudentsOfNewCourse(conn, newCourseId, req.body, 'driving');
 
-    console.log('🔥 About to send Driving announcement');
-    sendNewCourseAnnouncement(req.body, 'driving').catch(err =>
-      console.error('❌ Driving announcement error:', err)
-    );
+        await conn.commit();
+
+        console.log('🔥 About to send Driving announcement');
+        sendNewCourseAnnouncement(req.body, 'driving').catch(err =>
+          console.error('❌ Driving announcement error:', err)
+        );
 
     res.status(201).json({
       status: "success",

@@ -746,6 +746,7 @@ exports.listDrivingCompletions = async (req, res) => {
        AND cert.certificate_type = 'DRIVING'
       WHERE UPPER(TRIM(r.reservation_status)) = 'DONE'
         AND u.role = 'user'
+        AND u.email NOT LIKE '%@seedtest.local'   -- 👈 dagdag ito
         AND COALESCE(UPPER(TRIM(r.reservation_type)),'') <> 'TESDA'
         AND s.instructor_id = ?
       ORDER BY COALESCE(r.done_at, r.updated_at) DESC

@@ -75,6 +75,12 @@ safe(
 );
 safe(
   "get",
+  "/users/stats",
+  adminUsersController.getUserStats,
+  "adminUsersController.getUserStats",
+);
+safe(
+  "get",
   "/users/:id",
   adminUsersController.getUserById,
   "adminUsersController.getUserById",

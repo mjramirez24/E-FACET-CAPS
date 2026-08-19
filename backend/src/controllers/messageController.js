@@ -124,18 +124,42 @@ exports.getInbox = async (req, res) => {
       [userId, userId, userId],
     );
 
-    const formattedRows = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      role: row.role,
-      type: row.role,
-      lastMessage: row.last_message || "",
-      lastMessageTime: row.last_message_time,
-      unreadCount: Number(row.unread_count) || 0,
-      status: Number(row.unread_count) > 0 ? "unread" : "read",
-    }));
+      const formattedRows = rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        role: row.role,
+        type: row.role,
+        lastMessage: row.last_message || "",
+        lastMessageTime: row.last_message_time,
+        unreadCount: Number(row.unread_count) || 0,
+        status: Number(row.unread_count) > 0 ? "unread" : "read",
+      }));
 
-    res.json(formattedRows);
+      const [notifRows] = await pool.query(
+        `SELECT id, type, title, body, created_at
+        FROM notifications
+        WHERE user_id = ? AND is_read = 0
+        ORDER BY created_at DESC
+        LIMIT 10`,
+        [userId],
+      );
+
+      const formattedNotifs = notifRows.map((n) => ({
+        id: `notif-${n.id}`,
+        name: n.title,
+        role: null,
+        type: n.type,
+        lastMessage: n.body || "",
+        lastMessageTime: n.created_at,
+        unreadCount: 1,
+        status: "unread",
+      }));
+
+      const combined = [...formattedNotifs, ...formattedRows].sort(
+        (a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime),
+      );
+
+      res.json(combined);
   } catch (err) {
     console.error("getInbox error:", err);
     res.status(500).json({ status: "error", message: "Server error" });

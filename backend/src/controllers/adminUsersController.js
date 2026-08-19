@@ -444,6 +444,8 @@ async function listUsers(req, res) {
     const where = [];
     const params = [];
 
+    where.push("u.email NOT LIKE '%@seedtest.local'");
+    
     // ✅ SEARCH (matches any visible columns + track + status)
     if (search) {
       const s = `%${search}%`;
@@ -1114,6 +1116,54 @@ async function enableUser(req, res) {
   }
 }
 
+// GET /api/admin/users/stats
+async function getUserStats(req, res) {
+  try {
+    const hasTracksTbl = await hasTable("tracks");
+    const hasTrackCodeCol = hasTracksTbl
+      ? await hasColumn("tracks", "track_code")
+      : false;
+    const joinTracks = hasTracksTbl
+      ? "LEFT JOIN tracks t ON t.track_id = u.track_id"
+      : "";
+
+    const drivingCond =
+      hasTracksTbl && hasTrackCodeCol ? "t.track_code = 'driving'" : "0";
+    const tesdaCond =
+      hasTracksTbl && hasTrackCodeCol ? "t.track_code = 'tesda'" : "0";
+
+    const [rows] = await pool.query(`
+      SELECT
+        SUM(CASE WHEN u.role = 'admin' THEN 1 ELSE 0 END) AS admin_count,
+        SUM(CASE WHEN u.role = 'instructor' THEN 1 ELSE 0 END) AS driving_instructor_count,
+        SUM(CASE WHEN u.role = 'trainer' THEN 1 ELSE 0 END) AS tesda_trainer_count,
+        SUM(CASE WHEN (u.role = 'user' OR u.role = 'student') AND ${drivingCond} THEN 1 ELSE 0 END) AS driving_student_count,
+        SUM(CASE WHEN (u.role = 'user' OR u.role = 'student') AND ${tesdaCond} THEN 1 ELSE 0 END) AS tesda_student_count
+      FROM users u
+      ${joinTracks}
+      WHERE u.email NOT LIKE '%@seedtest.local'
+    `);
+
+    const r = rows[0] || {};
+
+    return res.json({
+      status: "success",
+      data: {
+        admin: Number(r.admin_count || 0),
+        driving_instructors: Number(r.driving_instructor_count || 0),
+        tesda_trainers: Number(r.tesda_trainer_count || 0),
+        driving_students: Number(r.driving_student_count || 0),
+        tesda_students: Number(r.tesda_student_count || 0),
+      },
+    });
+  } catch (err) {
+    console.error("getUserStats error:", err);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Failed to load user stats" });
+  }
+}
+
 module.exports = {
   listUsers,
   getUserById,
@@ -1122,4 +1172,5 @@ module.exports = {
   deleteUser,
   disableUser,
   enableUser,
+  getUserStats,
 };

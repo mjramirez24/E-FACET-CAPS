@@ -71,24 +71,37 @@
 
         <!-- ✅ DRIVING ONLY: compact clickable forecast card -->
         <button
-          v-if="reportMode === 'driving'"
-          type="button"
-          @click="openForecastModal"
-          class="kpi-card kpi-violet kpi-card-clickable"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="kpi-label">🔮 Enrollment Forecast</p>
-              <div class="mt-2 flex items-end gap-2">
-                <h3 class="kpi-value" style="margin:0;">{{ forecast.nextForecast }}</h3>
-                <span class="kpi-unit">students</span>
+            v-if="reportMode === 'driving'"
+            type="button"
+            @click="openForecastModal"
+            class="kpi-card kpi-violet kpi-card-clickable"
+          >
+            <!-- LOADING STATE -->
+            <div v-if="mlForecastLoading" class="flex items-center gap-3">
+              <svg class="animate-spin h-5 w-5 flex-shrink-0" style="color:#6d28d9;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <div class="min-w-0 text-left">
+                <p class="kpi-label" style="margin:0;">🔮 Enrollment Forecast</p>
+                <p class="kpi-subtext" style="margin-top:4px;">Computing forecast from past enrollments…</p>
               </div>
-              <p class="kpi-subtext">Prediction Range: <b>{{ forecast.low }}–{{ forecast.high }}</b></p>
-              <p class="kpi-subtext truncate">Highest Course: <b>{{ forecast.topCourse || '-' }}</b></p>
             </div>
-            <span class="pill pill-violet-outline">View</span>
-          </div>
-        </button>
+
+            <!-- LOADED STATE (existing content) -->
+            <div v-else class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="kpi-label">🔮 Enrollment Forecast</p>
+                <div class="mt-2 flex items-end gap-2">
+                  <h3 class="kpi-value" style="margin:0;">{{ forecast.nextForecast }}</h3>
+                  <span class="kpi-unit">students</span>
+                </div>
+                <p class="kpi-subtext">Prediction Range: <b>{{ forecast.low }}–{{ forecast.high }}</b></p>
+                <p class="kpi-subtext truncate">Highest Course: <b>{{ forecast.topCourse || '-' }}</b></p>
+              </div>
+              <span class="pill pill-violet-outline">View</span>
+            </div>
+          </button>
       </div>
 
       <!-- TABS -->
@@ -1221,7 +1234,24 @@
                 </button>
               </div>
 
-              <div class="modal-body-scroll">
+             <div class="modal-body-scroll">
+              <!-- ✅ LOADING STATE -->
+              <div v-if="mlForecastLoading" class="flex flex-col items-center justify-center gap-3" style="padding: 60px 20px;">
+                <svg class="animate-spin h-10 w-10" style="color:#6d28d9;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <p class="font-semibold" style="color:#4c1d95;">Computing enrollment forecast…</p>
+                <p class="filter-note">Analyzing past enrollment data per course. This may take a moment.</p>
+              </div>
+
+              <!-- ✅ ERROR STATE -->
+              <div v-else-if="mlForecastError" class="alert-error">
+                {{ mlForecastError }}
+              </div>
+
+              <!-- ✅ LOADED STATE — everything below wrapped -->
+              <template v-else>
                 <div class="kpi-grid kpi-grid-4 mb-5">
                   <div class="kpi-card kpi-violet kpi-card-sm">
                     <p class="kpi-label">Predicted Enrollment</p>
@@ -1320,7 +1350,8 @@
                     </table>
                   </div>
                 </div>
-              </div>
+              </template>
+            </div>
 
               <div class="modal-foot">
                 <button @click="forecastModalOpen = false" class="btn-cancel">Close</button>
@@ -1493,12 +1524,15 @@ export default {
       revenueStats.verifiedRevenuePeso = 0;
       revenueStats.forecastRevenuePeso = 0;
 
-      await loadCourses();
-      await loadOverview();
-      await loadDetailed();
-      if (activeTab.value === "exams") await reloadCertificateReport();
-      if (mode === "driving") await loadRevenue();
-      if (mode === "tesda") {
+    await loadCourses();
+          await loadOverview();
+          await loadDetailed();
+          if (activeTab.value === "exams") await reloadCertificateReport();
+          if (mode === "driving") {
+            await loadRevenue();
+            await loadMLForecast(); // ✅ dagdag
+          }
+          if (mode === "tesda") {
         await loadAttendanceTrainers();
         await loadAttendanceCourseTrainers();
         await loadAttendance();
@@ -2044,44 +2078,49 @@ export default {
       };
     }
 
-    const courseForecastRows = computed(() => {
-      if (reportMode.value !== "driving") return [];
+const courseForecastRows = ref([]);
+    const mlForecastLoading = ref(false);
+    const mlForecastError = ref("");
 
-      const rows = forecastHistoryMatrix.value.map((row) => {
-        const labels = forecastHistoryLabels.value;
-        const values = labels.map((m) => Number(row.values[m] || 0));
-        const result = weightedForecast(values);
+    async function loadMLForecast() {
+      if (reportMode.value !== "driving") {
+        courseForecastRows.value = [];
+        computeForecastAndRevenueModel();
+        return;
+      }
+
+      mlForecastLoading.value = true;
+      mlForecastError.value = "";
+
+      try {
+        const json = await apiGet(`/api/admin/reports/forecast?report_mode=driving`);
+        const rows = json.status === "success" && Array.isArray(json.data) ? json.data : [];
         const multiplier = getForecastMultiplier();
-        const point = result.point * multiplier;
-        const low = result.low * multiplier;
-        const high = result.high * multiplier;
-        const history = values.slice(-3);
-        const historyLabel = history.length ? history.join(" → ") : "0";
 
-        const explanation =
-          result.trend === "Increasing"
-            ? `${row.course} is forecasted higher because the latest enrollment periods are increasing.`
-            : result.trend === "Decreasing"
-              ? `${row.course} is forecasted lower because the latest enrollment periods are decreasing.`
-              : `${row.course} is expected to remain stable because recent enrollment has minimal movement.`;
+        courseForecastRows.value = rows
+          .map((r) => ({
+            course: r.course,
+            historyLabel: `${r.m3} → ${r.m2} → ${r.m1}`,
+            forecast: Math.round(r.forecast * multiplier),
+            low: Math.round(r.low * multiplier),
+            high: Math.round(r.high * multiplier),
+            trend: r.trend,
+            confidence: r.dataPoints >= 12 ? "High" : r.dataPoints >= 6 ? "Medium" : "Low",
+            explanation: r.explanation,
+            dataPoints: r.dataPoints,
+            modelUsed: r.model_used,
+          }))
+          .sort((a, b) => b.forecast - a.forecast || a.course.localeCompare(b.course));
+      } catch (e) {
+        mlForecastError.value = e?.message || "Failed to load ML forecast.";
+        courseForecastRows.value = [];
+      } finally {
+        mlForecastLoading.value = false;
+        computeForecastAndRevenueModel();
+      }
+    }
 
-        return {
-          course: row.course,
-          historyLabel,
-          forecast: point,
-          low,
-          high,
-          trend: result.trend,
-          confidence: result.confidence,
-          explanation,
-          dataPoints: values.filter((x) => x > 0).length,
-        };
-      });
-
-      return rows.sort((a, b) => b.forecast - a.forecast || a.course.localeCompare(b.course));
-    });
-
-    const forecastLineOption = computed(() => {
+const forecastLineOption = computed(() => {
       const labels = [...forecastHistoryLabels.value, forecastPeriodLabel.value];
       const pastTotals = forecastHistoryLabels.value.map((label) =>
         forecastHistoryMatrix.value.reduce((sum, row) => sum + Number(row.values[label] || 0), 0)
@@ -2089,6 +2128,12 @@ export default {
       const forecastPoint = Number(forecast.nextForecast || 0);
       const lowPoint = Number(forecast.low || 0);
       const highPoint = Number(forecast.high || 0);
+
+      // ✅ FIX: ikonekta ang huling past value papunta sa forecast point
+      // para magkaroon ng dalawang puntos ang linya (kailangan ng ECharts
+      // ng minimum dalawang points bago mag-guhit ng segment).
+      const lastPast = pastTotals.length ? pastTotals[pastTotals.length - 1] : 0;
+      const leadingNulls = Array(Math.max(0, pastTotals.length - 1)).fill(null);
 
       return {
         tooltip: { trigger: "axis" },
@@ -2107,19 +2152,21 @@ export default {
             name: "Forecast",
             type: "line",
             smooth: true,
-            data: [...Array(pastTotals.length).fill(null), forecastPoint],
+            data: [...leadingNulls, lastPast, forecastPoint],
           },
           {
             name: "Low Range",
             type: "line",
             smooth: true,
-            data: [...Array(pastTotals.length).fill(null), lowPoint],
+            lineStyle: { type: "dashed" },
+            data: [...leadingNulls, lastPast, lowPoint],
           },
           {
             name: "High Range",
             type: "line",
             smooth: true,
-            data: [...Array(pastTotals.length).fill(null), highPoint],
+            lineStyle: { type: "dashed" },
+            data: [...leadingNulls, lastPast, highPoint],
           },
         ],
       };
@@ -2215,8 +2262,8 @@ export default {
     }
 
     watch(forecastHorizon, () => {
-      computeForecastAndRevenueModel();
-    });
+          loadMLForecast();
+        });
 
     watch(() => revenueTabFilters.courseId, () => {
       computeForecastAndRevenueModel();
@@ -3146,9 +3193,11 @@ attendancePage.value = 1;
       await nextTick();
       resizeCharts();
 
-      if (reportMode.value === "driving") await loadRevenue();
-      else {
-        revenueStats.verifiedCount = 0;
+      if (reportMode.value === "driving") {
+              await loadRevenue();
+              await loadMLForecast();
+            } else {
+              revenueStats.verifiedCount = 0;
         revenueStats.avgFeePeso = 0;
         revenueStats.verifiedRevenuePeso = 0;
         revenueStats.forecastRevenuePeso = 0;
@@ -4130,8 +4179,7 @@ async function reloadCertificateReport() {
       }
     }
 
-    // Lifecycle
-    onMounted(async () => {
+onMounted(async () => {
       const today = new Date();
       const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
@@ -4146,7 +4194,10 @@ async function reloadCertificateReport() {
       await loadCourses();
       await loadOverview();
       await loadDetailed();
-      if (reportMode.value === "driving") await loadRevenue();
+      if (reportMode.value === "driving") {
+        await loadRevenue();
+        await loadMLForecast(); // ✅ dagdag
+      }
       await nextTick();
       resizeCharts();
     });
@@ -4190,6 +4241,8 @@ async function reloadCertificateReport() {
       forecastModalOpen,
       openForecastModal,
       courseForecastRows,
+      mlForecastLoading,
+      mlForecastError,  
       forecastHistoryLabels,
       forecastHistoryMatrix,
       forecastLineOption,

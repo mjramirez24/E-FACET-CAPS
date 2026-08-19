@@ -633,21 +633,26 @@ const sendReminderEmail = async (emailData) => {
 const sendNewCourseAnnouncement = async (courseData, track = 'driving') => {
   const { course_name, course_code, duration, description } = courseData;
 
+  console.log(`\n📢 [sendNewCourseAnnouncement] Called with track="${track}" for course="${course_name}"`);
+
   const isTesda = track === 'tesda';
   const primaryColor = isTesda ? '#1d4ed8' : '#15803d';
   const primaryDark  = isTesda ? '#1e40af' : '#166534';
   const trackLabel   = isTesda ? 'TESDA Training' : 'Driving Course';
   const emoji        = isTesda ? '🛠️' : '🚦';
 
-  const [students] = await pool.query(
-    `SELECT u.email, u.fullname 
-     FROM users u
-     JOIN tracks t ON t.track_id = u.track_id
-     WHERE u.role = 'user' 
-       AND t.track_code = ?`,
-    [track]
-  );
+    const [students] = await pool.query(
+      `SELECT u.email, u.fullname 
+      FROM users u
+      JOIN tracks t ON t.track_id = u.track_id
+      WHERE u.role = 'user' 
+        AND t.track_code = ?
+        AND u.email NOT LIKE '%@seedtest.local'`,
+      [track]
+    );
 
+  console.log(`📧 [track="${track}"] Matched ${students.length} recipients:`, students.map(s => s.email));
+    
   if (!students.length) return { sent: 0 };
 
   let sent = 0;

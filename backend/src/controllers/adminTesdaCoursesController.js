@@ -19,6 +19,32 @@ function parseRequirements(reqValue) {
   return [];
 }
 
+async function notifyTesdaStudentsOfNewCourse(courseId, courseData) {
+  const [students] = await pool.query(
+    `SELECT u.id
+     FROM users u
+     JOIN tracks t ON t.track_id = u.track_id
+     WHERE u.role = 'user' 
+       AND t.track_code = 'tesda'
+       AND u.email NOT LIKE '%@seedtest.local'`
+  );
+
+  if (!students.length) return;
+
+  const values = students.map((s) => [
+    s.id,
+    "new_course",
+    "New Course Available",
+    courseData.course_name,
+    courseId,
+  ]);
+
+  await pool.query(
+    `INSERT INTO notifications (user_id, type, title, body, reference_id) VALUES ?`,
+    [values]
+  );
+}
+
 // =========================
 // GET TESDA COURSES
 // GET /api/admin/tesda/courses
@@ -77,6 +103,13 @@ async function createTesdaCourse(req, res) {
       ]
     );
 
+    const newCourseId = result.insertId;
+
+    // ADD THIS — bell notification
+    await notifyTesdaStudentsOfNewCourse(newCourseId, req.body).catch(err =>
+      console.error('❌ TESDA notification insert error:', err)
+    );
+
 // REPLACE WITH
     console.log('🔥 About to send TESDA announcement');
     sendNewCourseAnnouncement(req.body, 'tesda').catch(err =>
@@ -86,7 +119,7 @@ async function createTesdaCourse(req, res) {
     return res.status(201).json({
       status: "success",
       message: "TESDA course created",
-      data: { id: result.insertId },
+      data: { id: newCourseId },
     });
   } catch (err) {
     console.error("createTesdaCourse error:", err);
