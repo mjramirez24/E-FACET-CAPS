@@ -241,6 +241,7 @@
                       v-if="activeTab === 'driving'"
                       @click="openDrivingPreview(row)"
                       class="action-edit"
+                      style="display:none;"
                     >
                       Preview/Edit
                     </button>
@@ -251,14 +252,6 @@
                       class="action-view"
                     >
                       View
-                    </button>
-
-                    <button
-                      v-if="activeTab === 'driving' && getActiveCertId(row)"
-                      @click="downloadActiveCertificate(row)"
-                      class="action-download"
-                    >
-                      Download
                     </button>
 
                     <button
@@ -285,7 +278,7 @@
 
       <p v-if="error" class="error-text">{{ error }}</p>
 
-      <!-- DRIVING Modal -->
+      <!-- DRIVING Edit/Preview Modal (hidden trigger button; kept intact for future use) -->
       <transition name="modal-fade">
         <div v-if="drivingModalOpen" class="modal-overlay" @click.self="closeModals">
           <transition name="modal-scale">
@@ -473,6 +466,43 @@
                   </div>
 
                   <div class="mt-4 text-sm text-gray-500"><b>Note:</b> MT/AT is via checkbox column only (no Transmission text).</div>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </transition>
+
+      <!-- DRIVING View Modal (embeds the actual generated certificate from the backend, like a PDF viewer) -->
+      <transition name="modal-fade">
+        <div v-if="drivingViewModalOpen" class="modal-overlay" @click.self="closeModals">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-xl modal-card-tall">
+              <div class="modal-head modal-head-green">
+                <div>
+                  <h3 class="modal-title">Driving Certificate — {{ isPDC(modalRow) ? "PDC" : "TDC" }}</h3>
+                  <p class="text-xs text-gray-500 mt-0.5">{{ modalRow?.student_name }} — {{ modalRow?.course_name }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button @click="downloadActiveCertificate(modalRow)" class="pg-btn pg-btn-accent-blue">Download PDF</button>
+                  <button class="modal-close-btn" @click="closeModals">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="modal-body-scroll modal-body-flush" style="background: #525659;">
+                <iframe
+                  v-if="drivingViewUrl"
+                  id="driving-view-iframe"
+                  :src="drivingViewUrl"
+                  class="driving-view-frame"
+                  title="Driving Certificate"
+                ></iframe>
+                <div v-else class="empty-cell" style="color:#e5e7eb;">
+                  No generated certificate found to display.
                 </div>
               </div>
             </div>
@@ -699,6 +729,7 @@ export default {
     const sortBy = ref("dateDesc");
 
     const drivingModalOpen = ref(false);
+    const drivingViewModalOpen = ref(false);
     const tesdaModalOpen = ref(false);
     const modalRow = ref(null);
     // Confirm modal (replaces native confirm())
@@ -866,6 +897,8 @@ export default {
 
     const hasGeneratedCertificate = (row, type = activeTab.value) => !!getCertificateViewUrl(row, type);
 
+    const drivingViewUrl = computed(() => getCertificateViewUrl(modalRow.value, "driving"));
+
     const activeRowsFiltered = computed(() => {
       let result = [...activeRowsBase.value];
 
@@ -974,9 +1007,7 @@ export default {
         return;
       }
 
-      const certId = getActiveCertId(row);
-      if (!certId) return;
-      window.open(ENDPOINTS.drivingView(certId), "_blank");
+      openDrivingView(row);
     };
 
     const downloadActiveCertificate = (row) => {
@@ -1049,10 +1080,31 @@ export default {
       }
     };
 
+    const printDrivingView = () => {
+      const frame = document.getElementById("driving-view-iframe");
+      if (!frame) return;
+      try {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      } catch (e) {
+        // cross-origin or blocked — fall back to opening the certificate in a new tab
+        if (drivingViewUrl.value) window.open(drivingViewUrl.value, "_blank");
+      }
+    };
+
     const openDrivingPreview = (row) => {
       modalRow.value = row;
       initDraftForRow(row);
       drivingModalOpen.value = true;
+      drivingViewModalOpen.value = false;
+      tesdaModalOpen.value = false;
+    };
+
+    const openDrivingView = (row) => {
+      modalRow.value = row;
+      initDraftForRow(row);
+      drivingViewModalOpen.value = true;
+      drivingModalOpen.value = false;
       tesdaModalOpen.value = false;
     };
 
@@ -1060,10 +1112,12 @@ export default {
       modalRow.value = row;
       tesdaModalOpen.value = true;
       drivingModalOpen.value = false;
+      drivingViewModalOpen.value = false;
     };
 
     const closeModals = () => {
       drivingModalOpen.value = false;
+      drivingViewModalOpen.value = false;
       tesdaModalOpen.value = false;
       modalRow.value = null;
       draft.value = { mode: "MT", dl: {} };
@@ -1289,12 +1343,16 @@ export default {
       downloadVisibleCertificate,
 
       drivingModalOpen,
+      drivingViewModalOpen,
+      drivingViewUrl,
       tesdaModalOpen,
       modalRow,
       openDrivingPreview,
+      openDrivingView,
       openTesdaPreview,
       closeModals,
       printPreview,
+      printDrivingView,
       confirmModalOpen, confirmTitle, confirmText, confirmLoading, confirmActionType,
       openConfirm, closeConfirm, runConfirmedAction,
       messageOpen, messageTitle, messageText, messageType, showMessage, closeMessage,
@@ -1424,6 +1482,9 @@ export default {
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 720px; max-height: 92vh; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
 .modal-card-xl { max-width: 1100px; }
+.modal-card-tall { height: 92vh; }
+.modal-body-flush { padding: 0; display: flex; }
+.driving-view-frame { width: 100%; height: 100%; min-height: 70vh; border: none; display: block; background: #525659; }
 /* ========== CONFIRM & MESSAGE MODALS ========== */
 .modal-card-sm { max-width: 420px; }
 .modal-head-delete { padding: 20px 20px 16px; border-bottom: 1px solid #f3f4f6; }

@@ -50,6 +50,17 @@
             <option value="tesda">TESDA</option>
           </select>
 
+          <select
+            v-model="sortBy"
+            class="select-modern"
+            @change="onFilterChange"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="name_asc">Name (A-Z)</option>
+            <option value="name_desc">Name (Z-A)</option>
+          </select>
+
           <button @click="toggleColumnsPanel" class="btn-outline">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
@@ -224,6 +235,15 @@
                 @click="goPage(meta.page - 1)"
               >
                 ← Prev
+              </button>
+              <button
+                v-for="p in pageButtons"
+                :key="p"
+                @click="goPage(p)"
+                class="pg-num"
+                :class="{ 'pg-active': p === meta.page }"
+              >
+                {{ p }}
               </button>
               <button
                 class="pg-btn"
@@ -497,6 +517,7 @@ export default {
     const searchQuery = ref("");
     const roleFilter = ref("");
     const trackFilter = ref("");
+    const sortBy = ref("newest"); // 'newest' | 'oldest'
 
     const meta = ref({ total: 0, page: 1, limit: 20, totalPages: 1 });
     const userStats = ref({
@@ -722,6 +743,21 @@ export default {
       return d.toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
     };
 
+    // Client-side safety-net sort, in case the backend ignores/doesn't yet
+    // support the `sort` param. Prefers created_at when present, else falls
+    // back to id (higher id == newer row).
+    const sortUsersLocally = (list) => {
+      if (sortBy.value === "name_asc" || sortBy.value === "name_desc") {
+        const dir = sortBy.value === "name_desc" ? -1 : 1;
+        return [...list].sort((a, b) => dir * String(a?.fullname || "").localeCompare(String(b?.fullname || "")));
+      }
+      return [...list].sort((a, b) => {
+        const aKey = a?.created_at ? new Date(a.created_at).getTime() : Number(a?.id || 0);
+        const bKey = b?.created_at ? new Date(b.created_at).getTime() : Number(b?.id || 0);
+        return sortBy.value === "oldest" ? aKey - bKey : bKey - aKey;
+      });
+    };
+
     const fetchUsers = async () => {
       try {
         loading.value = true;
@@ -730,12 +766,14 @@ export default {
             search: searchQuery.value, // ✅ backend will search across all fields
             role: roleFilter.value,
             track: trackFilter.value,
+            sort: sortBy.value, // 'newest' | 'oldest'
             page: meta.value.page,
             limit: meta.value.limit,
           },
         });
 
-        users.value = data?.data || [];
+        const fetched = data?.data || [];
+        users.value = sortUsersLocally(fetched);
         meta.value = data?.meta || meta.value;
         } catch (err) {
           const data = err?.response?.data;
@@ -782,6 +820,19 @@ export default {
       meta.value.page = p;
       fetchUsers();
     };
+
+    // Page number buttons (same windowing logic as AdminStudents.vue)
+    const pageButtons = computed(() => {
+      const total = meta.value.totalPages || 1;
+      const cur = meta.value.page || 1;
+      const maxBtns = 5;
+      let start = Math.max(1, cur - 2);
+      let end = Math.min(total, start + maxBtns - 1);
+      start = Math.max(1, end - maxBtns + 1);
+      const out = [];
+      for (let i = start; i <= end; i++) out.push(i);
+      return out;
+    });
 
     const resetForm = () => {
       form.value = {
@@ -977,8 +1028,10 @@ export default {
       searchQuery,
       roleFilter,
       trackFilter,
+      sortBy,
       meta,
       goPage,
+      pageButtons,
       handleSearch,
       onFilterChange,
       userStats,
@@ -1135,6 +1188,9 @@ export default {
 .pg-btn { padding: 7px 14px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
 .pg-btn:hover:not(.pg-disabled) { border-color: #10b981; color: #059669; }
 .pg-disabled { opacity: 0.4; cursor: not-allowed; }
+.pg-num { width: 34px; height: 34px; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
+.pg-num:hover { border-color: #10b981; }
+.pg-active { background: #10b981; color: #fff; border-color: #10b981; }
 
 /* ========== MODALS ========== */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }

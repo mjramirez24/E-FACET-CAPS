@@ -139,18 +139,12 @@
                   <div class="action-buttons">
                     <button
                       v-if="c.certificate_id"
-                      @click="viewCertificate(c)"
+                      @click="openViewModal(c)"
                       class="action-view-sm"
                     >
                       View
                     </button>
-                    <button
-                      v-if="c.certificate_id"
-                      @click="downloadCertificate(c)"
-                      class="action-download-sm"
-                    >
-                      Download
-                    </button>
+
                     <span v-if="!c.certificate_id" class="text-xs text-gray-400 py-1">
                       Waiting for admin
                     </span>
@@ -173,6 +167,43 @@
         <span>{{ error }}</span>
       </div>
     </div>
+
+    <!-- CERTIFICATE VIEW MODAL -->
+    <transition name="modal-fade">
+      <div v-if="viewModalOpen" class="modal-overlay" @click.self="closeViewModal">
+        <transition name="modal-scale">
+          <div class="modal-card modal-card-xl modal-card-tall">
+            <div class="modal-head modal-head-green">
+              <div>
+                <h3 class="modal-title">Certificate — {{ modalCert?.type || "" }}</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ modalCert?.course }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button @click="downloadCertificate(modalCert)" class="pg-btn pg-btn-accent-blue">Download PDF</button>
+                <button class="modal-close-btn" @click="closeViewModal">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="modal-body-scroll modal-body-flush" style="background: #525659;">
+              <iframe
+                v-if="viewUrl"
+                id="certificate-view-iframe"
+                :src="viewUrl"
+                class="certificate-view-frame"
+                title="Certificate"
+              ></iframe>
+              <div v-else class="empty-cell" style="color:#e5e7eb;">
+                No certificate found to display.
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </transition>
   </StudentLayout>
 </template>
 
@@ -196,6 +227,37 @@ export default {
     const certificates = ref([]);
     const searchQuery = ref("");
     const filterStatus = ref("all");
+
+    // View modal state
+    const viewModalOpen = ref(false);
+    const modalCert = ref(null);
+    const viewUrl = computed(() =>
+      modalCert.value?.certificate_id
+        ? `${API_URL}/student/certificates/${modalCert.value.certificate_id}/view`
+        : ""
+    );
+
+    const openViewModal = (c) => {
+      modalCert.value = c;
+      viewModalOpen.value = true;
+    };
+
+    const closeViewModal = () => {
+      viewModalOpen.value = false;
+      modalCert.value = null;
+    };
+
+    const printCertificate = () => {
+      const frame = document.getElementById("certificate-view-iframe");
+      if (!frame) return;
+      try {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      } catch (e) {
+        // cross-origin or blocked — fall back to opening the certificate in a new tab
+        if (viewUrl.value) window.open(viewUrl.value, "_blank");
+      }
+    };
 
     const fetchCertificates = async () => {
       loading.value = true;
@@ -252,11 +314,8 @@ export default {
       return "pill pill-gray";
     };
 
-    const viewCertificate = (c) => {
-      window.open(`${API_URL}/student/certificates/${c.certificate_id}/view`, "_blank");
-    };
-
     const downloadCertificate = (c) => {
+      if (!c?.certificate_id) return;
       window.open(`${API_URL}/student/certificates/${c.certificate_id}/download`, "_blank");
     };
 
@@ -271,10 +330,16 @@ export default {
       filtered,
       stats,
       fetchCertificates,
-      viewCertificate,
       downloadCertificate,
       formatDate,
       getStatusClass,
+
+      viewModalOpen,
+      modalCert,
+      viewUrl,
+      openViewModal,
+      closeViewModal,
+      printCertificate,
     };
   },
 };
@@ -641,6 +706,88 @@ export default {
   color: #dc2626;
   font-size: 0.85rem;
 }
+
+/* ===== MODAL (same pattern as admin) ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-card {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+.modal-card-xl { max-width: 1100px; }
+.modal-card-tall { height: 92vh; }
+.modal-head {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.modal-head-green { background: #f0fdf4; }
+.modal-title { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
+.modal-close-btn {
+  padding: 6px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal-close-btn:hover { background: #f3f4f6; color: #111827; }
+.modal-body-scroll { overflow-y: auto; flex: 1; }
+.modal-body-flush { padding: 0; display: flex; }
+.certificate-view-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 70vh;
+  border: none;
+  display: block;
+  background: #525659;
+}
+
+.pg-btn {
+  padding: 9px 16px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pg-btn-accent-blue { background: #2563eb; color: #fff; border-color: #2563eb; }
+.pg-btn-accent-blue:hover { background: #1d4ed8; color: #fff; }
+.pg-btn-dark { background: #1f2937; color: #fff; border-color: #1f2937; }
+.pg-btn-dark:hover { background: #111827; color: #fff; }
+
+/* ===== ANIMATIONS ===== */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-scale-enter-active { transition: all 0.25s ease; }
+.modal-scale-leave-active { transition: all 0.15s ease; }
+.modal-scale-enter-from { opacity: 0; transform: scale(0.95) translateY(10px); }
+.modal-scale-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {

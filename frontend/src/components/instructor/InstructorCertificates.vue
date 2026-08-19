@@ -199,7 +199,7 @@
                       + Generate
                     </button>
 
-                    <button @click="openDrivingPreview(row)" class="action-edit">Preview/Edit</button>
+                    <button @click="openDrivingPreview(row)" class="action-edit" style="display:none;">Preview/Edit</button>
 
                     <button v-if="row.certificate_id" @click="viewCertificate(row)" class="action-view">View</button>
 
@@ -221,7 +221,7 @@
 
       <p v-if="error" class="error-text">{{ error }}</p>
 
-      <!-- DRIVING Modal (Preview/Edit) -->
+      <!-- DRIVING Modal (Preview/Edit) — hidden trigger button; kept intact for future use -->
       <transition name="modal-fade">
         <div v-if="drivingModalOpen" class="modal-overlay" @click.self="closeModals">
           <transition name="modal-scale">
@@ -447,6 +447,42 @@
           </transition>
         </div>
       </transition>
+
+      <!-- DRIVING View Modal (embeds the actual generated certificate from the backend, like a PDF viewer) -->
+      <transition name="modal-fade">
+        <div v-if="drivingViewModalOpen" class="modal-overlay" @click.self="closeModals">
+          <transition name="modal-scale">
+            <div class="modal-card modal-card-xl modal-card-tall">
+              <div class="modal-head modal-head-green">
+                <div>
+                  <h3 class="modal-title">Driving Certificate — {{ isPDC(modalRow) ? "PDC" : "TDC" }}</h3>
+                  <p class="text-xs text-gray-500 mt-0.5">{{ modalRow?.student_name }} — {{ modalRow?.course_name }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button @click="downloadCertificate(modalRow)" class="pg-btn pg-btn-accent-blue">Download PDF</button>
+                  <button class="modal-close-btn" @click="closeModals">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="modal-body-scroll modal-body-flush" style="background: #525659;">
+                <iframe
+                  v-if="drivingViewUrl"
+                  :src="drivingViewUrl"
+                  class="driving-view-frame"
+                  title="Driving Certificate"
+                ></iframe>
+                <div v-else class="empty-cell" style="color:#e5e7eb;">
+                  No generated certificate found to display.
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </transition>
     </div>
   </InstructorLayout>
 </template>
@@ -499,6 +535,7 @@ export default {
     const sortBy = ref("dateDesc");
 
     const drivingModalOpen = ref(false);
+    const drivingViewModalOpen = ref(false);
     const modalRow = ref(null);
 
     const leftDlCodes = ref([
@@ -727,9 +764,20 @@ export default {
       }
     };
 
+    const drivingViewUrl = computed(() => {
+      const id = modalRow.value?.certificate_id;
+      return id ? ENDPOINTS.view(id) : "";
+    });
+
+    const openDrivingView = (row) => {
+      modalRow.value = row;
+      drivingViewModalOpen.value = true;
+      drivingModalOpen.value = false;
+    };
+
     const viewCertificate = (row) => {
       if (!row?.certificate_id) return;
-      window.open(ENDPOINTS.view(row.certificate_id), "_blank");
+      openDrivingView(row);
     };
 
     const downloadCertificate = (row) => {
@@ -741,10 +789,12 @@ export default {
       modalRow.value = row;
       initDraftForRow(row);
       drivingModalOpen.value = true;
+      drivingViewModalOpen.value = false;
     };
 
     const closeModals = () => {
       drivingModalOpen.value = false;
+      drivingViewModalOpen.value = false;
       modalRow.value = null;
       draft.value = { mode: "MT", dl: {} };
     };
@@ -864,8 +914,11 @@ export default {
       downloadCertificate,
 
       drivingModalOpen,
+      drivingViewModalOpen,
+      drivingViewUrl,
       modalRow,
       openDrivingPreview,
+      openDrivingView,
       closeModals,
       printPreview,
 
@@ -919,6 +972,8 @@ export default {
 .pg-btn:hover { border-color: #10b981; color: #059669; }
 .pg-btn-accent { background: #10b981; color: #fff; border-color: #10b981; }
 .pg-btn-accent:hover { background: #059669; color: #fff; }
+.pg-btn-accent-blue { background: #2563eb; color: #fff; border-color: #2563eb; }
+.pg-btn-accent-blue:hover { background: #1d4ed8; color: #fff; }
 .pg-btn-dark { background: #1f2937; color: #fff; border-color: #1f2937; }
 .pg-btn-dark:hover { background: #111827; color: #fff; }
 
@@ -981,6 +1036,9 @@ export default {
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 720px; max-height: 92vh; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
 .modal-card-xl { max-width: 1100px; }
+.modal-card-tall { height: 92vh; }
+.modal-body-flush { padding: 0; display: flex; }
+.driving-view-frame { width: 100%; height: 100%; min-height: 70vh; border: none; display: block; background: #525659; }
 .modal-head { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; flex-shrink: 0; flex-wrap: wrap; gap: 10px; }
 .modal-head-green { background: #f0fdf4; }
 .modal-title { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
