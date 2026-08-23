@@ -263,7 +263,7 @@
               <button @click="openExport('overview-monthly')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Monthly</button>
             </div>
 
-            <div class="table-wrap">
+            <div class="table-wrap" style="max-height: 340px; overflow-y: auto;">
               <table class="modern-table">
                 <thead class="thead-green">
                   <tr>
@@ -1275,6 +1275,32 @@
                   </div>
                 </div>
 
+                              <!-- ✅ NEW: Promo Toggle -->
+              <div class="panel-card mb-5" style="padding: 16px; background: #fefce8; border-color: #fde68a;">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <h4 class="panel-title" style="color: #92400e;">🏷️ Will There Be an LTO Promo in {{ nextMonthLabel }}?</h4>
+                    <p class="filter-note mt-1" style="color: #b45309;">
+                      LTO promos are a major factor in enrollment spikes. If you know there will be
+                      a promo next month, toggle this option to improve the forecast accuracy.
+                    </p>
+                  </div>
+
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <button type="button" @click="setPromoFlag(false)" class="pg-btn"
+                      :class="nextMonthPromo === false ? 'pg-btn-accent' : ''" :disabled="promoSaving">
+                      No
+                    </button>
+                    <button type="button" @click="setPromoFlag(true)" class="pg-btn"
+                      :class="nextMonthPromo === true ? 'pg-btn-emerald' : ''" :disabled="promoSaving">
+                      Yes, There Is a Promo
+                    </button>
+                  </div>
+                </div>
+
+                <p v-if="promoSaveError" class="alert-error mt-3">{{ promoSaveError }}</p>
+              </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
                   <div class="lg:col-span-3 panel-card" style="padding: 16px;">
                     <div class="flex items-center justify-between gap-3 mb-3">
@@ -1349,6 +1375,89 @@
                       </tbody>
                     </table>
                   </div>
+                </div>
+
+                <!-- ✅ #2 Per-Course Forecast Bar Chart -->
+                <div class="panel-card mt-5" style="padding: 16px;">
+                  <h4 class="panel-title mb-3">Forecast by Course (Bar Chart)</h4>
+                  <div class="h-72">
+                    <VChart :option="courseForecastBarOption" autoresize />
+                  </div>
+                </div>
+
+                <!-- ✅ #3 + #4 Multi-Horizon and Revenue Forecast (side by side) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+                  <div class="panel-card" style="padding: 16px;">
+                    <h4 class="panel-title mb-3">Multi-Horizon Enrollment Projection</h4>
+                    <p class="filter-note mb-3">Total predicted enrollment across all courses for the next 1, 2, and 3 months.</p>
+                    <div class="h-64">
+                      <VChart :option="multiHorizonOption" autoresize />
+                    </div>
+                  </div>
+
+                  <div class="panel-card" style="padding: 16px;">
+                    <h4 class="panel-title mb-3">Revenue Forecast Projection</h4>
+                    <p class="filter-note mb-3">Estimated revenue based on predicted enrollment and average course fee.</p>
+                    <div class="h-64">
+                      <VChart :option="revenueForecastChartOption" autoresize />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ✅ #5 Seasonality Heatmap -->
+                <div class="panel-card mt-5" style="padding: 16px;">
+                  <h4 class="panel-title mb-3">Enrollment Seasonality (Month × Year)</h4>
+                  <p class="filter-note mb-3">Darker cells indicate higher enrollment volume for that month.</p>
+                  <div class="h-64">
+                    <VChart :option="seasonalityHeatmapOption" autoresize />
+                  </div>
+                </div>
+
+                <!-- ✅ #6 Model Accuracy / Backtest -->
+                <div class="panel-card mt-5" style="padding: 16px;">
+                  <div class="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h4 class="panel-title">Model Accuracy (Backtest)</h4>
+                      <p class="filter-note mt-1">Actual vs predicted enrollment for last month, using data up to the month before as training basis.</p>
+                    </div>
+                  </div>
+
+                  <div v-if="backtestLoading" class="empty-cell">Running backtest…</div>
+                  <div v-else-if="backtestError" class="alert-error">{{ backtestError }}</div>
+                  <template v-else>
+                    <div class="h-64 mb-4">
+                      <VChart :option="backtestChartOption" autoresize />
+                    </div>
+                    <div class="table-wrap">
+                      <table class="modern-table">
+                        <thead class="thead-green">
+                          <tr>
+                            <th>Course</th>
+                            <th class="text-center">Actual</th>
+                            <th class="text-center">Predicted</th>
+                            <th class="text-center">Absolute Error</th>
+                            <th class="text-center">% Error</th>
+                            <th class="text-center">Model Used</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="row in backtestRows" :key="row.course">
+                            <td class="font-semibold">{{ row.course }}</td>
+                            <td class="text-center">{{ row.actual }}</td>
+                            <td class="text-center">{{ row.predicted }}</td>
+                            <td class="text-center">{{ row.absolute_error }}</td>
+                            <td class="text-center">{{ row.percent_error != null ? row.percent_error + '%' : '-' }}</td>
+                            <td class="text-center">
+                              <span class="pill pill-blue">{{ row.model_used }}</span>
+                            </td>
+                          </tr>
+                          <tr v-if="backtestRows.length === 0">
+                            <td colspan="6" class="empty-cell">Not enough historical data for backtest yet.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
                 </div>
               </template>
             </div>
@@ -1487,15 +1596,15 @@ import AdminLayout from "./AdminLayout.vue";
 import VChart from "vue-echarts";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { LineChart, BarChart, PieChart } from "echarts/charts";
-import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from "echarts/components";
+import { LineChart, BarChart, PieChart, HeatmapChart } from "echarts/charts";
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent } from "echarts/components";
 
 // Export libs
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-echarts.use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent]);
+echarts.use([CanvasRenderer, LineChart, BarChart, PieChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent]);
 
 export default {
   name: "AdminReports",
@@ -1615,6 +1724,29 @@ export default {
     });
 
     const forecastTitle = computed(() => `${forecastPeriodLabel.value} Enrollment Forecast`);
+
+    
+    // ✅ NEW: Promo toggle state
+    const promoFlagsMap = ref({});
+    const promoSaving = ref(false);
+    const promoSaveError = ref("");
+
+    const nextMonthKey = computed(() => {
+      const now = new Date();
+      const d = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    });
+
+    const nextMonthLabel = computed(() => {
+      const [y, m] = nextMonthKey.value.split("-").map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    });
+
+    const nextMonthPromo = computed(() => {
+      const key = nextMonthKey.value;
+      if (!(key in promoFlagsMap.value)) return null;
+      return !!promoFlagsMap.value[key];
+    });
 
     // Data
     const courses = ref([]);
@@ -2020,6 +2152,29 @@ export default {
       });
     });
 
+        // ✅ Simple sessionStorage cache na may expiry, para hindi na mag-recompute
+    // ang ML kapag nag-navigate palayo't-balik sa page (basta hindi pa expired).
+    const ML_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+    function readMlCache(key) {
+      try {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.timestamp) return null;
+        if (Date.now() - parsed.timestamp > ML_CACHE_TTL_MS) return null;
+        return parsed.data;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeMlCache(key, data) {
+      try {
+        sessionStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch {}
+    }
+
     function weightedForecast(values) {
       const v = (values || [])
         .map((x) => Number(x || 0))
@@ -2078,15 +2233,86 @@ export default {
       };
     }
 
-const courseForecastRows = ref([]);
+const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multiply
+    const courseForecastRows = ref([]);
     const mlForecastLoading = ref(false);
     const mlForecastError = ref("");
 
-    async function loadMLForecast() {
+        const FORECAST_CACHE_KEY = "efacet_ml_forecast_cache_v2";
+
+    
+    async function loadPromoFlags() {
+      try {
+        const json = await apiGet(`/api/admin/reports/promo-flags`);
+        promoFlagsMap.value = json.status === "success" && json.data ? json.data : {};
+      } catch {
+        promoFlagsMap.value = {};
+      }
+    }
+
+    async function setPromoFlag(value) {
+      promoSaving.value = true;
+      promoSaveError.value = "";
+      try {
+        const res = await fetch(`/api/admin/reports/promo-flags`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ month: nextMonthKey.value, has_promo: value }),
+        });
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+
+        promoFlagsMap.value = { ...promoFlagsMap.value, [nextMonthKey.value]: value };
+        await loadMLForecast(true);
+      } catch (e) {
+        promoSaveError.value = e?.message || "Failed to save promo flag.";
+      } finally {
+        promoSaving.value = false;
+      }
+    }
+
+    // ✅ Instant lang ito — walang API call — kaya safe tawagin sa
+    // bawat pagpalit ng forecastHorizon dropdown.
+    function applyForecastMultiplier() {
+      const multiplier = getForecastMultiplier();
+      courseForecastRows.value = rawForecastData.value
+        .map((r) => ({
+          course: r.course,
+          historyLabel: `${r.m3} → ${r.m2} → ${r.m1}`,
+          forecast: Math.round(r.forecast * multiplier),
+          low: Math.round(r.low * multiplier),
+          high: Math.round(r.high * multiplier),
+          baseForecast: Number(r.forecast || 0),
+          baseLow: Number(r.low || 0),
+          baseHigh: Number(r.high || 0),
+          multiPoints: Array.isArray(r.multiPoints) ? r.multiPoints : [r.forecast, r.forecast, r.forecast],
+          trend: r.trend,
+          confidence: r.dataPoints >= 12 ? "High" : r.dataPoints >= 6 ? "Medium" : "Low",
+          explanation: r.explanation,
+          dataPoints: r.dataPoints,
+          modelUsed: r.model_used,
+        }))
+        .sort((a, b) => b.forecast - a.forecast || a.course.localeCompare(b.course));
+      computeForecastAndRevenueModel();
+    }
+
+    async function loadMLForecast(force = false) {
       if (reportMode.value !== "driving") {
+        rawForecastData.value = [];
         courseForecastRows.value = [];
         computeForecastAndRevenueModel();
         return;
+      }
+
+      // ✅ Gamitin ang cache kung meron at hindi pa expired — walang
+      // bagong Python call, kaya instant kung galing lang tayo sa cache.
+      if (!force) {
+        const cached = readMlCache(FORECAST_CACHE_KEY);
+        if (cached) {
+          rawForecastData.value = cached;
+          applyForecastMultiplier();
+          return;
+        }
       }
 
       mlForecastLoading.value = true;
@@ -2095,32 +2321,19 @@ const courseForecastRows = ref([]);
       try {
         const json = await apiGet(`/api/admin/reports/forecast?report_mode=driving`);
         const rows = json.status === "success" && Array.isArray(json.data) ? json.data : [];
-        const multiplier = getForecastMultiplier();
-
-        courseForecastRows.value = rows
-          .map((r) => ({
-            course: r.course,
-            historyLabel: `${r.m3} → ${r.m2} → ${r.m1}`,
-            forecast: Math.round(r.forecast * multiplier),
-            low: Math.round(r.low * multiplier),
-            high: Math.round(r.high * multiplier),
-            trend: r.trend,
-            confidence: r.dataPoints >= 12 ? "High" : r.dataPoints >= 6 ? "Medium" : "Low",
-            explanation: r.explanation,
-            dataPoints: r.dataPoints,
-            modelUsed: r.model_used,
-          }))
-          .sort((a, b) => b.forecast - a.forecast || a.course.localeCompare(b.course));
+        rawForecastData.value = rows;
+        writeMlCache(FORECAST_CACHE_KEY, rows);
+        applyForecastMultiplier();
       } catch (e) {
         mlForecastError.value = e?.message || "Failed to load ML forecast.";
+        rawForecastData.value = [];
         courseForecastRows.value = [];
       } finally {
         mlForecastLoading.value = false;
-        computeForecastAndRevenueModel();
       }
     }
 
-const forecastLineOption = computed(() => {
+    const forecastLineOption = computed(() => {
       const labels = [...forecastHistoryLabels.value, forecastPeriodLabel.value];
       const pastTotals = forecastHistoryLabels.value.map((label) =>
         forecastHistoryMatrix.value.reduce((sum, row) => sum + Number(row.values[label] || 0), 0)
@@ -2129,15 +2342,17 @@ const forecastLineOption = computed(() => {
       const lowPoint = Number(forecast.low || 0);
       const highPoint = Number(forecast.high || 0);
 
-      // ✅ FIX: ikonekta ang huling past value papunta sa forecast point
-      // para magkaroon ng dalawang puntos ang linya (kailangan ng ECharts
-      // ng minimum dalawang points bago mag-guhit ng segment).
       const lastPast = pastTotals.length ? pastTotals[pastTotals.length - 1] : 0;
       const leadingNulls = Array(Math.max(0, pastTotals.length - 1)).fill(null);
 
+      // ✅ Confidence band: dalawang stacked series na gumagawa ng "shaded region"
+      // sa pagitan ng Low at High — standard na paraan sa forecasting dashboards.
+      const bandBase = [...leadingNulls, lastPast, lowPoint];
+      const bandHeight = [...leadingNulls, 0, Math.max(0, highPoint - lowPoint)];
+
       return {
         tooltip: { trigger: "axis" },
-        legend: { top: 0 },
+        legend: { top: 0, data: ["Past Enrollment", "Forecast", "Confidence Range"] },
         grid: { left: 35, right: 20, top: 45, bottom: 35 },
         xAxis: { type: "category", data: labels },
         yAxis: { type: "value", minInterval: 1 },
@@ -2149,28 +2364,235 @@ const forecastLineOption = computed(() => {
             data: [...pastTotals, null],
           },
           {
+            name: "Confidence Base",
+            type: "line",
+            stack: "band",
+            smooth: true,
+            symbol: "none",
+            lineStyle: { opacity: 0 },
+            areaStyle: { opacity: 0 },
+            data: bandBase,
+            tooltip: { show: false },
+          },
+          {
+            name: "Confidence Range",
+            type: "line",
+            stack: "band",
+            smooth: true,
+            symbol: "none",
+            lineStyle: { opacity: 0 },
+            areaStyle: { color: "#c4b5fd", opacity: 0.35 },
+            data: bandHeight,
+          },
+          {
             name: "Forecast",
             type: "line",
             smooth: true,
             data: [...leadingNulls, lastPast, forecastPoint],
-          },
-          {
-            name: "Low Range",
-            type: "line",
-            smooth: true,
-            lineStyle: { type: "dashed" },
-            data: [...leadingNulls, lastPast, lowPoint],
-          },
-          {
-            name: "High Range",
-            type: "line",
-            smooth: true,
-            lineStyle: { type: "dashed" },
-            data: [...leadingNulls, lastPast, highPoint],
+            itemStyle: { color: "#6d28d9" },
           },
         ],
       };
     });
+        // ✅ #2 Per-Course Forecast Bar Chart
+    const courseForecastBarOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      grid: { left: 50, right: 20, top: 30, bottom: 70 },
+      xAxis: {
+        type: "category",
+        data: courseForecastRows.value.map((r) => r.course),
+        axisLabel: { rotate: 25, fontSize: 10 },
+      },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [
+        {
+          name: "Forecast",
+          type: "bar",
+          data: courseForecastRows.value.map((r) => r.forecast),
+          itemStyle: { color: "#6d28d9", borderRadius: [6, 6, 0, 0] },
+          barMaxWidth: 50,
+        },
+      ],
+    }));
+
+    // ✅ FIXED: totoong per-month na forecast na mula sa ML model
+    // (multiPoints array), hindi na basta pag-multiply ng 1-month forecast.
+    const multiHorizonTotals = computed(() => {
+      const totals = [0, 0, 0];
+      courseForecastRows.value.forEach((r) => {
+        const points = Array.isArray(r.multiPoints) && r.multiPoints.length === 3
+          ? r.multiPoints
+          : [r.baseForecast || 0, r.baseForecast || 0, r.baseForecast || 0];
+
+        totals[0] += Math.round(points[0] || 0);
+        totals[1] += Math.round((points[0] || 0) + (points[1] || 0));
+        totals[2] += Math.round((points[0] || 0) + (points[1] || 0) + (points[2] || 0));
+      });
+      return totals;
+    });
+
+    const multiHorizonOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      grid: { left: 50, right: 20, top: 30, bottom: 40 },
+      xAxis: { type: "category", data: ["Next Month", "Next 2 Months", "Next 3 Months"] },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [
+        {
+          name: "Total Predicted Enrollment",
+          type: "bar",
+          data: multiHorizonTotals.value,
+          itemStyle: { color: "#059669", borderRadius: [6, 6, 0, 0] },
+          barMaxWidth: 60,
+          label: { show: true, position: "top" },
+        },
+      ],
+    }));
+
+    // ✅ #4 Revenue Forecast Chart (base sa multi-horizon totals x avg fee)
+    const revenueForecastChartOption = computed(() => {
+      const avgFee = Number(revenueStats.avgFeePeso || 0);
+      const revenueByHorizon = multiHorizonTotals.value.map((t) => Math.round(t * avgFee));
+
+      return {
+        tooltip: {
+          trigger: "axis",
+          valueFormatter: (v) => formatCurrency(v),
+        },
+        grid: { left: 70, right: 20, top: 30, bottom: 40 },
+        xAxis: { type: "category", data: ["Next Month", "Next 2 Months", "Next 3 Months"] },
+        yAxis: {
+          type: "value",
+          axisLabel: { formatter: (v) => "₱" + (v / 1000).toFixed(0) + "k" },
+        },
+        series: [
+          {
+            name: "Forecast Revenue",
+            type: "line",
+            smooth: true,
+            areaStyle: { opacity: 0.25 },
+            data: revenueByHorizon,
+            itemStyle: { color: "#10b981" },
+            label: { show: true, formatter: (p) => formatCurrency(p.value), position: "top" },
+          },
+        ],
+      };
+    });
+
+    // ✅ #5 Seasonality Heatmap (Month x Year, base sa courseMonthlyPreview)
+    const seasonalityHeatmapOption = computed(() => {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const totalsByMonth = new Map();
+
+      (courseMonthlyPreview.value || []).forEach((r) => {
+        const label = String(r.month_label || "");
+        totalsByMonth.set(label, (totalsByMonth.get(label) || 0) + Number(r.count || 0));
+      });
+
+      const years = [...new Set(Array.from(totalsByMonth.keys()).map((k) => k.split("-")[0]))]
+        .filter(Boolean)
+        .sort();
+
+      const data = [];
+      years.forEach((y, yi) => {
+        monthNames.forEach((_, mi) => {
+          const key = `${y}-${String(mi + 1).padStart(2, "0")}`;
+          const val = totalsByMonth.get(key) || 0;
+          data.push([mi, yi, val]);
+        });
+      });
+
+      const maxVal = Math.max(1, ...data.map((d) => d[2]));
+
+      return {
+        tooltip: {
+          position: "top",
+          formatter: (p) => `${monthNames[p.data[0]]} ${years[p.data[1]]}: ${p.data[2]} enrollments`,
+        },
+        grid: { left: 60, right: 20, top: 20, bottom: 60 },
+        xAxis: { type: "category", data: monthNames, splitArea: { show: true } },
+        yAxis: { type: "category", data: years, splitArea: { show: true } },
+        visualMap: {
+          min: 0,
+          max: maxVal,
+          calculable: true,
+          orient: "horizontal",
+          left: "center",
+          bottom: 0,
+          inRange: { color: ["#f0fdf4", "#10b981", "#065f46"] },
+        },
+        series: [
+          {
+            type: "heatmap",
+            data,
+            label: { show: true, fontSize: 9 },
+            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,0.3)" } },
+          },
+        ],
+      };
+    });
+
+    const backtestRows = ref([]);
+    const backtestLoading = ref(false);
+    const backtestError = ref("");
+
+    const BACKTEST_CACHE_KEY = "efacet_ml_backtest_cache";
+
+    async function loadBacktest(force = false) {
+      if (reportMode.value !== "driving") {
+        backtestRows.value = [];
+        return;
+      }
+
+      if (!force) {
+        const cached = readMlCache(BACKTEST_CACHE_KEY);
+        if (cached) {
+          backtestRows.value = cached;
+          return;
+        }
+      }
+
+      backtestLoading.value = true;
+      backtestError.value = "";
+      try {
+        const json = await apiGet(`/api/admin/reports/forecast-backtest?report_mode=driving`);
+        const rows = json.status === "success" && Array.isArray(json.data) ? json.data : [];
+        backtestRows.value = rows;
+        writeMlCache(BACKTEST_CACHE_KEY, rows);
+      } catch (e) {
+        backtestError.value = e?.message || "Failed to load backtest.";
+        backtestRows.value = [];
+      } finally {
+        backtestLoading.value = false;
+      }
+    }
+
+    const backtestChartOption = computed(() => ({
+      tooltip: { trigger: "axis" },
+      legend: { top: 0 },
+      grid: { left: 50, right: 20, top: 40, bottom: 70 },
+      xAxis: {
+        type: "category",
+        data: backtestRows.value.map((r) => r.course),
+        axisLabel: { rotate: 25, fontSize: 10 },
+      },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [
+        {
+          name: "Actual",
+          type: "bar",
+          data: backtestRows.value.map((r) => r.actual),
+          itemStyle: { color: "#059669" },
+          barMaxWidth: 30,
+        },
+        {
+          name: "Predicted",
+          type: "bar",
+          data: backtestRows.value.map((r) => r.predicted),
+          itemStyle: { color: "#6d28d9" },
+          barMaxWidth: 30,
+        },
+      ],
+    }));
 
     const forecastAlgorithmSteps = computed(() => [
       {
@@ -2201,6 +2623,9 @@ const forecastLineOption = computed(() => {
     function openForecastModal() {
       if (reportMode.value !== "driving") return;
       forecastModalOpen.value = true;
+      // ✅ backtest lang tumatakbo kapag binuksan ang modal — hindi
+      // na binabagalan ang unang pag-load ng buong page.
+      if (!backtestRows.value.length) loadBacktest();
     }
 
 
@@ -2262,8 +2687,8 @@ const forecastLineOption = computed(() => {
     }
 
     watch(forecastHorizon, () => {
-          loadMLForecast();
-        });
+      applyForecastMultiplier(); // ✅ instant lang, walang bagong API/model call
+    });
 
     watch(() => revenueTabFilters.courseId, () => {
       computeForecastAndRevenueModel();
@@ -4194,6 +4619,7 @@ onMounted(async () => {
       await loadCourses();
       await loadOverview();
       await loadDetailed();
+      await loadPromoFlags();
       if (reportMode.value === "driving") {
         await loadRevenue();
         await loadMLForecast(); // ✅ dagdag
@@ -4242,12 +4668,26 @@ onMounted(async () => {
       openForecastModal,
       courseForecastRows,
       mlForecastLoading,
-      mlForecastError,  
+      mlForecastError,
+      courseForecastBarOption,
+      multiHorizonOption,
+      revenueForecastChartOption,
+      seasonalityHeatmapOption,
+      backtestRows,
+      backtestLoading,
+      backtestError,
+      backtestChartOption, 
       forecastHistoryLabels,
       forecastHistoryMatrix,
       forecastLineOption,
       forecastAlgorithmSteps,
       forecastTrendClass,
+      nextMonthKey,
+      nextMonthLabel,
+      nextMonthPromo,
+      promoSaving,
+      promoSaveError,
+      setPromoFlag,
 
       // data
       courses,

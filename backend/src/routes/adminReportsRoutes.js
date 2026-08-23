@@ -21,8 +21,12 @@ router.get("/course-monthly-preview", c.getCourseMonthlyPreview);
 router.get("/attendance", c.getAttendanceReport); // ✅ ginagamit ng frontend
 router.get("/attendance-report", c.getAttendanceReport); // ✅ backup (old)
 
-// 🔥 FORECAST (NEW - para sa ginawa natin)
 router.get("/forecast", c.getForecast);
+router.get("/forecast-backtest", c.getForecastBacktest);
+
+// 🔥 PROMO FLAGS (NEW)
+router.get("/promo-flags", c.getPromoFlags);
+router.post("/promo-flags", c.setPromoFlag);
 
 // 🔥 REVENUE
 router.get("/revenue-preview", c.getRevenuePreview);

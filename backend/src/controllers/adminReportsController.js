@@ -978,7 +978,6 @@ exports.getCourseMonthlyPreview = async (req, res) => {
           ${where}
           GROUP BY month_label, sr.course_id
           ORDER BY month_label DESC, count DESC
-          LIMIT 50
           `,
       params,
     );
@@ -2356,6 +2355,172 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
 // ========================================
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
 
+exports.getForecastBacktest = async (req, res) => {
+  try {
+    const mode = String(req.query.report_mode || "driving").toLowerCase();
+
+    if (mode === "tesda") {
+      return res.json({
+        status: "success",
+        data: [],
+      });
+    }
+
+    const [rows] = await pool.execute(`
+      SELECT
+        DATE_FORMAT(sr.created_at, '%Y-%m') AS month,
+        c.course_name,
+        COUNT(*) AS total
+      FROM schedule_reservations sr
+      LEFT JOIN courses c ON c.id = sr.course_id
+      WHERE sr.created_at >= '2025-01-01'
+        AND sr.created_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
+      GROUP BY month, sr.course_id, c.course_name
+      ORDER BY month ASC
+    `);
+
+    const months = [];
+
+    const start = new Date(2025, 0, 1);
+    const current = new Date();
+
+    const end = new Date(
+      current.getFullYear(),
+      current.getMonth() - 1,
+      1
+    );
+
+    let cursor = new Date(start);
+
+    while (cursor <= end) {
+      const year = cursor.getFullYear();
+      const month = String(cursor.getMonth() + 1).padStart(2, "0");
+
+      months.push(`${year}-${month}`);
+
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const courseMap = {};
+
+    rows.forEach((r) => {
+      const course = r.course_name || "Unspecified Course";
+
+      if (!courseMap[course]) {
+        courseMap[course] = {};
+      }
+
+      courseMap[course][r.month] = Number(r.total || 0);
+    });
+
+    const courseNames = Object.keys(courseMap);
+
+    const result = await Promise.all(
+      courseNames.map(async (course) => {
+        const monthly = courseMap[course];
+
+        const values = months.map((month) => {
+          return Number(monthly[month] || 0);
+        });
+
+        try {
+          const resp = await fetch(`${ML_SERVICE_URL}/backtest`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              course,
+              values,
+              periods_ahead: 1,
+            }),
+          });
+
+          const data = await resp.json();
+
+          if (!resp.ok) {
+            throw new Error(
+              data?.detail || data?.error || "Backtest failed"
+            );
+          }
+
+          return data;
+
+        } catch (err) {
+          console.error(
+            `Backtest failed for ${course}:`,
+            err.message
+          );
+
+          const actual = values[values.length - 1] || 0;
+
+          return {
+            course,
+            actual,
+            predicted: 0,
+            absolute_error: actual,
+            percent_error: actual > 0 ? 100 : 0,
+            model_used: "Fallback",
+          };
+        }
+      })
+    );
+
+    return res.json({
+      status: "success",
+      data: result,
+    });
+
+  } catch (err) {
+    console.error("getForecastBacktest error:", err);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to run backtest",
+      debug: err.message,
+    });
+  }
+};
+
+exports.getPromoFlags = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT month, has_promo FROM enrollment_promos WHERE course_id = 0 ORDER BY month ASC`
+    );
+    const map = {};
+    rows.forEach((r) => { map[r.month] = !!r.has_promo; });
+    return res.json({ status: "success", data: map });
+  } catch (err) {
+    console.error("getPromoFlags error:", err);
+    return res.status(500).json({ status: "error", message: "Failed to load promo flags", debug: err.sqlMessage || err.message });
+  }
+};
+
+exports.setPromoFlag = async (req, res) => {
+  try {
+    const month = safeStr(req.body.month);
+    const hasPromo = req.body.has_promo ? 1 : 0;
+
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return res.status(400).json({ status: "error", message: "Invalid month format. Expected YYYY-MM." });
+    }
+
+    const setBy = req.user?.id || null;
+
+    await pool.execute(
+      `INSERT INTO enrollment_promos (month, course_id, has_promo, set_by)
+       VALUES (?, 0, ?, ?)
+       ON DUPLICATE KEY UPDATE has_promo = VALUES(has_promo), set_by = VALUES(set_by)`,
+      [month, hasPromo, setBy],
+    );
+
+    return res.json({ status: "success", data: { month, has_promo: !!hasPromo } });
+  } catch (err) {
+    console.error("setPromoFlag error:", err);
+    return res.status(500).json({ status: "error", message: "Failed to save promo flag", debug: err.sqlMessage || err.message });
+  }
+};
+
 exports.getForecast = async (req, res) => {
   try {
     const mode = String(req.query.report_mode || "driving").toLowerCase();
@@ -2367,7 +2532,6 @@ exports.getForecast = async (req, res) => {
       });
     }
 
-    // ✅ 24 months instead of 3 — kailangan ng ML ng mas maraming history
     const [rows] = await pool.execute(`
       SELECT 
         DATE_FORMAT(sr.created_at, '%Y-%m') AS month,
@@ -2380,35 +2544,98 @@ exports.getForecast = async (req, res) => {
       ORDER BY month ASC
     `);
 
-    const courseMap = {};
-    rows.forEach((r) => {
-      if (!courseMap[r.course_name]) courseMap[r.course_name] = [];
-      courseMap[r.course_name].push(Number(r.total));
+    const [promoRows] = await pool.execute(
+      `SELECT month, has_promo FROM enrollment_promos WHERE course_id = 0`
+    );
+    const promoMap = {};
+    promoRows.forEach((r) => {
+      promoMap[r.month] = !!r.has_promo;
     });
 
-// ✅ Parallel processing gamit ang Promise.all — sabay-sabay tatakbo
-    // ang mga courses sa halip na isa-isa (mas mabilis dahil concurrent).
+    const now = new Date();
+    const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonthKey = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const nextMonthHasPromo = promoMap[nextMonthKey] ? 1 : 0;
+
+    const courseMap = {};
+    const monthsSeen = new Set();
+    rows.forEach((r) => {
+      if (!courseMap[r.course_name]) courseMap[r.course_name] = {};
+      courseMap[r.course_name][r.month] = Number(r.total);
+      monthsSeen.add(r.month);
+    });
+
     const courseNames = Object.keys(courseMap);
+
+    const MIN_PROMO_SAMPLES = 3;
+    const PROMO_UPLIFT_MULTIPLIER = 1.25;
+    const HORIZON = 3; // ✅ NEW: 3-buwan na forecast, hindi lang 1
 
     const result = await Promise.all(
       courseNames.map(async (course) => {
-        const values = courseMap[course];
+        const months = Array.from(monthsSeen).sort();
+        const values = months.map((m) => Number(courseMap[course][m] || 0));
+
+        const promoHistory = months.map((m) => (promoMap[m] ? 1 : 0));
+        const promoMonthCount = promoHistory.filter((v) => v === 1).length;
+        const hasEnoughPromoData = promoMonthCount >= MIN_PROMO_SAMPLES;
+
         let mlResult;
 
         try {
           const resp = await fetch(`${ML_SERVICE_URL}/forecast`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ course, values, periods_ahead: 1 }),
+            body: JSON.stringify({
+              course,
+              values,
+              periods_ahead: HORIZON,
+              // ✅ Alam lang natin ang promo status ng SUSUNOD na buwan
+              // (buwan 1) — walang alam para sa buwan 2 at 3, kaya 0
+              // (walang promo) ang i-assume doon bilang ligtas na default.
+              ...(hasEnoughPromoData
+                ? {
+                    promo_history: promoHistory,
+                    promo_future: [nextMonthHasPromo, 0, 0],
+                  }
+                : {}),
+            }),
           });
           mlResult = await resp.json();
+
+          // ✅ Manual multiplier fallback — ilapat lang sa BUWAN 1 (index 0),
+          // dahil doon lang tayo may kumpirmadong impormasyon ng promo.
+          if (!hasEnoughPromoData && nextMonthHasPromo) {
+            const points = Array.isArray(mlResult.points) ? [...mlResult.points] : [mlResult.point, mlResult.point, mlResult.point];
+            const lows = Array.isArray(mlResult.lows) ? [...mlResult.lows] : [mlResult.low, mlResult.low, mlResult.low];
+            const highs = Array.isArray(mlResult.highs) ? [...mlResult.highs] : [mlResult.high, mlResult.high, mlResult.high];
+
+            points[0] = Math.round(points[0] * PROMO_UPLIFT_MULTIPLIER);
+            lows[0] = Math.round(lows[0] * PROMO_UPLIFT_MULTIPLIER);
+            highs[0] = Math.round(highs[0] * PROMO_UPLIFT_MULTIPLIER * 1.1);
+
+            mlResult = {
+              ...mlResult,
+              point: points[0],
+              low: lows[0],
+              high: highs[0],
+              points,
+              lows,
+              highs,
+              model_used: `${mlResult.model_used} + Manual Promo Uplift (x${PROMO_UPLIFT_MULTIPLIER}, Month 1 only)`,
+            };
+          }
         } catch (mlErr) {
           console.error("ML service unreachable:", mlErr.message);
           const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+          const fallbackPoint = Math.round(avg);
           mlResult = {
-            point: Math.round(avg),
+            point: fallbackPoint,
             low: Math.round(avg * 0.7),
             high: Math.round(avg * 1.3),
+            points: [fallbackPoint, fallbackPoint, fallbackPoint],
+            lows: [Math.round(avg * 0.7), Math.round(avg * 0.7), Math.round(avg * 0.7)],
+            highs: [Math.round(avg * 1.3), Math.round(avg * 1.3), Math.round(avg * 1.3)],
             model_used: "Fallback Average",
           };
         }
@@ -2430,9 +2657,16 @@ exports.getForecast = async (req, res) => {
           forecast: mlResult.point,
           low: mlResult.low,
           high: mlResult.high,
+          // ✅ NEW: totoong per-month na forecast, para sa Multi-Horizon
+          // at Revenue Forecast charts sa frontend.
+          multiPoints: mlResult.points || [mlResult.point, mlResult.point, mlResult.point],
+          multiLows: mlResult.lows || [mlResult.low, mlResult.low, mlResult.low],
+          multiHighs: mlResult.highs || [mlResult.high, mlResult.high, mlResult.high],
           trend,
           model_used: mlResult.model_used,
           dataPoints: values.length,
+          promoAppliedNextMonth: !!nextMonthHasPromo,
+          promoHistoricalSamples: promoMonthCount,
           explanation:
             trend === "Increasing"
               ? "Enrollment trend is increasing based on recent months."
@@ -2443,7 +2677,14 @@ exports.getForecast = async (req, res) => {
       })
     );
 
-    return res.json({ status: "success", data: result });
+    return res.json({
+      status: "success",
+      data: result,
+      meta: {
+        nextMonth: nextMonthKey,
+        nextMonthHasPromo: !!nextMonthHasPromo,
+      },
+    });
   } catch (err) {
     console.error("getForecast error:", err);
     return res.status(500).json({
