@@ -47,7 +47,7 @@
       <!-- TOP SUMMARY -->
       <div class="kpi-grid mb-5" :class="reportMode === 'driving' ? 'kpi-grid-4' : 'kpi-grid-3'">
         <div class="kpi-card kpi-green">
-          <p class="kpi-label">Total Enrolled</p>
+          <p class="kpi-label">Total Enrolled (Starting January 2025)</p>
           <h3 class="kpi-value">{{ summary.totalEnrolled }}</h3>
         </div>
 
@@ -1358,8 +1358,9 @@
                           <th class="text-center">Trend</th>
                         </tr>
                       </thead>
+                      <!-- AFTER -->
                       <tbody>
-                        <tr v-for="row in courseForecastRows" :key="row.course">
+                        <tr v-for="row in courseForecastRowsDisplay" :key="row.course">
                           <td class="font-semibold">{{ row.course }}</td>
                           <td class="text-center font-mono">{{ row.historyLabel }}</td>
                           <td class="text-center font-extrabold" style="color:#6d28d9;">{{ row.forecast }}</td>
@@ -1417,7 +1418,7 @@
                 <div class="panel-card mt-5" style="padding: 16px;">
                   <div class="flex items-center justify-between gap-3 mb-3">
                     <div>
-                      <h4 class="panel-title">Model Accuracy (Backtest)</h4>
+                      <h4 class="panel-title">Model Accuracy</h4>
                       <p class="filter-note mt-1">Actual vs predicted enrollment for last month, using data up to the month before as training basis.</p>
                     </div>
                   </div>
@@ -2270,6 +2271,14 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
         promoSaving.value = false;
       }
     }
+    function courseSortRank(name) {
+      const n = String(name || "").toUpperCase().replace(/[^A-Z0-9()]/g, "");
+      if (n.includes("(AB)")) return 2;
+      if (n.includes("(A)")) return 0;
+      if (n.includes("(B)")) return 1;
+      if (n.includes("THEORETICAL")) return 3;
+      return 4;
+    }
 
     // ✅ Instant lang ito — walang API call — kaya safe tawagin sa
     // bawat pagpalit ng forecastHorizon dropdown.
@@ -2394,6 +2403,16 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
         ],
       };
     });
+// AFTER
+    // ✅ Fixed-order view ng courseForecastRows, para lang sa
+    // Course Forecast Breakdown table. Hindi apektado ang topCourse
+    // logic o bar chart — sila pa rin ang gumagamit ng forecast-desc order.
+    const courseForecastRowsDisplay = computed(() =>
+      [...courseForecastRows.value].sort(
+        (a, b) => courseSortRank(a.course) - courseSortRank(b.course) || a.course.localeCompare(b.course)
+      )
+    );
+
         // ✅ #2 Per-Course Forecast Bar Chart
     const courseForecastBarOption = computed(() => ({
       tooltip: { trigger: "axis" },
@@ -4667,6 +4686,7 @@ onMounted(async () => {
       forecastModalOpen,
       openForecastModal,
       courseForecastRows,
+      courseForecastRowsDisplay,
       mlForecastLoading,
       mlForecastError,
       courseForecastBarOption,

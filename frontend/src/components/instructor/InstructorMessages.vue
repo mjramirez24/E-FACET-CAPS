@@ -7,30 +7,24 @@
           <svg class="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <input
-            type="text"
-            placeholder="Search messages..."
-            v-model="searchQuery"
-            class="search-input-modern"
-          />
+            <input
+              type="text"
+              placeholder="Search or start a new conversation..."
+              v-model="searchQuery"
+              class="search-input-modern"
+            />
         </div>
       </div>
     </template>
 
     <div class="space-y-4">
       <!-- Page Header -->
-      <div class="page-top">
-        <div>
-          <h2 class="page-title">Messages</h2>
-          <p class="page-subtitle">Chat with Admins and Students</p>
-        </div>
-        <button
-          @click="startNewMessage"
-          class="bg-green-700 hover:bg-green-800 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm shadow-green-200 transition-colors text-sm font-semibold"
-        >
-          <span class="text-base leading-none">+</span> New Message
-        </button>
+    <div class="page-top">
+      <div>
+        <h2 class="page-title">Messages</h2>
+        <p class="page-subtitle">Chat with Admins and Students</p>
       </div>
+    </div>
 
       <!-- App Card -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -44,55 +38,6 @@
             <div class="px-4 pt-4 pb-3">
               <div class="flex items-center justify-between">
                 <h3 class="font-bold text-gray-900 text-[15px]">Chats</h3>
-
-                <details class="relative">
-                  <summary class="list-none cursor-pointer w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 text-lg select-none">⋯</summary>
-
-                  <div class="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-20 space-y-3">
-                    <div class="grid grid-cols-2 gap-2 text-center">
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.unreadMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Unread</p>
-                      </div>
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.totalMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Total</p>
-                      </div>
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.studentMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Students</p>
-                      </div>
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.adminMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Admin</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Type</label>
-                      <select v-model="selectedType" class="w-full mt-1 p-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-green-500">
-                        <option value="">All Types</option>
-                        <option value="user">Students</option>
-                        <option value="instructor">Instructors</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Status</label>
-                      <select v-model="selectedStatus" class="w-full mt-1 p-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-green-500">
-                        <option value="">All Status</option>
-                        <option value="unread">Unread</option>
-                        <option value="read">Read</option>
-                      </select>
-                    </div>
-
-                    <div class="flex gap-2 pt-1">
-                      <button @click="clearFilters" class="flex-1 px-2 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-[11px] font-semibold transition-colors">Clear</button>
-                      <button @click="markAllAsRead" class="flex-1 px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-[11px] font-semibold transition-colors">Mark All Read</button>
-                    </div>
-                  </div>
-                </details>
               </div>
             </div>
 
@@ -154,7 +99,7 @@
                   <p class="text-[11px] text-gray-400 capitalize mb-0.5">{{ roleLabel(conversation.role) }}</p>
                   <div class="flex items-center justify-between gap-2">
                     <p class="truncate text-xs" :class="conversation.unreadCount > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'">
-                      {{ conversation.lastMessage || 'No messages yet' }}
+                      {{ conversation.isNewContact ? 'Tap to start a conversation' : (conversation.lastMessage || 'No messages yet') }}
                     </p>
                     <span
                       v-if="conversation.unreadCount > 0"
@@ -316,75 +261,6 @@
       </div>
     </div>
 
-    <!-- New Message Modal -->
-    <transition name="modal-fade">
-      <div
-        v-if="showNewMessageModal"
-        class="modal-overlay"
-        @click.self="closeNewMessageModal"
-      >
-        <transition name="modal-scale">
-          <div class="modal-card modal-card-sm">
-            <div class="modal-head modal-head-green">
-              <h3 class="modal-title">New Message</h3>
-              <button @click="closeNewMessageModal" class="modal-close-btn">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div class="modal-body">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">To</label>
-                  <select
-                    v-model="newMessageRecipient"
-                    class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                  >
-                    <option value="" disabled>Select recipient</option>
-                    <optgroup label="Admins">
-                      <option v-for="contact in contactsByRole('admin')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                    </optgroup>
-                    <optgroup label="Instructors">
-                      <option v-for="contact in contactsByRole('instructor')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                    </optgroup>
-                    <optgroup label="Students">
-                      <option v-for="contact in contactsByRole('user')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                    </optgroup>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">Message</label>
-                  <textarea
-                    v-model="newMessageContent"
-                    rows="4"
-                    class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
-                    placeholder="Type your message here..."
-                  ></textarea>
-                </div>
-              </div>
-            </div>
-            <div class="modal-foot">
-              <button
-                type="button"
-                @click="closeNewMessageModal"
-                class="btn-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                @click="sendNewMessage"
-                :disabled="!newMessageRecipient || !newMessageContent.trim() || sending"
-                class="btn-save btn-green"
-              >
-                {{ sending ? 'Sending...' : 'Send Message' }}
-              </button>
-            </div>
-          </div>
-        </transition>
-      </div>
-    </transition>
-
     <!-- Delete Confirmation Modal -->
     <transition name="modal-fade">
       <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
@@ -469,14 +345,9 @@ export default {
 
     // ── State ──────────────────────────────────────────────────────────────────
     const searchQuery = ref('')
-    const selectedType = ref('')
-    const selectedStatus = ref('')
     const selectedConversation = ref(null)
     const newMessage = ref('')
     const sending = ref(false)
-    const showNewMessageModal = ref(false)
-    const newMessageRecipient = ref('')
-    const newMessageContent = ref('')
     const messagesContainer = ref(null)
     const messageInputRef = ref(null)
 
@@ -510,13 +381,6 @@ export default {
       messageOpen.value = false
     }
 
-    const messageStats = ref({
-      totalMessages: 0,
-      unreadMessages: 0,
-      studentMessages: 0,
-      adminMessages: 0,
-    })
-
     // ── Hidden messages (local "delete for me") ─────────────────────────────────
     const loadHiddenIds = () => {
       try {
@@ -542,24 +406,23 @@ export default {
       loadHiddenIds()
     }
 
-    const fetchInbox = async () => {
-      const res = await api.get('/messages/inbox')
-      inbox.value = res.data
+      // Mock/seed accounts are named "Mock Student N" by seedMockEnrollments.js —
+      // keep them out of the visible messaging UI (they never log in / message anyone anyway).
+      const isMockContact = (c) => (c?.name || '').startsWith('Mock Student')
 
-      messageStats.value.totalMessages = inbox.value.length
-      messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length
-      messageStats.value.studentMessages = inbox.value.filter(c => c.role === 'user').length
-      messageStats.value.adminMessages = inbox.value.filter(c => c.role === 'admin').length
-    }
-
-    const fetchContacts = async () => {
-      try {
-        const res = await api.get('/messages/contacts')
-        allContacts.value = res.data
-      } catch (err) {
-        console.error('fetchContacts error:', err)
+      const fetchInbox = async () => {
+        const res = await api.get('/messages/inbox')
+        inbox.value = res.data.filter(c => !isMockContact(c))
       }
-    }
+
+      const fetchContacts = async () => {
+        try {
+          const res = await api.get('/messages/contacts')
+          allContacts.value = res.data.filter(c => !isMockContact(c))
+        } catch (err) {
+          console.error('fetchContacts error:', err)
+        }
+      }
 
     const loadThread = async (user) => {
       selectedConversation.value = user
@@ -573,7 +436,6 @@ export default {
         found.unreadCount = 0
         found.status = 'read'
       }
-      messageStats.value.unreadMessages = inbox.value.filter(c => c.unreadCount > 0).length
 
       await nextTick()
       if (messagesContainer.value) {
@@ -605,26 +467,6 @@ export default {
         sending.value = false
       }
     }
-
-    const sendNewMessage = async () => {
-      if (!newMessageRecipient.value || !newMessageContent.value.trim() || sending.value) return
-      sending.value = true
-      try {
-        await api.post('/messages/send', {
-          receiver_id: newMessageRecipient.value,
-          message: newMessageContent.value,
-        })
-        closeNewMessageModal()
-        await fetchInbox()
-
-        const contact = allContacts.value.find(c => c.id === newMessageRecipient.value)
-        if (contact) await loadThread(contact)
-      } finally {
-        sending.value = false
-      }
-    }
-
-    // ── Delete modal (replaces confirm()/alert()) ───────────────────────────────
     const confirmDeleteConversation = (conv) => {
       deleteTarget.value = { type: 'conversation', data: conv }
       deleteErrorMsg.value = ''
@@ -726,29 +568,42 @@ export default {
     }
 
     // ── Computed ───────────────────────────────────────────────────────────────
-    const filteredConversations = computed(() => {
-      let result = [...inbox.value]
+      const filteredConversations = computed(() => {
+        const q = searchQuery.value.toLowerCase().trim()
+        let result = [...inbox.value]
 
-      if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase()
-        result = result.filter(
-          c =>
-            c.name.toLowerCase().includes(q) ||
-            c.role.toLowerCase().includes(q) ||
-            (c.lastMessage || '').toLowerCase().includes(q)
-        )
-      }
+        if (q) {
+          result = result.filter(
+            c =>
+              c.name.toLowerCase().includes(q) ||
+              c.role.toLowerCase().includes(q) ||
+              (c.lastMessage || '').toLowerCase().includes(q)
+          )
 
-      if (selectedType.value) {
-        result = result.filter(c => c.role === selectedType.value)
-      }
+          // Search also surfaces contacts with no conversation yet — clicking one
+          // starts a fresh thread, so this doubles as "start new message".
+          const existingIds = new Set(inbox.value.map(c => c.id))
+          const newContacts = allContacts.value
+            .filter(c => !existingIds.has(c.id))
+            .filter(c => c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q))
+            .map(c => ({
+              ...c,
+              lastMessage: null,
+              lastMessageTime: null,
+              unreadCount: 0,
+              isNewContact: true,
+            }))
 
-      if (selectedStatus.value) {
-        result = result.filter(c => c.status === selectedStatus.value)
-      }
+          result = [...result, ...newContacts]
+        }
 
-      return result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime))
-    })
+        return result.sort((a, b) => {
+          if (!a.lastMessageTime && !b.lastMessageTime) return a.name.localeCompare(b.name)
+          if (!a.lastMessageTime) return 1
+          if (!b.lastMessageTime) return -1
+          return new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
+        })
+      })
 
     const recentContacts = computed(() =>
       allContacts.value
@@ -757,7 +612,6 @@ export default {
     )
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-    const contactsByRole = (role) => allContacts.value.filter(c => c.role === role)
 
     const roleLabel = (role) => {
       if (role === 'user') return 'Student'
@@ -794,40 +648,11 @@ export default {
       return 'bg-gray-500'
     }
 
-    const getStatusBadgeClass = (status) => {
-      if (status === 'unread') return 'bg-blue-100 text-blue-800'
-      return 'bg-gray-100 text-gray-600'
-    }
-
-    const clearFilters = () => {
-      searchQuery.value = ''
-      selectedType.value = ''
-      selectedStatus.value = ''
-    }
-
-    const markAllAsRead = () => {
-      inbox.value.forEach(c => {
-        c.unreadCount = 0
-        c.status = 'read'
-      })
-      messageStats.value.unreadMessages = 0
-    }
-
     const selectConversation = (conv) => loadThread(conv)
     const backToInbox = () => {
       selectedConversation.value = null
       messages.value = []
       isEditingDraft.value = false
-    }
-
-    const startNewMessage = () => {
-      showNewMessageModal.value = true
-    }
-
-    const closeNewMessageModal = () => {
-      showNewMessageModal.value = false
-      newMessageRecipient.value = ''
-      newMessageContent.value = ''
     }
 
     const startConversation = async (contact) => {
@@ -842,17 +667,11 @@ export default {
 
     return {
       searchQuery,
-      selectedType,
-      selectedStatus,
       selectedConversation,
       newMessage,
       sending,
-      showNewMessageModal,
-      newMessageRecipient,
-      newMessageContent,
       messagesContainer,
       messageInputRef,
-      messageStats,
       inbox,
       recentContacts,
       allContacts,
@@ -880,20 +699,13 @@ export default {
       messageText,
       closeMessage,
 
-      contactsByRole,
       roleLabel,
       getInitials,
       formatTime,
       getUserBadgeClass,
-      getStatusBadgeClass,
-      clearFilters,
-      markAllAsRead,
       selectConversation,
       backToInbox,
       sendMessage,
-      startNewMessage,
-      closeNewMessageModal,
-      sendNewMessage,
       startConversation,
       editMessage,
       cancelEditDraft,

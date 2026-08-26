@@ -72,6 +72,11 @@ const COURSES = {
 // 650 is needed because PDC-A alone exceeds 500
 const MOCK_STUDENT_COUNT = 650;
 
+// Leave this many of the most recent reservations without a
+// certificate row, so they surface as "Ready to Generate"
+const CERTS_TO_LEAVE_UNGENERATED = 6;
+let certsSkipped = 0;
+
 // =====================================================
 // RANDOM HELPERS
 // =====================================================
@@ -354,10 +359,10 @@ async function main() {
         const reservationId = resResult.insertId;
 
         const certYear = row.year;
-        const certRandom = randomInt(100000, 999999);
+        const certRandom = randomInt(1000000, 9999999); // wider range, fewer collisions
 
         const certCode =
-          `DRIVE-${certYear}-${certRandom}`;
+          `DRIVE-${certYear}-${certRandom}-${reservationId}`; // reservationId guarantees uniqueness
 
         // Keep certificate within the same month
         const lastDayOfMonth = new Date(
