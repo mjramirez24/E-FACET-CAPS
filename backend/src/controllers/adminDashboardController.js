@@ -37,6 +37,7 @@ exports.getDashboardSummary = async (req, res) => {
     const [roleRows] = await pool.execute(
       `SELECT UPPER(role) AS role, COUNT(*) AS count
        FROM users
+       WHERE email NOT LIKE '%@seedtest.local'
        GROUP BY UPPER(role)`,
     );
 
@@ -45,24 +46,7 @@ exports.getDashboardSummary = async (req, res) => {
       roles[normalizeRole(r.role)] = Number(r.count) || 0;
 
     const totalUsers = Object.values(roles).reduce((a, b) => a + b, 0);
-
-    // Count only REAL students who actually enrolled in the system.
-    // Historical/mock driving reservations are excluded.
-    const [[realStudentCount]] = await pool.execute(`
-      SELECT COUNT(DISTINCT student_id) AS total
-      FROM (
-        SELECT sr.student_id
-        FROM schedule_reservations sr
-        WHERE COALESCE(sr.is_historical, 0) = 0
-
-        UNION
-
-        SELECT tr.student_id
-        FROM tesda_schedule_reservations tr
-      ) AS real_students
-    `);
-
-    const totalStudents = Number(realStudentCount?.total || 0);
+    const totalStudents = (roles.USER || 0) + (roles.STUDENT || 0);
 
     // ---------------- COURSES ----------------
     const [[drivingCourses]] = await pool.execute(
@@ -134,8 +118,8 @@ exports.getDashboardSummary = async (req, res) => {
           LEFT JOIN courses c ON c.id = sr.course_id
           LEFT JOIN schedules s ON s.schedule_id = sr.schedule_id
 
-          -- Hide mock / historical students ONLY from Recent Reservations
-          WHERE COALESCE(sr.is_historical, 0) = 0
+          -- Hide mock/seed students from Recent Reservations
+          WHERE u.email IS NULL OR u.email NOT LIKE '%@seedtest.local'
         )
         UNION ALL
         (
@@ -153,6 +137,7 @@ exports.getDashboardSummary = async (req, res) => {
           LEFT JOIN users u ON u.id = tr.student_id
           LEFT JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
           LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
+          WHERE u.email IS NULL OR u.email NOT LIKE '%@seedtest.local'
         )
         ORDER BY created_at DESC
         LIMIT 100`,
