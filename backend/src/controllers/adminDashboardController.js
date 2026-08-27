@@ -45,7 +45,24 @@ exports.getDashboardSummary = async (req, res) => {
       roles[normalizeRole(r.role)] = Number(r.count) || 0;
 
     const totalUsers = Object.values(roles).reduce((a, b) => a + b, 0);
-    const totalStudents = (roles.USER || 0) + (roles.STUDENT || 0);
+
+    // Count only REAL students who actually enrolled in the system.
+    // Historical/mock driving reservations are excluded.
+    const [[realStudentCount]] = await pool.execute(`
+      SELECT COUNT(DISTINCT student_id) AS total
+      FROM (
+        SELECT sr.student_id
+        FROM schedule_reservations sr
+        WHERE COALESCE(sr.is_historical, 0) = 0
+
+        UNION
+
+        SELECT tr.student_id
+        FROM tesda_schedule_reservations tr
+      ) AS real_students
+    `);
+
+    const totalStudents = Number(realStudentCount?.total || 0);
 
     // ---------------- COURSES ----------------
     const [[drivingCourses]] = await pool.execute(
@@ -102,40 +119,43 @@ exports.getDashboardSummary = async (req, res) => {
     // IMPORTANT: TESDA course is derived from tesda_schedules.course_id (NOT reservation table)
     const [recent] = await pool.execute(
       `(
-        SELECT
-          'DRIVING' AS track,
-          sr.reservation_id AS id,
-          sr.created_at,
-          UPPER(sr.reservation_status) AS status,
-          u.fullname AS student_name,
-          c.course_name,
-          DATE(s.schedule_date) AS schedule_date,
-          s.start_time,
-          s.end_time
-        FROM schedule_reservations sr
-        LEFT JOIN users u ON u.id = sr.student_id
-        LEFT JOIN courses c ON c.id = sr.course_id
-        LEFT JOIN schedules s ON s.schedule_id = sr.schedule_id
-      )
-      UNION ALL
-      (
-        SELECT
-          'TESDA' AS track,
-          tr.reservation_id AS id,
-          tr.created_at,
-          UPPER(tr.reservation_status) AS status,
-          u.fullname AS student_name,
-          tc.course_name,
-          DATE(ts.schedule_date) AS schedule_date,
-          ts.start_time,
-          ts.end_time
-        FROM tesda_schedule_reservations tr
-        LEFT JOIN users u ON u.id = tr.student_id
-        LEFT JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
-        LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
-      )
-      ORDER BY created_at DESC
-      LIMIT 100`,
+          SELECT
+            'DRIVING' AS track,
+            sr.reservation_id AS id,
+            sr.created_at,
+            UPPER(sr.reservation_status) AS status,
+            u.fullname AS student_name,
+            c.course_name,
+            DATE(s.schedule_date) AS schedule_date,
+            s.start_time,
+            s.end_time
+          FROM schedule_reservations sr
+          LEFT JOIN users u ON u.id = sr.student_id
+          LEFT JOIN courses c ON c.id = sr.course_id
+          LEFT JOIN schedules s ON s.schedule_id = sr.schedule_id
+
+          -- Hide mock / historical students ONLY from Recent Reservations
+          WHERE COALESCE(sr.is_historical, 0) = 0
+        )
+        UNION ALL
+        (
+          SELECT
+            'TESDA' AS track,
+            tr.reservation_id AS id,
+            tr.created_at,
+            UPPER(tr.reservation_status) AS status,
+            u.fullname AS student_name,
+            tc.course_name,
+            DATE(ts.schedule_date) AS schedule_date,
+            ts.start_time,
+            ts.end_time
+          FROM tesda_schedule_reservations tr
+          LEFT JOIN users u ON u.id = tr.student_id
+          LEFT JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
+          LEFT JOIN tesda_courses tc ON tc.id = ts.course_id
+        )
+        ORDER BY created_at DESC
+        LIMIT 100`,
     );
 
     // ---------------- MONTHLY TRENDS ----------------

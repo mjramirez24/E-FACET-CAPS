@@ -518,9 +518,20 @@ export default {
     );
 
     const reservationsHistory = computed(() =>
-      reservations.value.filter((r) =>
-        ["DONE", "CANCELLED"].includes(String(r.reservation_status || "").toUpperCase())
-      )
+      reservations.value.filter((r) => {
+        const status = String(
+          r.reservation_status || ""
+        ).toUpperCase();
+
+        const isHistory = ["DONE", "CANCELLED"].includes(status);
+
+        // Driving historical/mock records are hidden from History.
+        const isHistorical =
+          activeTrack.value === "driving" &&
+          Number(r.is_historical || 0) === 1;
+
+        return isHistory && !isHistorical;
+      })
     );
 
     const currentRows = computed(() => {

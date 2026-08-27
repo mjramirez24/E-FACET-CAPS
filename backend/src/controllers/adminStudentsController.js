@@ -444,11 +444,18 @@ exports.listStudents = async (req, res) => {
     const drivingWhere = `(c.course_name LIKE '%Driving%' OR c.course_code LIKE 'PDC-%')`;
     const tesdaWhere = `NOT ${drivingWhere}`;
 
-    let where = `WHERE u.role = 'user'`;
+    let where = `
+      WHERE u.role = 'user'
+        AND COALESCE(sr.is_historical, 0) = 0
+    `;
+
     const params = [];
 
-    if (track === "tesda") where += ` AND ${tesdaWhere}`;
-    else where += ` AND ${drivingWhere}`;
+    if (track === "tesda") {
+      where += ` AND ${tesdaWhere}`;
+    } else {
+      where += ` AND ${drivingWhere}`;
+    }
 
     if (source === "online" || source === "walkin") {
       where += ` AND ${sourceExprSql()} = ?`;

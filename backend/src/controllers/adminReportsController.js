@@ -448,7 +448,12 @@ exports.getDetailed = async (req, res) => {
       req.query.limit,
     );
 
-    let where = `WHERE sr.created_at >= ? AND sr.created_at < ?`;
+    let where = `
+      WHERE sr.created_at >= ?
+        AND sr.created_at < ?
+        AND COALESCE(sr.is_historical, 0) = 0
+    `;
+
     const params = [from, to];
 
     if (courseId) {
@@ -1214,11 +1219,25 @@ exports.getRevenuePreview = async (req, res) => {
     const { from, to } = getDateRange(req);
 
     const courseId = safeStr(req.query.course_id);
-    const paymentMethod = safeStr(req.query.payment_method).toUpperCase();
+    const paymentMethod = safeStr(
+      req.query.payment_method,
+    ).toUpperCase();
 
-    const dateExpr = `COALESCE(sr.done_at, sr.updated_at, sr.created_at)`;
+    const dateExpr = `
+      COALESCE(sr.done_at, sr.updated_at, sr.created_at)
+    `;
 
-    let where = `WHERE ${dateExpr} >= ? AND ${dateExpr} < ? AND ${isDoneConditionSql()}`;
+    // =====================================================
+    // MAIN WHERE
+    // Historical + real students
+    // Ginagamit ito sa revenue computation
+    // =====================================================
+    let where = `
+      WHERE ${dateExpr} >= ?
+        AND ${dateExpr} < ?
+        AND ${isDoneConditionSql()}
+    `;
+
     const params = [from, to];
 
     if (courseId) {
@@ -1226,11 +1245,29 @@ exports.getRevenuePreview = async (req, res) => {
       params.push(courseId);
     }
 
-    if (paymentMethod === "GCASH" || paymentMethod === "CASH") {
+    if (
+      paymentMethod === "GCASH" ||
+      paymentMethod === "CASH"
+    ) {
       where += ` AND UPPER(sr.payment_method) = ?`;
       params.push(paymentMethod);
     }
 
+    // =====================================================
+    // PAYMENT PREVIEW WHERE
+    // Real students ONLY
+    // Historical/mock students are hidden here
+    // =====================================================
+    const previewWhere = `
+      ${where}
+      AND COALESCE(sr.is_historical, 0) = 0
+    `;
+
+    // =====================================================
+    // QUERY #1
+    // PAYMENT PREVIEW TABLE
+    // Historical/mock students are HIDDEN
+    // =====================================================
     const [rows] = await pool.execute(
       `
       SELECT
@@ -1238,6 +1275,7 @@ exports.getRevenuePreview = async (req, res) => {
         sr.payment_method AS reservation_payment_method,
         sr.reservation_status,
         sr.done_at,
+
         ${dateExpr} AS sort_date,
 
         u.fullname,
@@ -1249,52 +1287,136 @@ exports.getRevenuePreview = async (req, res) => {
         sps.created_at AS submission_created_at,
 
         CASE
-          WHEN sps.amount_centavos IS NOT NULL THEN ROUND(sps.amount_centavos / 100, 2)
+          WHEN sps.amount_centavos IS NOT NULL
+            THEN ROUND(sps.amount_centavos / 100, 2)
           ELSE COALESCE(c.course_fee, 0)
         END AS amount_peso
 
       FROM schedule_reservations sr
-      LEFT JOIN users u ON u.id = sr.student_id
-      LEFT JOIN courses c ON c.id = sr.course_id
+
+      LEFT JOIN users u
+        ON u.id = sr.student_id
+
+      LEFT JOIN courses c
+        ON c.id = sr.course_id
+
       ${latestSubmissionJoinSql()}
-      ${where}
+
+      ${previewWhere}
+
       ORDER BY sort_date DESC
       LIMIT 500
       `,
       params,
     );
 
-    const doneCount = rows.length;
-    const totalRevenuePeso = rows.reduce(
-      (acc, r) => acc + Number(r.amount_peso || 0),
-      0,
+    // =====================================================
+    // QUERY #2
+    // VERIFIED REVENUE / STATS
+    //
+    // IMPORTANT:
+    // ${where} ang ginagamit dito.
+    // HINDI ${previewWhere}.
+    //
+    // Kaya historical + real data pa rin ang kasama
+    // sa revenue computation.
+    // =====================================================
+    const [statsRows] = await pool.execute(
+      `
+      SELECT
+        COUNT(*) AS verifiedCount,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN sps.amount_centavos IS NOT NULL
+                THEN ROUND(
+                  sps.amount_centavos / 100,
+                  2
+                )
+              ELSE COALESCE(c.course_fee, 0)
+            END
+          ),
+          0
+        ) AS totalRevenuePeso
+
+      FROM schedule_reservations sr
+
+      LEFT JOIN users u
+        ON u.id = sr.student_id
+
+      LEFT JOIN courses c
+        ON c.id = sr.course_id
+
+      ${latestSubmissionJoinSql()}
+
+      ${where}
+      `,
+      params,
     );
-    const avgFeePeso = doneCount ? Math.round(totalRevenuePeso / doneCount) : 0;
+
+    const verifiedCount = Number(
+      statsRows?.[0]?.verifiedCount || 0,
+    );
+
+    const totalRevenuePeso = Number(
+      statsRows?.[0]?.totalRevenuePeso || 0,
+    );
+
+    const avgFeePeso = verifiedCount
+      ? Math.round(
+          totalRevenuePeso / verifiedCount,
+        )
+      : 0;
 
     return res.json({
       status: "success",
+
       data: {
-        verifiedCount: doneCount,
+        // Revenue computation:
+        // historical + actual students
+        verifiedCount,
         verifiedRevenuePeso: totalRevenuePeso,
-        doneCount,
+
+        doneCount: verifiedCount,
         totalRevenuePeso,
+
         avgFeePeso,
         forecastRevenuePeso: 0,
+
+        // Payment Preview:
+        // actual students ONLY
         payments: rows.map((p) => ({
           reservation_id: p.reservation_id,
           payment_ref: p.payment_ref || null,
           fullname: p.fullname || null,
           course_name: p.course_name || null,
-          payment_method: p.reservation_payment_method || null,
-          amount_peso: Number(p.amount_peso || 0),
+
+          payment_method:
+            p.reservation_payment_method || null,
+
+          amount_peso: Number(
+            p.amount_peso || 0,
+          ),
+
           status: "DONE",
-          verified_at: p.submission_verified_at || null,
-          created_at: p.submission_created_at || p.sort_date || null,
+
+          verified_at:
+            p.submission_verified_at || null,
+
+          created_at:
+            p.submission_created_at ||
+            p.sort_date ||
+            null,
         })),
       },
     });
   } catch (err) {
-    console.error("getRevenuePreview error:", err);
+    console.error(
+      "getRevenuePreview error:",
+      err,
+    );
+
     return res.status(500).json({
       status: "error",
       message: "Failed to load revenue preview",

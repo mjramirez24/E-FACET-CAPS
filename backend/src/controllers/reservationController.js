@@ -1011,6 +1011,8 @@ exports.listReservationsAdmin = async (req, res) => {
         r.picture_2x2,
         r.created_at,
 
+        r.is_historical,
+
         r.student_id,
         r.course_id,
         r.schedule_id,
