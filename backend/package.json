@@ -17,7 +17,6 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
-    "efacet-fullstack": "file:..",
     "exceljs": "^4.1.1",
     "express": "^5.2.1",
     "express-session": "^1.18.2",

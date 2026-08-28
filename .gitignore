@@ -1,6 +1,20 @@
-# env files
+# Environment files
 .env
 backend/.env
 frontend/.env
 .env.*
+
+# Node
 node_modules
+
+# Frontend build
+frontend/dist/
+
+# Python
+ml-service/venv/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Archives
+*.zip

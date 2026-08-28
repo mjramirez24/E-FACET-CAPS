@@ -10,11 +10,14 @@ const app = express();
 // ==============================
 // CORS (put BEFORE routes)
 // ==============================
-const allowedOrigins = new Set([
-  "http://localhost:5173",
-  "http://localhost:5177",
-  "http://localhost:5179",
-]);
+const allowedOrigins = new Set(
+  [
+    "http://localhost:5173",
+    "http://localhost:5177",
+    "http://localhost:5179",
+    process.env.FRONTEND_URL,
+  ].filter(Boolean),
+);
 
 // ✅ serve assets (logo, seal, etc.)
 app.use("/assets", express.static(path.join(__dirname, "assets")));
@@ -57,16 +60,18 @@ app.use(express.urlencoded({ extended: true }));
 // ==============================
 // Session middleware (MUST be before routes)
 // ==============================
+app.set("trust proxy", 1);
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "facet-secret-key-2025",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // true only if HTTPS
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
       httpOnly: true,
-      // sameSite: "lax",
     },
   }),
 );
