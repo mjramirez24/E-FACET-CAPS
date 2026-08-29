@@ -24,7 +24,6 @@
           <a href="#programs" class="nav-link">Programs</a>
           <a href="#features" class="nav-link">Features</a>
           <a href="#how-it-works" class="nav-link">How It Works</a>
-          <a href="#faq" class="nav-link">FAQ</a>
         </div>
 
         <div class="nav-actions">
@@ -85,10 +84,6 @@
         <a href="#how-it-works" class="mobile-nav-link" @click="toggleMobileMenu">
           <font-awesome-icon icon="fas fa-cogs" />
           How It Works
-        </a>
-        <a href="#faq" class="mobile-nav-link" @click="toggleMobileMenu">
-          <font-awesome-icon icon="fas fa-question-circle" />
-          FAQ
         </a>
 
         <!-- Mobile Authentication Options -->
@@ -612,7 +607,7 @@
             </div>
           </div>
 
-          <a href="tel:+1234567890" class="btn btn-outline btn-large">
+          <a href="tel:0927-428-2127" class="btn btn-outline btn-large">
             <font-awesome-icon icon="fas fa-phone-alt" />
             Call for Assistance
           </a>
@@ -638,10 +633,7 @@
               Transforming education through technology, providing seamless enrollment and training experiences.
             </p>
             <div class="social-links">
-              <a href="#" class="social-link"><font-awesome-icon :icon="['fab', 'facebook-f']" /></a>
-              <a href="#" class="social-link"><font-awesome-icon :icon="['fab', 'twitter']" /></a>
-              <a href="#" class="social-link"><font-awesome-icon :icon="['fab', 'instagram']" /></a>
-              <a href="#" class="social-link"><font-awesome-icon :icon="['fab', 'youtube']" /></a>
+              <a href="https://www.facebook.com/profile.php?id=100078441665166" class="social-link"><font-awesome-icon :icon="['fab', 'facebook-f']" /></a>
             </div>
           </div>
 
@@ -651,7 +643,6 @@
               <a href="#features">Features</a>
               <a href="#programs">Programs</a>
               <a href="#how-it-works">How It Works</a>
-              <a href="#faq">FAQs</a>
             </div>
 
             <div class="footer-column">
@@ -673,16 +664,16 @@
             <div class="footer-column">
               <h3>Contact</h3>
               <a href="tel:+1234567890">
-                <font-awesome-icon icon="fas fa-phone" /> (123) 456-7890
+                <font-awesome-icon icon="fas fa-phone" /> 0927-428-2127
               </a>
               <a href="mailto:info@efacet.com">
-                <font-awesome-icon icon="fas fa-envelope" /> info@efacet.com
+                <font-awesome-icon icon="fas fa-envelope" /> facet.institute.corp@gmail.com
               </a>
               <a href="#">
-                <font-awesome-icon icon="fas fa-map-marker-alt" /> Training Center
+                <font-awesome-icon icon="fas fa-map-marker-alt" /> Barcenaga, Naujan, Oriental Mindoro, Philippines
               </a>
               <a href="#">
-                <font-awesome-icon icon="fas fa-clock" /> Mon-Fri, 8AM-5PM
+                <font-awesome-icon icon="fas fa-clock" /> Mon-Sun, 8AM-6PM
               </a>
             </div>
           </div>
