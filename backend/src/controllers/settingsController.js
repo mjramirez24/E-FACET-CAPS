@@ -3,8 +3,8 @@ const bcrypt = require("bcryptjs");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: resolve user ID from either session shape
-//   Flat   (regular student / instructor / admin): req.session.user_id
-//   Nested (TESDA student):                        req.session.user.user_id
+// Flat   (regular student / instructor / admin): req.session.user_id
+// Nested (TESDA student):                        req.session.user.user_id
 // ─────────────────────────────────────────────────────────────────────────────
 function getSessionUserId(req) {
   const v =
@@ -12,8 +12,63 @@ function getSessionUserId(req) {
     req?.session?.user?.user_id ??
     req?.session?.user?.id ??
     null;
+
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: convert birthday to MySQL DATE format (YYYY-MM-DD)
+//
+// Example:
+// 2005-11-04T00:00:00.000Z
+// becomes:
+// 2005-11-04
+// ─────────────────────────────────────────────────────────────────────────────
+function formatDateOnly(value) {
+  if (value === undefined) return undefined;
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  // Get YYYY-MM-DD from ISO date or normal date string
+  const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
+
+  return match ? match[1] : text;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: normalize common gender values
+//
+// male / M   -> Male
+// female / F -> Female
+// ─────────────────────────────────────────────────────────────────────────────
+function normalizeGender(value) {
+  if (value === undefined) return undefined;
+
+  if (value === null || value === "") {
+    return value;
+  }
+
+  const gender = String(value).trim();
+  const normalized = gender.toLowerCase();
+
+  if (normalized === "male" || normalized === "m") {
+    return "Male";
+  }
+
+  if (normalized === "female" || normalized === "f") {
+    return "Female";
+  }
+
+  if (normalized === "other") {
+    return "Other";
+  }
+
+  return gender;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,22 +77,38 @@ function getSessionUserId(req) {
 const getProfile = async (req, res) => {
   try {
     const userId = getSessionUserId(req);
+
     if (!userId) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized",
+      });
     }
 
     const [users] = await pool.execute(
-      `SELECT
-         id, username, email, fullname,
-         contact, address, gender, birthday,
-         civil_status, nationality
-       FROM users
-       WHERE id = ?`,
+      `
+      SELECT
+        id,
+        username,
+        email,
+        fullname,
+        contact,
+        address,
+        gender,
+        DATE_FORMAT(birthday, '%Y-%m-%d') AS birthday,
+        civil_status,
+        nationality
+      FROM users
+      WHERE id = ?
+      `,
       [userId],
     );
 
     if (users.length === 0) {
-      return res.status(404).json({ status: "error", message: "User not found" });
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
     }
 
     const user = users[0];
@@ -45,20 +116,24 @@ const getProfile = async (req, res) => {
     return res.json({
       status: "success",
       profile: {
-        fullname:     user.fullname     || "",
-        username:     user.username     || "",
-        email:        user.email        || "",
-        contact:      user.contact      || "",
-        address:      user.address      || "",
-        gender:       user.gender       || "",
-        birthday:     user.birthday     || "",
+        fullname: user.fullname || "",
+        username: user.username || "",
+        email: user.email || "",
+        contact: user.contact || "",
+        address: user.address || "",
+        gender: user.gender || "",
+        birthday: user.birthday || "",
         civil_status: user.civil_status || "",
-        nationality:  user.nationality  || "",
+        nationality: user.nationality || "",
       },
     });
   } catch (error) {
     console.error("Get profile error:", error);
-    return res.status(500).json({ status: "error", message: "Server error" });
+
+    return res.status(500).json({
+      status: "error",
+      message: "Server error",
+    });
   }
 };
 
@@ -68,21 +143,41 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = getSessionUserId(req);
+
     if (!userId) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized",
+      });
     }
 
     const {
-      fullname, username, email, contact,
-      address, gender, birthday, civil_status, nationality,
+      fullname,
+      username,
+      email,
+      contact,
+      address,
+      gender,
+      birthday,
+      civil_status,
+      nationality,
     } = req.body;
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Normalize values before saving
+    // ─────────────────────────────────────────────────────────────────────────
+    const formattedBirthday = formatDateOnly(birthday);
+    const normalizedGender = normalizeGender(gender);
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Check username uniqueness
+    // ─────────────────────────────────────────────────────────────────────────
     if (username) {
       const [existingUsername] = await pool.execute(
         "SELECT id FROM users WHERE username = ? AND id != ?",
         [username, userId],
       );
+
       if (existingUsername.length > 0) {
         return res.status(400).json({
           status: "error",
@@ -91,12 +186,15 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
     // Check email uniqueness
+    // ─────────────────────────────────────────────────────────────────────────
     if (email) {
       const [existingEmail] = await pool.execute(
         "SELECT id FROM users WHERE email = ? AND id != ?",
         [email, userId],
       );
+
       if (existingEmail.length > 0) {
         return res.status(400).json({
           status: "error",
@@ -105,13 +203,27 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
     // Build dynamic UPDATE
+    // ─────────────────────────────────────────────────────────────────────────
     const updateFields = [];
     const updateValues = [];
 
     const fieldMap = {
-      fullname, username, email, contact,
-      address, gender, birthday, civil_status, nationality,
+      fullname,
+      username,
+      email,
+      contact,
+      address,
+
+      // Use normalized gender
+      gender: normalizedGender,
+
+      // Use MySQL-compatible birthday
+      birthday: formattedBirthday,
+
+      civil_status,
+      nationality,
     };
 
     for (const [col, val] of Object.entries(fieldMap)) {
@@ -122,30 +234,53 @@ const updateProfile = async (req, res) => {
     }
 
     if (updateFields.length === 0) {
-      return res.status(400).json({ status: "error", message: "No fields to update" });
+      return res.status(400).json({
+        status: "error",
+        message: "No fields to update",
+      });
     }
 
     updateValues.push(userId);
+
     await pool.execute(
       `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`,
       updateValues,
     );
 
-    // ✅ Update session so the name stays fresh for this session
+    // ─────────────────────────────────────────────────────────────────────────
+    // Update session so the name stays fresh
+    // ─────────────────────────────────────────────────────────────────────────
     if (req.session.user) {
       // Nested session (TESDA)
-      if (fullname !== undefined) req.session.user.fullname = fullname;
-      if (username !== undefined) req.session.user.username = username;
+      if (fullname !== undefined) {
+        req.session.user.fullname = fullname;
+      }
+
+      if (username !== undefined) {
+        req.session.user.username = username;
+      }
     } else {
-      // Flat session (regular student / etc.)
-      if (fullname !== undefined) req.session.fullname = fullname;
-      if (username !== undefined) req.session.username = username;
+      // Flat session (regular student / instructor / admin)
+      if (fullname !== undefined) {
+        req.session.fullname = fullname;
+      }
+
+      if (username !== undefined) {
+        req.session.username = username;
+      }
     }
 
-    return res.json({ status: "success", message: "Profile updated successfully" });
+    return res.json({
+      status: "success",
+      message: "Profile updated successfully",
+    });
   } catch (error) {
     console.error("Update profile error:", error);
-    return res.status(500).json({ status: "error", message: "Server error: " + error.message });
+
+    return res.status(500).json({
+      status: "error",
+      message: "Server error: " + error.message,
+    });
   }
 };
 
@@ -155,14 +290,21 @@ const updateProfile = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const userId = getSessionUserId(req);
+
     if (!userId) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized",
+      });
     }
 
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ status: "error", message: "Both passwords are required" });
+      return res.status(400).json({
+        status: "error",
+        message: "Both passwords are required",
+      });
     }
 
     const [users] = await pool.execute(
@@ -171,23 +313,40 @@ const changePassword = async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(404).json({ status: "error", message: "User not found" });
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
     }
 
     const isValid = await bcrypt.compare(currentPassword, users[0].password);
+
     if (!isValid) {
-      return res.status(401).json({ status: "error", message: "Current password is incorrect" });
+      return res.status(401).json({
+        status: "error",
+        message: "Current password is incorrect",
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, userId]);
+    await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
+      hashedPassword,
+      userId,
+    ]);
 
-    return res.json({ status: "success", message: "Password updated successfully" });
+    return res.json({
+      status: "success",
+      message: "Password updated successfully",
+    });
   } catch (error) {
     console.error("Change password error:", error);
-    return res.status(500).json({ status: "error", message: "Server error" });
+
+    return res.status(500).json({
+      status: "error",
+      message: "Server error",
+    });
   }
 };
 
@@ -197,18 +356,28 @@ const changePassword = async (req, res) => {
 const uploadAvatar = async (req, res) => {
   try {
     const userId = getSessionUserId(req);
+
     if (!userId) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized",
+      });
     }
 
     if (!req.file) {
-      return res.status(400).json({ status: "error", message: "No file uploaded" });
+      return res.status(400).json({
+        status: "error",
+        message: "No file uploaded",
+      });
     }
 
     const avatarPath = `/uploads/avatars/${req.file.filename}`;
 
     // Uncomment when you add an avatar column to users:
-    // await pool.execute("UPDATE users SET avatar = ? WHERE id = ?", [avatarPath, userId]);
+    // await pool.execute(
+    //   "UPDATE users SET avatar = ? WHERE id = ?",
+    //   [avatarPath, userId]
+    // );
 
     return res.json({
       status: "success",
@@ -217,7 +386,11 @@ const uploadAvatar = async (req, res) => {
     });
   } catch (error) {
     console.error("Upload avatar error:", error);
-    return res.status(500).json({ status: "error", message: "Server error" });
+
+    return res.status(500).json({
+      status: "error",
+      message: "Server error",
+    });
   }
 };
 
@@ -227,8 +400,12 @@ const uploadAvatar = async (req, res) => {
 const getPreferences = async (req, res) => {
   try {
     const userId = getSessionUserId(req);
+
     if (!userId) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized",
+      });
     }
 
     const [prefs] = await pool.execute(
@@ -240,28 +417,35 @@ const getPreferences = async (req, res) => {
       return res.json({
         status: "success",
         preferences: {
-          theme:                        "light",
-          layout:                       "compact",
-          notification_sound:           "default",
-          language:                     "en",
-          show_avatars:                 true,
-          show_notifications_badge:     true,
-          auto_save_progress:           true,
-          email_course_updates:         true,
-          email_exam_schedules:         true,
-          email_grade_releases:         true,
+          theme: "light",
+          layout: "compact",
+          notification_sound: "default",
+          language: "en",
+          show_avatars: true,
+          show_notifications_badge: true,
+          auto_save_progress: true,
+          email_course_updates: true,
+          email_exam_schedules: true,
+          email_grade_releases: true,
           email_certificate_completion: true,
-          inapp_new_messages:           true,
-          inapp_assignment_deadlines:   true,
-          inapp_announcements:          true,
+          inapp_new_messages: true,
+          inapp_assignment_deadlines: true,
+          inapp_announcements: true,
         },
       });
     }
 
-    return res.json({ status: "success", preferences: prefs[0] });
+    return res.json({
+      status: "success",
+      preferences: prefs[0],
+    });
   } catch (error) {
     console.error("Get preferences error:", error);
-    return res.status(500).json({ status: "error", message: "Server error" });
+
+    return res.status(500).json({
+      status: "error",
+      message: "Server error",
+    });
   }
 };
 
@@ -271,16 +455,29 @@ const getPreferences = async (req, res) => {
 const updatePreferences = async (req, res) => {
   try {
     const userId = getSessionUserId(req);
+
     if (!userId) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized",
+      });
     }
 
     const {
-      theme, layout, notification_sound, language,
-      show_avatars, show_notifications_badge, auto_save_progress,
-      email_course_updates, email_exam_schedules, email_grade_releases,
-      email_certificate_completion, inapp_new_messages,
-      inapp_assignment_deadlines, inapp_announcements,
+      theme,
+      layout,
+      notification_sound,
+      language,
+      show_avatars,
+      show_notifications_badge,
+      auto_save_progress,
+      email_course_updates,
+      email_exam_schedules,
+      email_grade_releases,
+      email_certificate_completion,
+      inapp_new_messages,
+      inapp_assignment_deadlines,
+      inapp_announcements,
     } = req.body;
 
     const [existing] = await pool.execute(
@@ -290,48 +487,101 @@ const updatePreferences = async (req, res) => {
 
     if (existing.length > 0) {
       await pool.execute(
-        `UPDATE user_preferences SET
-           theme = ?, layout = ?, notification_sound = ?, language = ?,
-           show_avatars = ?, show_notifications_badge = ?, auto_save_progress = ?,
-           email_course_updates = ?, email_exam_schedules = ?, email_grade_releases = ?,
-           email_certificate_completion = ?, inapp_new_messages = ?,
-           inapp_assignment_deadlines = ?, inapp_announcements = ?
-         WHERE user_id = ?`,
+        `
+        UPDATE user_preferences SET
+          theme = ?,
+          layout = ?,
+          notification_sound = ?,
+          language = ?,
+          show_avatars = ?,
+          show_notifications_badge = ?,
+          auto_save_progress = ?,
+          email_course_updates = ?,
+          email_exam_schedules = ?,
+          email_grade_releases = ?,
+          email_certificate_completion = ?,
+          inapp_new_messages = ?,
+          inapp_assignment_deadlines = ?,
+          inapp_announcements = ?
+        WHERE user_id = ?
+        `,
         [
-          theme, layout, notification_sound, language,
-          show_avatars, show_notifications_badge, auto_save_progress,
-          email_course_updates, email_exam_schedules, email_grade_releases,
-          email_certificate_completion, inapp_new_messages,
-          inapp_assignment_deadlines, inapp_announcements,
+          theme,
+          layout,
+          notification_sound,
+          language,
+          show_avatars,
+          show_notifications_badge,
+          auto_save_progress,
+          email_course_updates,
+          email_exam_schedules,
+          email_grade_releases,
+          email_certificate_completion,
+          inapp_new_messages,
+          inapp_assignment_deadlines,
+          inapp_announcements,
           userId,
         ],
       );
     } else {
       await pool.execute(
-        `INSERT INTO user_preferences (
-           user_id, theme, layout, notification_sound, language,
-           show_avatars, show_notifications_badge, auto_save_progress,
-           email_course_updates, email_exam_schedules, email_grade_releases,
-           email_certificate_completion, inapp_new_messages,
-           inapp_assignment_deadlines, inapp_announcements
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `
+        INSERT INTO user_preferences (
+          user_id,
+          theme,
+          layout,
+          notification_sound,
+          language,
+          show_avatars,
+          show_notifications_badge,
+          auto_save_progress,
+          email_course_updates,
+          email_exam_schedules,
+          email_grade_releases,
+          email_certificate_completion,
+          inapp_new_messages,
+          inapp_assignment_deadlines,
+          inapp_announcements
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
         [
-          userId, theme, layout, notification_sound, language,
-          show_avatars, show_notifications_badge, auto_save_progress,
-          email_course_updates, email_exam_schedules, email_grade_releases,
-          email_certificate_completion, inapp_new_messages,
-          inapp_assignment_deadlines, inapp_announcements,
+          userId,
+          theme,
+          layout,
+          notification_sound,
+          language,
+          show_avatars,
+          show_notifications_badge,
+          auto_save_progress,
+          email_course_updates,
+          email_exam_schedules,
+          email_grade_releases,
+          email_certificate_completion,
+          inapp_new_messages,
+          inapp_assignment_deadlines,
+          inapp_announcements,
         ],
       );
     }
 
-    return res.json({ status: "success", message: "Preferences updated successfully" });
+    return res.json({
+      status: "success",
+      message: "Preferences updated successfully",
+    });
   } catch (error) {
     console.error("Update preferences error:", error);
-    return res.status(500).json({ status: "error", message: "Server error" });
+
+    return res.status(500).json({
+      status: "error",
+      message: "Server error",
+    });
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORTS
+// ─────────────────────────────────────────────────────────────────────────────
 module.exports = {
   getProfile,
   updateProfile,
