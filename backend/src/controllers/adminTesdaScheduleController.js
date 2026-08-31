@@ -145,7 +145,7 @@ exports.getTesdaSchedules = async (req, res) => {
         GREATEST(s.total_slots - COALESCE(rc.reservedCount, 0), 0) AS availableSlots,
 
         CASE
-          WHEN LOWER(COALESCE(s.status,'')) = 'tba' THEN 'TBA'
+          WHEN s.schedule_date IS NULL THEN 'TBA'
           WHEN LOWER(COALESCE(s.status,'')) = 'closed' THEN 'Closed'
           WHEN s.total_slots <= 0 THEN 'Full'
           WHEN GREATEST(s.total_slots - COALESCE(rc.reservedCount, 0), 0) = 0 THEN 'Full'
@@ -252,13 +252,15 @@ exports.createTesdaSchedule = async (req, res) => {
     }
 
     // ✅ TBA MODE (no date/time)
+    // TBA is represented by NULL schedule_date/time.
+    // Database status only allows: open / closed.
     if (!ymd) {
       const [result] = await pool.execute(
         `
-        INSERT INTO tesda_schedules
-          (course_id, trainer_id, schedule_date, start_time, end_time, total_slots, status)
-        VALUES (?, ?, NULL, NULL, NULL, ?, 'tba')
-        `,
+    INSERT INTO tesda_schedules
+      (course_id, trainer_id, schedule_date, start_time, end_time, total_slots, status)
+    VALUES (?, ?, NULL, NULL, NULL, ?, 'open')
+    `,
         [cid, tId, slots],
       );
 
@@ -296,7 +298,7 @@ exports.createTesdaSchedule = async (req, res) => {
       });
     }
 
-    const normalizedStatus = ["open", "closed", "full", "tba"].includes(
+    const normalizedStatus = ["open", "closed"].includes(
       String(status || "open").toLowerCase(),
     )
       ? String(status || "open").toLowerCase()
@@ -478,9 +480,7 @@ exports.updateTesdaSchedule = async (req, res) => {
     const normalizedStatus =
       status === undefined
         ? undefined
-        : ["open", "closed", "full", "tba"].includes(
-              String(status).toLowerCase(),
-            )
+        : ["open", "closed"].includes(String(status).toLowerCase())
           ? String(status).toLowerCase()
           : "open";
 
