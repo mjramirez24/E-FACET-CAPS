@@ -1129,10 +1129,29 @@ exports.updateReservationStatusAdmin = async (req, res) => {
         ? "tesda_schedule_reservations"
         : "schedule_reservations";
 
-    const [result] = await pool.execute(
-      `UPDATE ${table} SET reservation_status=?, updated_at=NOW() WHERE reservation_id=?`,
-      [status, reservationId],
-    );
+let result;
+
+if (track === "tesda") {
+  [result] = await pool.execute(
+    `UPDATE tesda_schedule_reservations
+     SET reservation_status = ?,
+         updated_at = NOW()
+     WHERE reservation_id = ?`,
+    [status, reservationId],
+  );
+} else {
+  [result] = await pool.execute(
+    `UPDATE schedule_reservations
+     SET reservation_status = ?,
+         updated_at = NOW(),
+         done_at = CASE
+           WHEN ? = 'DONE' THEN COALESCE(done_at, NOW())
+           ELSE NULL
+         END
+     WHERE reservation_id = ?`,
+    [status, status, reservationId],
+  );
+}
 
     if (result.affectedRows === 0) {
       return res
