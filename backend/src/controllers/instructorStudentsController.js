@@ -27,16 +27,16 @@ async function getInstructorIdFromSession(req) {
  * Unique list of students handled by instructor (driving)
  * Based on schedules + schedule_reservations + users
  */
-      exports.getInstructorStudentsListOnly = async (req, res) => {
-        try {
-          const { instructorId, error } = await getInstructorIdFromSession(req);
-          if (error)
-            return res
-              .status(error.code)
-              .json({ status: "error", message: error.message });
+exports.getInstructorStudentsListOnly = async (req, res) => {
+  try {
+    const { instructorId, error } = await getInstructorIdFromSession(req);
+    if (error)
+      return res
+        .status(error.code)
+        .json({ status: "error", message: error.message });
 
-          const [rows] = await pool.execute(
-        `
+    const [rows] = await pool.execute(
+      `
         SELECT DISTINCT
           u.id AS id,
           COALESCE(u.fullname, u.username, u.email, '(no name)') AS name,
@@ -78,10 +78,11 @@ async function getInstructorIdFromSession(req) {
         AND LOWER(COALESCE(dci.status, 'active')) = 'active'
         JOIN users u ON u.id = r.student_id
         WHERE UPPER(COALESCE(r.reservation_status,'')) != 'CANCELLED'
+          AND u.email NOT LIKE 'mockstudent%@seedtest.local'
         ORDER BY name ASC
         `,
-        [instructorId, instructorId, instructorId],
-      );
+      [instructorId, instructorId, instructorId],
+    );
 
     return res.json({
       status: "success",
@@ -140,6 +141,7 @@ exports.getInstructorStudents = async (req, res) => {
       LEFT JOIN courses c ON c.id = COALESCE(s.course_id, r.course_id)
       WHERE s.instructor_id = ?
         AND UPPER(COALESCE(r.reservation_status,'')) != 'CANCELLED'
+        AND u.email NOT LIKE 'mockstudent%@seedtest.local'
       ORDER BY s.schedule_date DESC, s.start_time DESC
       `,
       [instructorId],

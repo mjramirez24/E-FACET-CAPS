@@ -50,15 +50,15 @@ exports.getInstructorDashboardSummary = async (req, res) => {
     const enrolled = enrolledStatuses();
 
     // ---------------- STATS ----------------
-const [[assignedCourses]] = await pool.execute(
-  `SELECT COUNT(DISTINCT c.id) AS cnt
+    const [[assignedCourses]] = await pool.execute(
+      `SELECT COUNT(DISTINCT c.id) AS cnt
    FROM driving_course_instructors dci
    JOIN courses c ON c.id = dci.course_id
    WHERE dci.instructor_id = ?
      AND LOWER(COALESCE(dci.status, 'active')) = 'active'
      AND LOWER(COALESCE(c.status, 'active')) = 'active'`,
-  [instructorId],
-);
+      [instructorId],
+    );
 
     const [[upcomingSchedules]] = await pool.execute(
       `SELECT COUNT(*) AS cnt
@@ -94,7 +94,9 @@ const [[assignedCourses]] = await pool.execute(
         ON dci.course_id = COALESCE(s.course_id, sr.course_id)
         AND dci.instructor_id = ?
         AND LOWER(COALESCE(dci.status, 'active')) = 'active'
-      WHERE UPPER(sr.reservation_status) IN (${inPlaceholders})`,
+      JOIN users u ON u.id = sr.student_id
+      WHERE UPPER(sr.reservation_status) IN (${inPlaceholders})
+        AND u.email NOT LIKE 'mockstudent%@seedtest.local'`,
       [instructorId, ...enrolled],
     );
 
@@ -117,6 +119,7 @@ const [[assignedCourses]] = await pool.execute(
         AND LOWER(COALESCE(dci.status, 'active')) = 'active'
       LEFT JOIN users u ON u.id = sr.student_id
       LEFT JOIN courses c ON c.id = COALESCE(s.course_id, sr.course_id)
+      WHERE u.email IS NULL OR u.email NOT LIKE 'mockstudent%@seedtest.local'
       ORDER BY sr.created_at DESC
       LIMIT 200`,
       [instructorId],

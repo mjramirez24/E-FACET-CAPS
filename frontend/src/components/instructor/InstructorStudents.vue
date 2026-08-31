@@ -397,10 +397,11 @@ export default {
           return
         }
 
-        const json = await res.json()
-        if (json.status === 'success') {
-          // normalize shape
-          students.value = (json.data || []).map(s => ({
+      const json = await res.json()
+      if (json.status === 'success') {
+        students.value = (json.data || [])
+          .filter(s => !/^mockstudent\d+@seedtest\.local$/i.test(s.email || ''))
+          .map(s => ({
             id: s.id ?? s.student_id,
             name: s.name,
             email: s.email,
@@ -408,10 +409,10 @@ export default {
             course: s.course ?? s.course_name ?? '',
             enrollmentDate: s.enrollmentDate ?? null
           }))
-        } else {
-          console.error(json.message || 'Failed to load students')
-          students.value = []
-        }
+      } else {
+        console.error(json.message || 'Failed to load students')
+        students.value = []
+      }
       } catch (e) {
         console.error('fetchStudents error:', e)
         students.value = []
