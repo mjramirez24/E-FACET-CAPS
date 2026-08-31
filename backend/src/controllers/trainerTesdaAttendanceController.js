@@ -65,15 +65,21 @@ async function getAllowedStudentIds(trainerId) {
     JOIN users u ON u.id = tr.student_id
     WHERE ts.trainer_id = ?
       AND u.role = 'user'
+      AND UPPER(tr.reservation_status) IN ('CONFIRMED', 'APPROVED', 'ACTIVE')
     `,
     [trainerId],
   );
+
   return new Set((rows || []).map((r) => Number(r.student_id)));
 }
 
 // ------------------------ INTERNAL: student snapshot list ------------------------
 async function listStudentsSnapshotForTrainer({ trainerId, q, courseId }) {
-  const where = [`ts.trainer_id = ?`];
+  const where = [
+    `ts.trainer_id = ?`,
+    `UPPER(tr.reservation_status) IN ('CONFIRMED', 'APPROVED', 'ACTIVE')`,
+  ];
+
   const params = [trainerId];
 
   if (Number.isFinite(courseId) && courseId > 0) {
