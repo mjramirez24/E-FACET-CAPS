@@ -9,7 +9,7 @@
           </svg>
           <input
             type="text"
-            placeholder="Search messages..."
+            placeholder="Search or start a new conversation..."
             v-model="searchQuery"
             class="search-input-modern"
           />
@@ -24,12 +24,6 @@
           <h2 class="page-title">Messages</h2>
           <p class="page-subtitle">Chat with Admins, Instructors and Trainers</p>
         </div>
-        <button
-          @click="startNewMessage"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm shadow-blue-200 transition-colors text-sm font-semibold"
-        >
-          <span class="text-base leading-none">+</span> New Message
-        </button>
       </div>
 
       <!-- App Card -->
@@ -44,55 +38,6 @@
             <div class="px-4 pt-4 pb-3">
               <div class="flex items-center justify-between">
                 <h3 class="font-bold text-gray-900 text-[15px]">Chats</h3>
-
-                <details class="relative">
-                  <summary class="list-none cursor-pointer w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 text-lg select-none">&vellip;</summary>
-
-                  <div class="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-20 space-y-3">
-                    <div class="grid grid-cols-2 gap-2 text-center">
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.unreadMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Unread</p>
-                      </div>
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.totalMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Total</p>
-                      </div>
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.instructorMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Instructors</p>
-                      </div>
-                      <div class="bg-gray-50 rounded-lg py-2">
-                        <p class="text-sm font-bold text-gray-900">{{ messageStats.adminMessages }}</p>
-                        <p class="text-[10px] text-gray-500">Admin</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Type</label>
-                      <select v-model="selectedType" class="w-full mt-1 p-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option value="">All Types</option>
-                        <option value="instructor">Instructors</option>
-                        <option value="admin">Admin</option>
-                        <option value="trainer">Trainer</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Status</label>
-                      <select v-model="selectedStatus" class="w-full mt-1 p-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option value="">All Status</option>
-                        <option value="unread">Unread</option>
-                        <option value="read">Read</option>
-                      </select>
-                    </div>
-
-                    <div class="flex gap-2 pt-1">
-                      <button @click="clearFilters" class="flex-1 px-2 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-[11px] font-semibold transition-colors">Clear</button>
-                      <button @click="markAllAsRead" class="flex-1 px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-[11px] font-semibold transition-colors">Mark All Read</button>
-                    </div>
-                  </div>
-                </details>
               </div>
             </div>
 
@@ -153,9 +98,9 @@
                   </div>
                   <p class="text-[11px] text-gray-400 capitalize mb-0.5">{{ roleLabel(conversation.role) }}</p>
                   <div class="flex items-center justify-between gap-2">
-                    <p class="truncate text-xs" :class="conversation.unreadCount > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'">
-                      {{ conversation.lastMessage || 'No messages yet' }}
-                    </p>
+                      <p class="truncate text-xs" :class="conversation.unreadCount > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'">
+                        {{ conversation.isNewContact ? 'Tap to start a conversation' : (conversation.lastMessage || 'No messages yet') }}
+                      </p>
                     <span
                       v-if="conversation.unreadCount > 0"
                       class="text-[10px] font-bold bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center shrink-0"
@@ -323,53 +268,6 @@
       </div>
     </div>
 
-    <!-- New Message Modal -->
-    <transition name="modal-fade">
-      <div v-if="showNewMessageModal" class="modal-overlay" @click.self="closeNewMessageModal">
-        <transition name="modal-scale">
-          <div class="modal-card modal-card-sm">
-            <div class="modal-head modal-head-blue">
-              <h3 class="modal-title">New Message</h3>
-              <button @click="closeNewMessageModal" class="modal-close-btn">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div class="modal-body">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">To</label>
-                  <select v-model="newMessageRecipient" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="" disabled>Select recipient</option>
-                    <optgroup label="Admins">
-                      <option v-for="contact in allContacts.filter(c => c.role === 'admin')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                    </optgroup>
-                    <optgroup label="Trainers">
-                      <option v-for="contact in allContacts.filter(c => c.role === 'trainer')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                    </optgroup>
-                    <optgroup label="Instructors">
-                      <option v-for="contact in allContacts.filter(c => c.role === 'instructor')" :key="contact.id" :value="contact.id">{{ contact.name }}</option>
-                    </optgroup>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">Message</label>
-                  <textarea v-model="newMessageContent" rows="4" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" placeholder="Type your message here..."></textarea>
-                </div>
-              </div>
-            </div>
-            <div class="modal-foot">
-              <button type="button" @click="closeNewMessageModal" class="btn-cancel">Cancel</button>
-              <button @click="sendNewMessage" :disabled="!newMessageRecipient || !newMessageContent.trim() || sending" class="btn-save btn-blue">
-                {{ sending ? 'Sending...' : 'Send Message' }}
-              </button>
-            </div>
-          </div>
-        </transition>
-      </div>
-    </transition>
-
     <!-- Delete Confirmation Modal (conversation or message) -->
     <transition name="modal-fade">
       <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
@@ -453,14 +351,9 @@ export default {
     });
 
     const searchQuery = ref("");
-    const selectedType = ref("");
-    const selectedStatus = ref("");
     const selectedConversation = ref(null);
     const newMessage = ref("");
     const sending = ref(false);
-    const showNewMessageModal = ref(false);
-    const newMessageRecipient = ref("");
-    const newMessageContent = ref("");
     const messagesContainer = ref(null);
     const messageInputRef = ref(null);
 
@@ -494,12 +387,6 @@ export default {
       messageOpen.value = false;
     };
 
-    const messageStats = ref({
-      totalMessages: 0,
-      unreadMessages: 0,
-      instructorMessages: 0,
-      adminMessages: 0,
-    });
 
     // ── Hidden messages (local "delete for me") ─────────────────────────────
     const loadHiddenIds = () => {
@@ -525,15 +412,10 @@ export default {
       loadHiddenIds();
     };
 
-    const fetchInbox = async () => {
-      const res = await api.get("/messages/inbox");
-      inbox.value = res.data;
-
-      messageStats.value.totalMessages = inbox.value.length;
-      messageStats.value.unreadMessages = inbox.value.filter((c) => c.unreadCount > 0).length;
-      messageStats.value.instructorMessages = inbox.value.filter((c) => c.role === "instructor").length;
-      messageStats.value.adminMessages = inbox.value.filter((c) => c.role === "admin").length;
-    };
+      const fetchInbox = async () => {
+        const res = await api.get("/messages/inbox");
+        inbox.value = res.data;
+      };
 
     const fetchContacts = async () => {
       try {
@@ -544,22 +426,20 @@ export default {
       }
     };
 
-    const loadThread = async (user) => {
-      selectedConversation.value = user;
-      const res = await api.get(`/messages/thread/${user.id}`);
+      const loadThread = async (user) => {
+        selectedConversation.value = user;
+        const res = await api.get(`/messages/thread/${user.id}`);
 
-      // Filter out anything this user has locally "deleted for me"
-      messages.value = (res.data || []).filter((m) => !hiddenMessageIds.value.has(m.id));
+        messages.value = (res.data || []).filter((m) => !hiddenMessageIds.value.has(m.id));
 
-      const found = inbox.value.find((c) => c.id === user.id);
-      if (found) found.unreadCount = 0;
-      messageStats.value.unreadMessages = inbox.value.filter((c) => c.unreadCount > 0).length;
+        const found = inbox.value.find((c) => c.id === user.id);
+        if (found) found.unreadCount = 0;
 
-      await nextTick();
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-      }
-    };
+        await nextTick();
+        if (messagesContainer.value) {
+          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+        }
+      };
 
     const sendMessage = async () => {
       if (!newMessage.value.trim() || !selectedConversation.value || sending.value) return;
@@ -581,24 +461,6 @@ export default {
         newMessage.value = "";
         await loadThread(selectedConversation.value);
         await fetchInbox();
-      } finally {
-        sending.value = false;
-      }
-    };
-
-    const sendNewMessage = async () => {
-      if (!newMessageRecipient.value || !newMessageContent.value.trim() || sending.value) return;
-      sending.value = true;
-      try {
-        await api.post("/messages/send", {
-          receiver_id: newMessageRecipient.value,
-          message: newMessageContent.value,
-        });
-        closeNewMessageModal();
-        await fetchInbox();
-
-        const contact = allContacts.value.find((c) => c.id === newMessageRecipient.value);
-        if (contact) await loadThread(contact);
       } finally {
         sending.value = false;
       }
@@ -706,31 +568,49 @@ export default {
     };
 
     const filteredConversations = computed(() => {
+      const q = searchQuery.value.toLowerCase().trim();
       let result = [...inbox.value];
 
-      if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase();
+      if (q) {
         result = result.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
             c.role.toLowerCase().includes(q) ||
             (c.lastMessage || "").toLowerCase().includes(q)
         );
+
+        const existingIds = new Set(inbox.value.map((c) => c.id));
+        const newContacts = allContacts.value
+          .filter((c) => ["admin", "instructor", "trainer"].includes(c.role))
+          .filter((c) => !existingIds.has(c.id))
+          .filter((c) => c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q))
+          .map((c) => ({
+            ...c,
+            lastMessage: null,
+            lastMessageTime: null,
+            unreadCount: 0,
+            isNewContact: true,
+          }));
+
+        result = [...result, ...newContacts];
       }
 
-      if (selectedType.value) {
-        result = result.filter((c) => c.role === selectedType.value);
-      }
-
-      if (selectedStatus.value) {
-        result = result.filter((c) => c.status === selectedStatus.value);
-      }
-
-      return result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
+      return result.sort((a, b) => {
+        if (!a.lastMessageTime && !b.lastMessageTime) return a.name.localeCompare(b.name);
+        if (!a.lastMessageTime) return 1;
+        if (!b.lastMessageTime) return -1;
+        return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+      });
     });
 
     const recentContacts = computed(() =>
-      allContacts.value.filter((c) => !inbox.value.some((conv) => conv.id === c.id)).slice(0, 12)
+      allContacts.value
+        .filter(
+          (c) =>
+            ["admin", "instructor", "trainer"].includes(c.role) &&
+            !inbox.value.some((conv) => conv.id === c.id)
+        )
+        .slice(0, 12)
     );
 
     const roleLabel = (role) => {
@@ -762,37 +642,12 @@ export default {
       return "bg-blue-600";
     };
 
-    const clearFilters = () => {
-      searchQuery.value = "";
-      selectedType.value = "";
-      selectedStatus.value = "";
-    };
-
-    const markAllAsRead = () => {
-      inbox.value.forEach((c) => {
-        c.unreadCount = 0;
-        c.status = "read";
-      });
-      messageStats.value.unreadMessages = 0;
-    };
-
     const selectConversation = (conv) => loadThread(conv);
-    const backToInbox = () => {
-      selectedConversation.value = null;
-      messages.value = [];
-      isEditingDraft.value = false;
-      editingMessageId.value = null;
-    };
+      const backToInbox = () => {
+        selectedConversation.value = null;
+        messages.value = [];
+      };
 
-    const startNewMessage = () => {
-      showNewMessageModal.value = true;
-    };
-
-    const closeNewMessageModal = () => {
-      showNewMessageModal.value = false;
-      newMessageRecipient.value = "";
-      newMessageContent.value = "";
-    };
 
     const startConversation = async (contact) => {
       await loadThread(contact);
@@ -803,26 +658,23 @@ export default {
       await Promise.all([fetchInbox(), fetchContacts()]);
     });
 
-    return {
-      searchQuery, selectedType, selectedStatus, selectedConversation,
-      newMessage, sending, showNewMessageModal, newMessageRecipient,
-      newMessageContent, messagesContainer, messageInputRef,
-      messageStats, inbox, recentContacts, allContacts,
-      filteredConversations, messages, myId,
-      isEditingDraft, editingMessageId,
+      return {
+        searchQuery, selectedConversation,
+        newMessage, sending, messagesContainer, messageInputRef,
+        inbox, recentContacts, allContacts,
+        filteredConversations, messages, myId,
+        isEditingDraft, editingMessageId,
 
-      // Delete modal
-      showDeleteModal, deleteTarget, deleting, deleteErrorMsg,
-      deleteModalTitle, deleteModalText,
-      confirmDeleteConversation, confirmDeleteMessage, cancelDelete, performDelete,
-      messageOpen, messageTitle, messageText, closeMessage,
+        // Delete modal
+        showDeleteModal, deleteTarget, deleting, deleteErrorMsg,
+        deleteModalTitle, deleteModalText,
+        confirmDeleteConversation, confirmDeleteMessage, cancelDelete, performDelete,
+        messageOpen, messageTitle, messageText, closeMessage,
 
-      roleLabel, getInitials, formatTime, getUserBadgeClass,
-      clearFilters, markAllAsRead, selectConversation,
-      backToInbox, sendMessage, startNewMessage,
-      closeNewMessageModal, sendNewMessage, startConversation,
-      editMessage, cancelEditDraft,
-    };
+        roleLabel, getInitials, formatTime, getUserBadgeClass,
+        selectConversation, backToInbox, sendMessage, startConversation,
+        editMessage, cancelEditDraft,
+      };
   },
 };
 </script>
@@ -852,7 +704,6 @@ details > summary::-webkit-details-marker { display: none; }
 .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.2); }
 .modal-card-sm { max-width: 420px; }
 .modal-head { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; }
-.modal-head-blue { background: #eff6ff; }
 .modal-head-delete { padding: 20px 20px 16px; border-bottom: 1px solid #f3f4f6; }
 .modal-title { font-size: 1.1rem; font-weight: 700; color: #111827; margin: 0; }
 .modal-close-btn { padding: 6px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; transition: all 0.2s; }
@@ -866,8 +717,6 @@ details > summary::-webkit-details-marker { display: none; }
 .btn-cancel:hover { background: #f3f4f6; }
 .btn-save { padding: 9px 18px; border: none; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #fff; cursor: pointer; transition: all 0.2s; }
 .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-blue { background: #3b82f6; }
-.btn-blue:hover:not(:disabled) { background: #2563eb; }
 .btn-green { background: #10b981; }
 .btn-green:hover:not(:disabled) { background: #059669; }
 .btn-red { background: #ef4444; }
