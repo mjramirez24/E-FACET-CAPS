@@ -47,7 +47,12 @@
       <!-- TOP SUMMARY -->
       <div class="kpi-grid mb-5" :class="reportMode === 'driving' ? 'kpi-grid-4' : 'kpi-grid-3'">
         <div class="kpi-card kpi-green">
-          <p class="kpi-label">Total Enrolled (Starting January 2025)</p>
+          <p class="kpi-label">
+            Total Enrolled
+            <span v-if="reportMode === 'driving'" style="font-weight: normal; opacity: 0.8;">
+              (Starting January 2024)
+            </span>
+          </p>
           <h3 class="kpi-value">{{ summary.totalEnrolled }}</h3>
         </div>
 
@@ -1274,32 +1279,67 @@
                     <p class="kpi-subtext">Historical records used</p>
                   </div>
                 </div>
+<!-- ✅ LTO Promo Toggle (Save button below, equal width) -->
+<div class="panel-card mb-5" style="padding: 16px; background: #fefce8; border-color: #fde68a;">
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+    <!-- Kaliwang bahagi: paglalarawan -->
+    <div class="flex-1">
+      <h4 class="panel-title" style="color: #92400e;">🏷️ Will There Be an LTO Promo in {{ nextMonthLabel }}?</h4>
+      <p class="filter-note mt-1" style="color: #b45309;">
+        LTO promos are a major factor in enrollment spikes. If you know there will be
+        a promo next month, toggle this option to improve the forecast accuracy.
+      </p>
+      <div class="mt-2 flex items-center gap-2">
+        <span class="text-xs font-medium text-gray-600">Current setting:</span>
+        <span class="pill" :class="nextMonthPromo === true ? 'pill-green' : nextMonthPromo === false ? 'pill-gray' : 'pill-amber'">
+          {{ nextMonthPromo === true ? 'Has promo' : nextMonthPromo === false ? 'No promo' : 'Not set' }}
+        </span>
+      </div>
+    </div>
 
-                              <!-- ✅ NEW: Promo Toggle -->
-              <div class="panel-card mb-5" style="padding: 16px; background: #fefce8; border-color: #fde68a;">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <h4 class="panel-title" style="color: #92400e;">🏷️ Will There Be an LTO Promo in {{ nextMonthLabel }}?</h4>
-                    <p class="filter-note mt-1" style="color: #b45309;">
-                      LTO promos are a major factor in enrollment spikes. If you know there will be
-                      a promo next month, toggle this option to improve the forecast accuracy.
-                    </p>
-                  </div>
+    <!-- Kanang bahagi: mga kontrol (naka-column) -->
+    <div class="flex flex-col items-end gap-2 flex-shrink-0">
+      <!-- Unang row: preview + No + Yes -->
+      <div class="flex items-center gap-2">
+        <span v-if="previewPromoValue !== null" class="text-xs text-gray-500 whitespace-nowrap">
+          Preview: <span class="font-semibold">{{ previewPromoValue === 0 ? 'No promo' : 'Has promo' }}</span>
+        </span>
+        <span v-else class="text-xs text-gray-400 whitespace-nowrap">Select an option</span>
 
-                  <div class="flex items-center gap-2 flex-shrink-0">
-                    <button type="button" @click="setPromoFlag(false)" class="pg-btn"
-                      :class="nextMonthPromo === false ? 'pg-btn-accent' : ''" :disabled="promoSaving">
-                      No
-                    </button>
-                    <button type="button" @click="setPromoFlag(true)" class="pg-btn"
-                      :class="nextMonthPromo === true ? 'pg-btn-emerald' : ''" :disabled="promoSaving">
-                      Yes, There Is a Promo
-                    </button>
-                  </div>
-                </div>
+        <button
+          type="button"
+          @click="previewPromoFlag(0)"
+          class="pg-btn"
+          :class="previewPromoValue === 0 ? 'pg-btn-accent' : ''"
+          :disabled="promoSaving"
+        >
+          No
+        </button>
+        <button
+          type="button"
+          @click="previewPromoFlag(1)"
+          class="pg-btn"
+          :class="previewPromoValue === 1 ? 'pg-btn-emerald' : ''"
+          :disabled="promoSaving"
+        >
+          Yes
+        </button>
+      </div>
 
-                <p v-if="promoSaveError" class="alert-error mt-3">{{ promoSaveError }}</p>
-              </div>
+      <!-- Ikalawang row: Save button, kasinglapad ng nasa itaas -->
+      <button
+        type="button"
+        @click="confirmPromoFlag(previewPromoValue === 1)"
+        class="pg-btn pg-btn-accent w-full"
+        :disabled="promoSaving || previewPromoValue === null"
+      >
+        ✅ Save setting
+      </button>
+    </div>
+  </div>
+
+  <p v-if="promoSaveError" class="alert-error mt-3">{{ promoSaveError }}</p>
+</div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
                   <div class="lg:col-span-3 panel-card" style="padding: 16px;">
@@ -1412,53 +1452,6 @@
                   <div class="h-64">
                     <VChart :option="seasonalityHeatmapOption" autoresize />
                   </div>
-                </div>
-
-                <!-- ✅ #6 Model Accuracy / Backtest -->
-                <div class="panel-card mt-5" style="padding: 16px;">
-                  <div class="flex items-center justify-between gap-3 mb-3">
-                    <div>
-                      <h4 class="panel-title">Model Accuracy</h4>
-                      <p class="filter-note mt-1">Actual vs predicted enrollment for last month, using data up to the month before as training basis.</p>
-                    </div>
-                  </div>
-
-                  <div v-if="backtestLoading" class="empty-cell">Running backtest…</div>
-                  <div v-else-if="backtestError" class="alert-error">{{ backtestError }}</div>
-                  <template v-else>
-                    <div class="h-64 mb-4">
-                      <VChart :option="backtestChartOption" autoresize />
-                    </div>
-                    <div class="table-wrap">
-                      <table class="modern-table">
-                        <thead class="thead-green">
-                          <tr>
-                            <th>Course</th>
-                            <th class="text-center">Actual</th>
-                            <th class="text-center">Predicted</th>
-                            <th class="text-center">Absolute Error</th>
-                            <th class="text-center">% Error</th>
-                            <th class="text-center">Model Used</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="row in backtestRows" :key="row.course">
-                            <td class="font-semibold">{{ row.course }}</td>
-                            <td class="text-center">{{ row.actual }}</td>
-                            <td class="text-center">{{ row.predicted }}</td>
-                            <td class="text-center">{{ row.absolute_error }}</td>
-                            <td class="text-center">{{ row.percent_error != null ? row.percent_error + '%' : '-' }}</td>
-                            <td class="text-center">
-                              <span class="pill pill-blue">{{ row.model_used }}</span>
-                            </td>
-                          </tr>
-                          <tr v-if="backtestRows.length === 0">
-                            <td colspan="6" class="empty-cell">Not enough historical data for backtest yet.</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </template>
                 </div>
               </template>
             </div>
@@ -1731,6 +1724,7 @@ export default {
     const promoFlagsMap = ref({});
     const promoSaving = ref(false);
     const promoSaveError = ref("");
+    const previewPromoValue = ref(null); // null = walang preview, gamitin ang saved value
 
     const nextMonthKey = computed(() => {
       const now = new Date();
@@ -1745,7 +1739,7 @@ export default {
 
     const nextMonthPromo = computed(() => {
       const key = nextMonthKey.value;
-      if (!(key in promoFlagsMap.value)) return null;
+      if (!(key in promoFlagsMap.value)) return false;
       return !!promoFlagsMap.value[key];
     });
 
@@ -2251,7 +2245,13 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
       }
     }
 
-    async function setPromoFlag(value) {
+    async function previewPromoFlag(value) {
+      previewPromoValue.value = value;
+      await loadMLForecast(true, value);
+    }
+
+    // ✅ Ito lang ang nagko-commit/nagse-save nang permanente sa DB.
+    async function confirmPromoFlag(value) {
       promoSaving.value = true;
       promoSaveError.value = "";
       try {
@@ -2264,6 +2264,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
 
         promoFlagsMap.value = { ...promoFlagsMap.value, [nextMonthKey.value]: value };
+        previewPromoValue.value = null; // clear preview state, saved na
         await loadMLForecast(true);
       } catch (e) {
         promoSaveError.value = e?.message || "Failed to save promo flag.";
@@ -2305,17 +2306,14 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
       computeForecastAndRevenueModel();
     }
 
-    async function loadMLForecast(force = false) {
+    async function loadMLForecast(force = false, previewOverride = null) {
       if (reportMode.value !== "driving") {
         rawForecastData.value = [];
         courseForecastRows.value = [];
         computeForecastAndRevenueModel();
         return;
       }
-
-      // ✅ Gamitin ang cache kung meron at hindi pa expired — walang
-      // bagong Python call, kaya instant kung galing lang tayo sa cache.
-      if (!force) {
+      if (!force && previewOverride === null) {
         const cached = readMlCache(FORECAST_CACHE_KEY);
         if (cached) {
           rawForecastData.value = cached;
@@ -2328,10 +2326,11 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
       mlForecastError.value = "";
 
       try {
-        const json = await apiGet(`/api/admin/reports/forecast?report_mode=driving`);
+        const previewParam = previewOverride !== null ? `&preview_promo=${previewOverride}` : "";
+        const json = await apiGet(`/api/admin/reports/forecast?report_mode=driving${previewParam}`);
         const rows = json.status === "success" && Array.isArray(json.data) ? json.data : [];
         rawForecastData.value = rows;
-        writeMlCache(FORECAST_CACHE_KEY, rows);
+        if (previewOverride === null) writeMlCache(FORECAST_CACHE_KEY, rows); // huwag i-cache ang preview
         applyForecastMultiplier();
       } catch (e) {
         mlForecastError.value = e?.message || "Failed to load ML forecast.";
@@ -2527,7 +2526,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
           position: "top",
           formatter: (p) => `${monthNames[p.data[0]]} ${years[p.data[1]]}: ${p.data[2]} enrollments`,
         },
-        grid: { left: 60, right: 20, top: 20, bottom: 60 },
+        grid: { left: 60, right: 20, top: 20, bottom: 80 },
         xAxis: { type: "category", data: monthNames, splitArea: { show: true } },
         yAxis: { type: "category", data: years, splitArea: { show: true } },
         visualMap: {
@@ -4707,7 +4706,9 @@ onMounted(async () => {
       nextMonthPromo,
       promoSaving,
       promoSaveError,
-      setPromoFlag,
+      previewPromoValue,
+      previewPromoFlag,
+      confirmPromoFlag,
 
       // data
       courses,
@@ -5001,7 +5002,80 @@ onMounted(async () => {
 .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 .form-col-2 { grid-column: span 2; }
 @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } .form-col-2 { grid-column: span 1; } }
+@media (max-width: 640px) {
+  /* ========== GRID ========== */
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+    margin-top: 1.25rem !important; /* ← ito ang nagbibigay ng espasyo mula sa toggle button */
+  }
+
+  /* ========== CARDS ========== */
+  .kpi-card {
+    padding: 14px 16px !important;
+    min-height: auto !important;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem !important;
+  }
+
+  .kpi-label {
+    font-size: 0.7rem !important;
+  }
+
+  .kpi-subtext {
+    font-size: 0.65rem !important;
+  }
+
+  .kpi-unit {
+    font-size: 0.65rem !important;
+    padding-bottom: 2px;
+  }
+
+  /* ========== FORECAST CARD ========== */
+  .kpi-card-clickable .flex {
+    flex-wrap: wrap !important;
+    gap: 8px;
+  }
+
+  .kpi-card-clickable .flex .min-w-0 {
+    flex: 1 1 100%;
+  }
+
+  .kpi-card-clickable .pill {
+    align-self: flex-start;
+  }
+
+  .kpi-card-clickable {
+    padding: 16px !important;
+  }
+
+  /* ========== HEADER / TOGGLE BUTTON SPACING ========== */
+  .page-header-row {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .page-header-row .flex {
+    gap: 0.5rem !important;
+  }
+
+  .page-header-row .tab-btn {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+  }
+
+  /* ========== PAGE TITLE (opsyonal) ========== */
+  .page-title {
+    font-size: 1.2rem !important;
+  }
+
+  .page-subtitle {
+    font-size: 0.75rem !important;
+  }
+}
 .form-label { display: block; font-size: 0.75rem; font-weight: 700; color: #374151; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
 .form-input { width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; background: #fff; }
 .form-input:focus { border-color: #10b981; }

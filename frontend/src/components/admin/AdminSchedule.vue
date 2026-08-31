@@ -510,12 +510,17 @@
                   <!-- Instructor (Driving only) -->
                   <div v-if="activeTrack !== 'tesda'">
                     <label class="form-label">Instructor</label>
-                    <select v-model.number="formData.instructor_id" required class="form-input">
-                      <option :value="0" disabled>Select instructor</option>
-                      <option v-for="p in instructors" :key="p.instructor_id" :value="p.instructor_id">
+                    <select v-model.number="formData.instructor_id" required class="form-input" :disabled="!formData.course_id">
+                      <option :value="0" disabled>
+                        {{ !formData.course_id ? 'Select a course first' : (availableInstructors.length === 0 ? 'No instructor assigned to this course' : 'Select instructor') }}
+                      </option>
+                      <option v-for="p in availableInstructors" :key="p.instructor_id" :value="p.instructor_id">
                         {{ p.firstname }} {{ p.lastname }}
                       </option>
                     </select>
+                    <p v-if="formData.course_id && availableInstructors.length === 0" class="text-xs text-red-500 mt-1">
+                      Assign an instructor to this course first (Courses Management → Instructor Assignment).
+                    </p>
                   </div>
 
                   <!-- TESDA note -->
@@ -770,6 +775,7 @@ export default {
     const schedules = ref([]);
     const coursesRaw = ref([]);
     const instructors = ref([]); // only for driving dropdown
+    const courseInstructorMap = ref({}); // { [course_id]: { instructor_id, name, code } }
 
     const searchQuery = ref("");
     const selectedCourseId = ref(0);
@@ -861,6 +867,17 @@ export default {
     const activeCourse = computed(
       () => coursesRaw.value.find((c) => Number(c.id) === Number(formData.course_id)) || null
     );
+
+    const assignedInstructorForCourse = computed(() => {
+      const cid = Number(formData.course_id);
+      return courseInstructorMap.value[cid] || null;
+    });
+
+    const availableInstructors = computed(() => {
+      const assigned = assignedInstructorForCourse.value;
+      if (!assigned) return [];
+      return instructors.value.filter((p) => Number(p.instructor_id) === assigned.instructor_id);
+    });
 
     // TESDA scheduled check
     const isTesdaScheduled = (s) => {
@@ -993,6 +1010,19 @@ export default {
       if (page.value > totalPages.value) page.value = totalPages.value;
       if (pageJump.value > totalPages.value) pageJump.value = totalPages.value;
     });
+
+      const skipInstructorReset = ref(false);
+
+      watch(
+        () => formData.course_id,
+        () => {
+          if (skipInstructorReset.value) {
+            skipInstructorReset.value = false;
+            return;
+          }
+          if (activeTrack.value !== "tesda") formData.instructor_id = 0;
+        }
+      );
 
     const pagedSchedules = computed(() => {
       const size = Number(pageSize.value || 10);
@@ -1272,6 +1302,26 @@ export default {
       instructors.value = Array.isArray(res.data?.data) ? res.data.data : [];
     };
 
+    const fetchCourseInstructorMap = async () => {
+      if (activeTrack.value === "tesda") {
+        courseInstructorMap.value = {};
+        return;
+      }
+      const res = await api.get("/admin/driving-course-instructors");
+      const rows = Array.isArray(res.data?.data) ? res.data.data : [];
+      const map = {};
+      for (const r of rows) {
+        if (r.status === "active" && r.instructor_id) {
+          map[Number(r.course_id)] = {
+            instructor_id: Number(r.instructor_id),
+            name: r.instructor_name || "",
+            code: r.instructor_code || "",
+          };
+        }
+      }
+      courseInstructorMap.value = map;
+    };
+
     const fetchSchedules = async () => {
       try {
         const res = await api.get(scheduleUrl());
@@ -1329,40 +1379,54 @@ export default {
       range.end = toLocalYMD(new Date());
     };
 
-    const openAddModal = () => {
+    const openAddModal = async () => {
       isEditing.value = false;
       resetForm();
-      showModal.value = true;
-    };
-
-    const editSchedule = (schedule) => {
-      const id = getScheduleId(schedule);
-      if (!id) {
-        alert("Invalid schedule id. Please refresh.");
-        return;
+      try {
+        await fetchInstructors();
+        await fetchCourseInstructorMap();
+      } catch (e) {
+        console.error("refresh assignment error:", e);
       }
-
-      isEditing.value = true;
-
-      formData.id = id;
-      formData.course_id = Number(schedule.course_id);
-
-      // ✅ driving keeps instructor_id, tesda sets 0 (no picking)
-      formData.instructor_id = activeTrack.value === "tesda" ? 0 : (Number(schedule.instructor_id || 0) || 0);
-
-      formData.schedule_date = String(schedule.date || "");
-      formData.start_time = activeTrack.value === "tesda" ? OPEN_TIME : String(schedule.startTime);
-      formData.end_time = activeTrack.value === "tesda" ? CLOSE_TIME : String(schedule.endTime);
-
-      formData.total_slots = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : Number(schedule.totalSlots);
-
-      formData.status =
-        schedule.scheduleStatus ||
-        schedule.computedStatus ||
-        (activeTrack.value === "tesda" ? (schedule.date ? "open" : "tba") : "open");
-
       showModal.value = true;
     };
+
+      const editSchedule = async (schedule) => {
+        const id = getScheduleId(schedule);
+        if (!id) {
+          alert("Invalid schedule id. Please refresh.");
+          return;
+        }
+
+        isEditing.value = true;
+
+        try {
+          await fetchInstructors();
+          await fetchCourseInstructorMap();
+        } catch (e) {
+          console.error("refresh assignment error:", e);
+        }
+
+        formData.id = id;
+        skipInstructorReset.value = true;
+        formData.course_id = Number(schedule.course_id);
+
+        // ✅ driving keeps instructor_id, tesda sets 0 (no picking)
+        formData.instructor_id = activeTrack.value === "tesda" ? 0 : (Number(schedule.instructor_id || 0) || 0);
+
+        formData.schedule_date = String(schedule.date || "");
+        formData.start_time = activeTrack.value === "tesda" ? OPEN_TIME : String(schedule.startTime);
+        formData.end_time = activeTrack.value === "tesda" ? CLOSE_TIME : String(schedule.endTime);
+
+        formData.total_slots = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : Number(schedule.totalSlots);
+
+        formData.status =
+          schedule.scheduleStatus ||
+          schedule.computedStatus ||
+          (activeTrack.value === "tesda" ? (schedule.date ? "open" : "tba") : "open");
+
+        showModal.value = true;
+      };
 
     const viewSchedule = (schedule) => {
       if (activeTrack.value === "tesda") {
@@ -1511,6 +1575,7 @@ export default {
         // ✅ always fetch courses; instructors only when driving
         await fetchCourses();
         await fetchInstructors();
+        await fetchCourseInstructorMap();
       } catch (e) {
         console.error("dropdown fetch error:", e);
       }
@@ -1559,6 +1624,9 @@ export default {
       formData,
       saving,
       deleting,
+      courseInstructorMap,
+      assignedInstructorForCourse,
+      availableInstructors,
 
       filteredSchedules,
       pagedSchedules,

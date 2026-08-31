@@ -1106,11 +1106,11 @@ COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
           : 0;
 
         // ✅ Fetch the REAL, live trainer assignment(s) for this course
-                // from tesda_course_trainers — independent of attendance history.
-                let assignedTrainers = [];
-                if (courseId) {
-                  const [trainerRows] = await pool.execute(
-                    `
+        // from tesda_course_trainers — independent of attendance history.
+        let assignedTrainers = [];
+        if (courseId) {
+          const [trainerRows] = await pool.execute(
+            `
                     SELECT
                       tr.trainer_id AS id,
                       CONCAT_WS(' ', tr.firstname, tr.lastname) AS name,
@@ -1119,12 +1119,12 @@ COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
                     JOIN trainers tr ON tr.trainer_id = tct.trainer_id
                     WHERE tct.course_id = ?
                     `,
-                    [courseId],
-                  );
-                  assignedTrainers = trainerRows;
-                } else {
-                  const [trainerRows] = await pool.execute(
-                    `
+            [courseId],
+          );
+          assignedTrainers = trainerRows;
+        } else {
+          const [trainerRows] = await pool.execute(
+            `
                     SELECT
                       tr.trainer_id AS id,
                       CONCAT_WS(' ', tr.firstname, tr.lastname) AS name,
@@ -1133,9 +1133,9 @@ COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
                     FROM tesda_course_trainers tct
                     JOIN trainers tr ON tr.trainer_id = tct.trainer_id
                     `,
-                  );
-                  assignedTrainers = trainerRows;
-                }
+          );
+          assignedTrainers = trainerRows;
+        }
         return res.json({
           status: "success",
           data: rows,
@@ -1219,9 +1219,7 @@ exports.getRevenuePreview = async (req, res) => {
     const { from, to } = getDateRange(req);
 
     const courseId = safeStr(req.query.course_id);
-    const paymentMethod = safeStr(
-      req.query.payment_method,
-    ).toUpperCase();
+    const paymentMethod = safeStr(req.query.payment_method).toUpperCase();
 
     const dateExpr = `
       COALESCE(sr.done_at, sr.updated_at, sr.created_at)
@@ -1245,10 +1243,7 @@ exports.getRevenuePreview = async (req, res) => {
       params.push(courseId);
     }
 
-    if (
-      paymentMethod === "GCASH" ||
-      paymentMethod === "CASH"
-    ) {
+    if (paymentMethod === "GCASH" || paymentMethod === "CASH") {
       where += ` AND UPPER(sr.payment_method) = ?`;
       params.push(paymentMethod);
     }
@@ -1355,18 +1350,12 @@ exports.getRevenuePreview = async (req, res) => {
       params,
     );
 
-    const verifiedCount = Number(
-      statsRows?.[0]?.verifiedCount || 0,
-    );
+    const verifiedCount = Number(statsRows?.[0]?.verifiedCount || 0);
 
-    const totalRevenuePeso = Number(
-      statsRows?.[0]?.totalRevenuePeso || 0,
-    );
+    const totalRevenuePeso = Number(statsRows?.[0]?.totalRevenuePeso || 0);
 
     const avgFeePeso = verifiedCount
-      ? Math.round(
-          totalRevenuePeso / verifiedCount,
-        )
+      ? Math.round(totalRevenuePeso / verifiedCount)
       : 0;
 
     return res.json({
@@ -1392,30 +1381,20 @@ exports.getRevenuePreview = async (req, res) => {
           fullname: p.fullname || null,
           course_name: p.course_name || null,
 
-          payment_method:
-            p.reservation_payment_method || null,
+          payment_method: p.reservation_payment_method || null,
 
-          amount_peso: Number(
-            p.amount_peso || 0,
-          ),
+          amount_peso: Number(p.amount_peso || 0),
 
           status: "DONE",
 
-          verified_at:
-            p.submission_verified_at || null,
+          verified_at: p.submission_verified_at || null,
 
-          created_at:
-            p.submission_created_at ||
-            p.sort_date ||
-            null,
+          created_at: p.submission_created_at || p.sort_date || null,
         })),
       },
     });
   } catch (err) {
-    console.error(
-      "getRevenuePreview error:",
-      err,
-    );
+    console.error("getRevenuePreview error:", err);
 
     return res.status(500).json({
       status: "error",
@@ -2363,7 +2342,9 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
     const dlMap = new Map(report.dlCodeRows.map((row) => [row.label, row]));
 
     function normalizeGenderLocal(gender) {
-      const s = String(gender || "").trim().toLowerCase();
+      const s = String(gender || "")
+        .trim()
+        .toLowerCase();
       if (s === "male" || s === "m") return "Male";
       if (s === "female" || s === "f") return "Female";
       return "";
@@ -2385,13 +2366,15 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
 
       const up = s.toUpperCase();
       if (up.includes("NEW")) return "Application for new Driver's License";
-      if (up.includes("ADDITIONAL")) return "Application for Additional DL Code";
+      if (up.includes("ADDITIONAL"))
+        return "Application for Additional DL Code";
 
       return s;
     }
 
     function parseDlCodes(row) {
-      const text = `${row.course_code || ""} ${row.course_name || ""} ${row.dl_code || ""}`.toUpperCase();
+      const text =
+        `${row.course_code || ""} ${row.course_name || ""} ${row.dl_code || ""}`.toUpperCase();
       const codes = new Set();
 
       if (/\bAB\b/.test(text) || /PDC\s*[-(]?\s*AB\b/.test(text)) {
@@ -2495,7 +2478,7 @@ exports.getForecastBacktest = async (req, res) => {
         COUNT(*) AS total
       FROM schedule_reservations sr
       LEFT JOIN courses c ON c.id = sr.course_id
-      WHERE sr.created_at >= '2025-01-01'
+      WHERE sr.created_at >= DATE_SUB(CURDATE(), INTERVAL 26 MONTH)
         AND sr.created_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
       GROUP BY month, sr.course_id, c.course_name
       ORDER BY month ASC
@@ -2503,14 +2486,13 @@ exports.getForecastBacktest = async (req, res) => {
 
     const months = [];
 
-    const start = new Date(2025, 0, 1);
+    const start = new Date();
+    start.setMonth(start.getMonth() - 26);
+    start.setDate(1);
+
     const current = new Date();
 
-    const end = new Date(
-      current.getFullYear(),
-      current.getMonth() - 1,
-      1
-    );
+    const end = new Date(current.getFullYear(), current.getMonth() - 1, 1);
 
     let cursor = new Date(start);
 
@@ -2561,18 +2543,12 @@ exports.getForecastBacktest = async (req, res) => {
           const data = await resp.json();
 
           if (!resp.ok) {
-            throw new Error(
-              data?.detail || data?.error || "Backtest failed"
-            );
+            throw new Error(data?.detail || data?.error || "Backtest failed");
           }
 
           return data;
-
         } catch (err) {
-          console.error(
-            `Backtest failed for ${course}:`,
-            err.message
-          );
+          console.error(`Backtest failed for ${course}:`, err.message);
 
           const actual = values[values.length - 1] || 0;
 
@@ -2585,14 +2561,13 @@ exports.getForecastBacktest = async (req, res) => {
             model_used: "Fallback",
           };
         }
-      })
+      }),
     );
 
     return res.json({
       status: "success",
       data: result,
     });
-
   } catch (err) {
     console.error("getForecastBacktest error:", err);
 
@@ -2607,14 +2582,22 @@ exports.getForecastBacktest = async (req, res) => {
 exports.getPromoFlags = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT month, has_promo FROM enrollment_promos WHERE course_id = 0 ORDER BY month ASC`
+      `SELECT month, has_promo FROM enrollment_promos WHERE course_id = 0 ORDER BY month ASC`,
     );
     const map = {};
-    rows.forEach((r) => { map[r.month] = !!r.has_promo; });
+    rows.forEach((r) => {
+      map[r.month] = !!r.has_promo;
+    });
     return res.json({ status: "success", data: map });
   } catch (err) {
     console.error("getPromoFlags error:", err);
-    return res.status(500).json({ status: "error", message: "Failed to load promo flags", debug: err.sqlMessage || err.message });
+    return res
+      .status(500)
+      .json({
+        status: "error",
+        message: "Failed to load promo flags",
+        debug: err.sqlMessage || err.message,
+      });
   }
 };
 
@@ -2624,7 +2607,12 @@ exports.setPromoFlag = async (req, res) => {
     const hasPromo = req.body.has_promo ? 1 : 0;
 
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      return res.status(400).json({ status: "error", message: "Invalid month format. Expected YYYY-MM." });
+      return res
+        .status(400)
+        .json({
+          status: "error",
+          message: "Invalid month format. Expected YYYY-MM.",
+        });
     }
 
     const setBy = req.user?.id || null;
@@ -2636,10 +2624,19 @@ exports.setPromoFlag = async (req, res) => {
       [month, hasPromo, setBy],
     );
 
-    return res.json({ status: "success", data: { month, has_promo: !!hasPromo } });
+    return res.json({
+      status: "success",
+      data: { month, has_promo: !!hasPromo },
+    });
   } catch (err) {
     console.error("setPromoFlag error:", err);
-    return res.status(500).json({ status: "error", message: "Failed to save promo flag", debug: err.sqlMessage || err.message });
+    return res
+      .status(500)
+      .json({
+        status: "error",
+        message: "Failed to save promo flag",
+        debug: err.sqlMessage || err.message,
+      });
   }
 };
 
@@ -2661,13 +2658,13 @@ exports.getForecast = async (req, res) => {
         COUNT(*) AS total
       FROM schedule_reservations sr
       LEFT JOIN courses c ON c.id = sr.course_id
-      WHERE sr.created_at >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
+      WHERE sr.created_at >= '2024-01-01'
       GROUP BY month, sr.course_id
       ORDER BY month ASC
     `);
 
     const [promoRows] = await pool.execute(
-      `SELECT month, has_promo FROM enrollment_promos WHERE course_id = 0`
+      `SELECT month, has_promo FROM enrollment_promos WHERE course_id = 0`,
     );
     const promoMap = {};
     promoRows.forEach((r) => {
@@ -2677,7 +2674,18 @@ exports.getForecast = async (req, res) => {
     const now = new Date();
     const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const nextMonthKey = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}`;
-    const nextMonthHasPromo = promoMap[nextMonthKey] ? 1 : 0;
+
+    // ✅ "Preview" mode: kung may ipinasang ?preview_promo=1 o ?preview_promo=0,
+    // gamitin ito PANSAMANTALA lang para sa computation na ito — hindi ito
+    // sinusulat sa DB. Ginagamit ito para makapag-"what if" ang admin nang
+    // hindi permanenteng nababago ang training data.
+    const hasPreviewOverride =
+      req.query.preview_promo === "0" || req.query.preview_promo === "1";
+    const nextMonthHasPromo = hasPreviewOverride
+      ? Number(req.query.preview_promo)
+      : promoMap[nextMonthKey]
+        ? 1
+        : 0;
 
     const courseMap = {};
     const monthsSeen = new Set();
@@ -2728,9 +2736,15 @@ exports.getForecast = async (req, res) => {
           // ✅ Manual multiplier fallback — ilapat lang sa BUWAN 1 (index 0),
           // dahil doon lang tayo may kumpirmadong impormasyon ng promo.
           if (!hasEnoughPromoData && nextMonthHasPromo) {
-            const points = Array.isArray(mlResult.points) ? [...mlResult.points] : [mlResult.point, mlResult.point, mlResult.point];
-            const lows = Array.isArray(mlResult.lows) ? [...mlResult.lows] : [mlResult.low, mlResult.low, mlResult.low];
-            const highs = Array.isArray(mlResult.highs) ? [...mlResult.highs] : [mlResult.high, mlResult.high, mlResult.high];
+            const points = Array.isArray(mlResult.points)
+              ? [...mlResult.points]
+              : [mlResult.point, mlResult.point, mlResult.point];
+            const lows = Array.isArray(mlResult.lows)
+              ? [...mlResult.lows]
+              : [mlResult.low, mlResult.low, mlResult.low];
+            const highs = Array.isArray(mlResult.highs)
+              ? [...mlResult.highs]
+              : [mlResult.high, mlResult.high, mlResult.high];
 
             points[0] = Math.round(points[0] * PROMO_UPLIFT_MULTIPLIER);
             lows[0] = Math.round(lows[0] * PROMO_UPLIFT_MULTIPLIER);
@@ -2749,15 +2763,25 @@ exports.getForecast = async (req, res) => {
           }
         } catch (mlErr) {
           console.error("ML service unreachable:", mlErr.message);
-          const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+          const avg = values.length
+            ? values.reduce((a, b) => a + b, 0) / values.length
+            : 0;
           const fallbackPoint = Math.round(avg);
           mlResult = {
             point: fallbackPoint,
             low: Math.round(avg * 0.7),
             high: Math.round(avg * 1.3),
             points: [fallbackPoint, fallbackPoint, fallbackPoint],
-            lows: [Math.round(avg * 0.7), Math.round(avg * 0.7), Math.round(avg * 0.7)],
-            highs: [Math.round(avg * 1.3), Math.round(avg * 1.3), Math.round(avg * 1.3)],
+            lows: [
+              Math.round(avg * 0.7),
+              Math.round(avg * 0.7),
+              Math.round(avg * 0.7),
+            ],
+            highs: [
+              Math.round(avg * 1.3),
+              Math.round(avg * 1.3),
+              Math.round(avg * 1.3),
+            ],
             model_used: "Fallback Average",
           };
         }
@@ -2781,9 +2805,21 @@ exports.getForecast = async (req, res) => {
           high: mlResult.high,
           // ✅ NEW: totoong per-month na forecast, para sa Multi-Horizon
           // at Revenue Forecast charts sa frontend.
-          multiPoints: mlResult.points || [mlResult.point, mlResult.point, mlResult.point],
-          multiLows: mlResult.lows || [mlResult.low, mlResult.low, mlResult.low],
-          multiHighs: mlResult.highs || [mlResult.high, mlResult.high, mlResult.high],
+          multiPoints: mlResult.points || [
+            mlResult.point,
+            mlResult.point,
+            mlResult.point,
+          ],
+          multiLows: mlResult.lows || [
+            mlResult.low,
+            mlResult.low,
+            mlResult.low,
+          ],
+          multiHighs: mlResult.highs || [
+            mlResult.high,
+            mlResult.high,
+            mlResult.high,
+          ],
           trend,
           model_used: mlResult.model_used,
           dataPoints: values.length,
@@ -2793,10 +2829,10 @@ exports.getForecast = async (req, res) => {
             trend === "Increasing"
               ? "Enrollment trend is increasing based on recent months."
               : trend === "Decreasing"
-              ? "Enrollment trend is decreasing based on recent months."
-              : "Enrollment is stable.",
+                ? "Enrollment trend is decreasing based on recent months."
+                : "Enrollment is stable.",
         };
-      })
+      }),
     );
 
     return res.json({

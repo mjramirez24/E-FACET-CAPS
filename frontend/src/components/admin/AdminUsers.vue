@@ -261,7 +261,14 @@
 
     <!-- ADD/EDIT MODAL -->
     <transition name="modal-fade">
-      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div
+        v-if="showModal"
+        class="modal-overlay"
+        @mousedown="onOverlayPointerDown"
+        @mouseup="onOverlayPointerUp"
+        @touchstart="onOverlayPointerDown"
+        @touchend="onOverlayPointerUp"
+      >
         <transition name="modal-scale">
           <div class="modal-card">
             <div class="modal-head modal-head-green">
@@ -283,8 +290,13 @@
 
               <div class="form-grid">
                 <div class="form-group">
-                  <label class="form-label">Full Name *</label>
-                  <input v-model="form.fullname" class="form-input" />
+                  <label class="form-label">First Name *</label>
+                  <input v-model="nameParts.firstName" class="form-input" placeholder="e.g. Juan" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Last Name *</label>
+                  <input v-model="nameParts.lastName" class="form-input" placeholder="e.g. Dela Cruz" />
                 </div>
 
                 <div class="form-group">
@@ -299,7 +311,15 @@
 
                 <div class="form-group">
                   <label class="form-label">Contact</label>
-                  <input v-model="form.contact" class="form-input" />
+                  <input
+                    v-model="form.contact"
+                    @input="onContactInput"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="11"
+                    class="form-input"
+                    placeholder="09XXXXXXXXX"
+                  />
                 </div>
 
                 <!-- Address parts (PH implied) -->
@@ -718,6 +738,27 @@ export default {
       password: "",
     });
 
+    const nameParts = ref({ firstName: "", lastName: "" });
+
+    const composedFullname = computed(() => {
+      const f = (nameParts.value.firstName || "").trim();
+      const l = (nameParts.value.lastName || "").trim();
+      return [f, l].filter(Boolean).join(" ");
+    });
+
+    const fillNamePartsFromFullname = (fullname) => {
+      const s = (fullname || "").trim();
+      if (!s) {
+        nameParts.value = { firstName: "", lastName: "" };
+        return;
+      }
+      const chunks = s.split(/\s+/);
+      nameParts.value = {
+        firstName: chunks[0] || "",
+        lastName: chunks.slice(1).join(" ") || "",
+      };
+    };
+
     const needsTrack = computed(() => {
       return form.value.role === "user" || form.value.role === "student";
     });
@@ -834,28 +875,29 @@ export default {
       return out;
     });
 
-    const resetForm = () => {
-      form.value = {
-        id: null,
-        fullname: "",
-        username: "",
-        email: "",
-        contact: "",
-        address: "",
-        civil_status: "",
-        nationality: "",
-        role: "user",
-        track: "driving",
-        gender: "",
-        birthday: "",
-        password: "",
+      const resetForm = () => {
+        form.value = {
+          id: null,
+          fullname: "",
+          username: "",
+          email: "",
+          contact: "",
+          address: "",
+          civil_status: "",
+          nationality: "",
+          role: "user",
+          track: "driving",
+          gender: "",
+          birthday: "",
+          password: "",
+        };
+        nameParts.value = { firstName: "", lastName: "" };
+        addressParts.value = { street: "", barangay: "", city: "", province: "" };
+        nationalityQuery.value = "";
+        isNationalityOpen.value = false;
+        nationalityHighlight.value = 0;
+        errorMsg.value = "";
       };
-      addressParts.value = { street: "", barangay: "", city: "", province: "" };
-      nationalityQuery.value = "";
-      isNationalityOpen.value = false;
-      nationalityHighlight.value = 0;
-      errorMsg.value = "";
-    };
 
     const openAddModal = async () => {
       isEditing.value = false;
@@ -890,6 +932,7 @@ export default {
         };
 
         fillAddressPartsFromString(form.value.address);
+        fillNamePartsFromFullname(form.value.fullname);
         nationalityQuery.value = form.value.nationality || "";
 
         if (!needsTrack.value) form.value.track = "";
@@ -906,17 +949,32 @@ export default {
       isNationalityOpen.value = false;
     };
 
+    const overlayDownOnSelf = ref(false);
+    const onOverlayPointerDown = (e) => {
+      overlayDownOnSelf.value = e.target === e.currentTarget;
+    };
+    const onOverlayPointerUp = (e) => {
+      if (overlayDownOnSelf.value && e.target === e.currentTarget) {
+        closeModal();
+      }
+      overlayDownOnSelf.value = false;
+    };
+
     const handleRoleChange = () => {
       if (!needsTrack.value) form.value.track = "";
       if (needsTrack.value && !form.value.track) form.value.track = "driving";
+    };
+
+    const onContactInput = () => {
+      form.value.contact = String(form.value.contact || "").replace(/\D/g, "").slice(0, 11);
     };
 
     const saveUser = async () => {
       try {
         errorMsg.value = "";
 
-        if (!form.value.fullname || !form.value.username || !form.value.email) {
-          errorMsg.value = "Fullname, username, and email are required.";
+        if (!nameParts.value.firstName.trim() || !nameParts.value.lastName.trim() || !form.value.username || !form.value.email) {
+          errorMsg.value = "First name, last name, username, and email are required.";
           return;
         }
         if (!isEditing.value && !form.value.password) {
@@ -931,9 +989,10 @@ export default {
         saving.value = true;
 
         const composedAddress = buildAddressString();
+        form.value.fullname = composedFullname.value;
 
         const payload = {
-          fullname: form.value.fullname,
+          fullname: composedFullname.value,
           username: form.value.username,
           email: form.value.email,
           contact: form.value.contact,
@@ -957,7 +1016,8 @@ export default {
         await fetchUsers();
         showMessage("Changes Saved!", isEditing.value ? "User updated successfully." : "User created successfully.", "success");
         } catch (err) {
-          errorMsg.value = err?.response?.data?.message || err.message || "Failed to save user";
+          const msg = err?.response?.data?.message || err.message || "Failed to save user";
+          showMessage("Error", msg, "error");
         } finally {
           saving.value = false;
         }
@@ -1052,7 +1112,11 @@ export default {
       saving,
       errorMsg,
       form,
+      nameParts,
+      composedFullname,
       needsTrack,
+      onOverlayPointerDown,
+      onOverlayPointerUp,
       roleBadge,
       statusLabel,
       statusBadge,
@@ -1063,6 +1127,7 @@ export default {
       openEditModal,
       closeModal,
       handleRoleChange,
+      onContactInput,
       saveUser,
       messageOpen, 
       messageTitle, 

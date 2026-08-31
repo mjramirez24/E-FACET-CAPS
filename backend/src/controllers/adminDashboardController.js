@@ -64,16 +64,17 @@ exports.getDashboardSummary = async (req, res) => {
     );
 
     // ---------------- RESERVATIONS STATUS COUNTS ----------------
+    // ---------------- RESERVATIONS STATUS COUNTS ----------------
     const [drivingStatusRows] = await pool.execute(
       `SELECT UPPER(reservation_status) AS status, COUNT(*) AS count
-       FROM schedule_reservations
-       GROUP BY UPPER(reservation_status)`,
+        FROM schedule_reservations
+        GROUP BY UPPER(reservation_status)`,
     );
 
     const [tesdaStatusRows] = await pool.execute(
       `SELECT UPPER(reservation_status) AS status, COUNT(*) AS count
-       FROM tesda_schedule_reservations
-       GROUP BY UPPER(reservation_status)`,
+        FROM tesda_schedule_reservations
+        GROUP BY UPPER(reservation_status)`,
     );
 
     function collapseStatus(rows) {
@@ -86,7 +87,28 @@ exports.getDashboardSummary = async (req, res) => {
     const drivingByStatus = collapseStatus(drivingStatusRows);
     const tesdaByStatus = collapseStatus(tesdaStatusRows);
 
-    const pendingDriving = drivingByStatus.PENDING || 0;
+    // CHANGED: driving "pending for admin" = GCash awaiting payment verification,
+    // same logic as listReservationsAdmin's admin_status CASE expression.
+    const [[drivingPendingRow]] = await pool.execute(
+      `SELECT COUNT(*) AS cnt
+        FROM schedule_reservations r
+        LEFT JOIN student_payment_submissions sp
+          ON sp.id = (
+            SELECT sp2.id
+            FROM student_payment_submissions sp2
+            WHERE sp2.student_id = r.student_id
+              AND sp2.schedule_id = r.schedule_id
+              AND sp2.course_id = r.course_id
+            ORDER BY sp2.id DESC
+            LIMIT 1
+          )
+        WHERE UPPER(r.payment_method) = 'GCASH'
+          AND UPPER(r.reservation_status) = 'CONFIRMED'
+          AND UPPER(COALESCE(sp.status,'')) IN ('FOR_VERIFICATION','PROOF_SUBMITTED')`,
+    );
+
+    const pendingDriving = Number(drivingPendingRow.cnt) || 0;
+    // TESDA stays as-is: reservation_status is inserted as PENDING directly
     const pendingTesda = tesdaByStatus.PENDING || 0;
     const pendingTotal = pendingDriving + pendingTesda;
 

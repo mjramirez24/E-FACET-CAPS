@@ -288,7 +288,7 @@ async function removeInstructorCourseAssignments(userId) {
 
     const [rows] = await pool.query(
       `SELECT instructor_id FROM instructors WHERE user_id = ? LIMIT 1`,
-      [userId]
+      [userId],
     );
     if (!rows.length) return;
 
@@ -298,7 +298,9 @@ async function removeInstructorCourseAssignments(userId) {
     const assignTables = ["course_instructors", "driving_course_instructors"];
     for (const tbl of assignTables) {
       if (await hasTable(tbl)) {
-        await pool.query(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [instructorId]);
+        await pool.query(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [
+          instructorId,
+        ]);
       }
     }
   } catch (err) {
@@ -313,7 +315,7 @@ async function removeTrainerCourseAssignments(userId) {
 
     const [rows] = await pool.query(
       `SELECT trainer_id FROM trainers WHERE user_id = ? LIMIT 1`,
-      [userId]
+      [userId],
     );
     if (!rows.length) return;
 
@@ -323,7 +325,9 @@ async function removeTrainerCourseAssignments(userId) {
     const assignTables = ["tesda_course_trainers", "course_trainers"];
     for (const tbl of assignTables) {
       if (await hasTable(tbl)) {
-        await pool.query(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [trainerId]);
+        await pool.query(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [
+          trainerId,
+        ]);
       }
     }
   } catch (err) {
@@ -337,7 +341,7 @@ async function removeInstructorProfile(userId) {
 
     const [rows] = await pool.query(
       `SELECT instructor_id FROM instructors WHERE user_id = ? LIMIT 1`,
-      [userId]
+      [userId],
     );
     if (!rows.length) return;
 
@@ -347,14 +351,72 @@ async function removeInstructorProfile(userId) {
     const assignTables = ["course_instructors", "driving_course_instructors"];
     for (const tbl of assignTables) {
       if (await hasTable(tbl)) {
-        await pool.query(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [instructorId]);
+        await pool.query(`DELETE FROM ${tbl} WHERE instructor_id = ?`, [
+          instructorId,
+        ]);
       }
     }
 
     // Delete the instructor row entirely
-    await pool.query(`DELETE FROM instructors WHERE instructor_id = ?`, [instructorId]);
+    await pool.query(`DELETE FROM instructors WHERE instructor_id = ?`, [
+      instructorId,
+    ]);
   } catch (err) {
     console.error("removeInstructorProfile error:", err);
+  }
+}
+
+async function instructorHasCourseAssignment(userId) {
+  try {
+    if (!(await hasColumn("instructors", "user_id"))) return false;
+
+    const [rows] = await pool.query(
+      `SELECT instructor_id FROM instructors WHERE user_id = ? LIMIT 1`,
+      [userId],
+    );
+    if (!rows.length) return false;
+
+    const instructorId = rows[0].instructor_id;
+
+    if (!(await hasTable("driving_course_instructors"))) return false;
+
+    const [assign] = await pool.query(
+      `SELECT course_id FROM driving_course_instructors WHERE instructor_id = ? LIMIT 1`,
+      [instructorId],
+    );
+    return assign.length > 0;
+  } catch (err) {
+    console.error("instructorHasCourseAssignment error:", err);
+    return false;
+  }
+}
+
+async function trainerHasCourseAssignment(userId) {
+  try {
+    if (!(await hasColumn("trainers", "user_id"))) return false;
+
+    const [rows] = await pool.query(
+      `SELECT trainer_id FROM trainers WHERE user_id = ? LIMIT 1`,
+      [userId],
+    );
+    if (!rows.length) return false;
+
+    const trainerId = rows[0].trainer_id;
+
+    const assignTables = ["tesda_course_trainers", "course_trainers"];
+    for (const tbl of assignTables) {
+      if (await hasTable(tbl)) {
+        const [assign] = await pool.query(
+          `SELECT course_id FROM ${tbl} WHERE trainer_id = ? LIMIT 1`,
+          [trainerId],
+        );
+        if (assign.length > 0) return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    console.error("trainerHasCourseAssignment error:", err);
+    return false;
   }
 }
 
@@ -365,7 +427,7 @@ async function removeTrainerProfile(userId) {
 
     const [rows] = await pool.query(
       `SELECT trainer_id FROM trainers WHERE user_id = ? LIMIT 1`,
-      [userId]
+      [userId],
     );
     if (!rows.length) return;
 
@@ -375,7 +437,9 @@ async function removeTrainerProfile(userId) {
     const assignTables = ["tesda_course_trainers", "course_trainers"];
     for (const tbl of assignTables) {
       if (await hasTable(tbl)) {
-        await pool.query(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [trainerId]);
+        await pool.query(`DELETE FROM ${tbl} WHERE trainer_id = ?`, [
+          trainerId,
+        ]);
       }
     }
 
@@ -387,13 +451,21 @@ async function removeTrainerProfile(userId) {
 }
 
 async function syncRoleProfiles({ userId, fullname, email, contact, role }) {
-  const roleNorm = String(role || "").trim().toLowerCase();
+  const roleNorm = String(role || "")
+    .trim()
+    .toLowerCase();
 
   if (roleNorm === "instructor") {
     // Remove trainer profile + assignments entirely
     await removeTrainerProfile(userId);
     // Create/update instructor profile
-    await upsertInstructorProfile({ userId, fullname, email, contact, active: true });
+    await upsertInstructorProfile({
+      userId,
+      fullname,
+      email,
+      contact,
+      active: true,
+    });
     return;
   }
 
@@ -401,7 +473,13 @@ async function syncRoleProfiles({ userId, fullname, email, contact, role }) {
     // Remove instructor profile + assignments entirely
     await removeInstructorProfile(userId);
     // Create/update trainer profile
-    await upsertTrainerProfile({ userId, fullname, email, contact, active: true });
+    await upsertTrainerProfile({
+      userId,
+      fullname,
+      email,
+      contact,
+      active: true,
+    });
     return;
   }
 
@@ -445,7 +523,7 @@ async function listUsers(req, res) {
     const params = [];
 
     where.push("u.email NOT LIKE '%@seedtest.local'");
-    
+
     // ✅ SEARCH (matches any visible columns + track + status)
     if (search) {
       const s = `%${search}%`;
@@ -866,13 +944,18 @@ async function updateUser(req, res) {
     const hasBirthdayCol = await hasColumn("users", "birthday");
     const hasTracksTbl = await hasTable("tracks");
 
-    const [exists] = await pool.query("SELECT id FROM users WHERE id = ?", [
-      id,
-    ]);
+    const [exists] = await pool.query(
+      "SELECT id, role FROM users WHERE id = ?",
+      [id],
+    );
     if (!exists.length)
       return res
         .status(404)
         .json({ status: "error", message: "User not found" });
+
+    const oldRole = String(exists[0].role || "")
+      .trim()
+      .toLowerCase();
 
     const {
       fullname,
@@ -912,6 +995,28 @@ async function updateUser(req, res) {
 
     if (!ALLOWED_ROLES.has(roleNorm)) {
       return res.status(400).json({ status: "error", message: "Invalid role" });
+    }
+
+    if (oldRole === "instructor" && roleNorm !== "instructor") {
+      const hasAssignment = await instructorHasCourseAssignment(id);
+      if (hasAssignment) {
+        return res.status(400).json({
+          status: "error",
+          message:
+            "Cannot change role: this user still has a course assigned to them in the Driving track. Please unassign them in Courses Management first.",
+        });
+      }
+    }
+
+    if (oldRole === "trainer" && roleNorm !== "trainer") {
+      const hasAssignment = await trainerHasCourseAssignment(id);
+      if (hasAssignment) {
+        return res.status(400).json({
+          status: "error",
+          message:
+            "Cannot change role: this user still has a course assigned to them in the TESDA track. Please unassign them in Courses Management first.",
+        });
+      }
     }
 
     const [dupe] = await pool.query(

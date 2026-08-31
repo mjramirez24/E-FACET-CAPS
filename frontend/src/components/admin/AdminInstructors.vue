@@ -78,7 +78,7 @@
             <div class="form-group"><label class="form-label">First Name *</label><input v-model="form.firstname" required class="form-input" /></div>
             <div class="form-group"><label class="form-label">Last Name *</label><input v-model="form.lastname" required class="form-input" /></div>
             <div class="form-group md-col-span-2"><label class="form-label">Email (optional)</label><input type="email" v-model="form.email" class="form-input" /></div>
-            <div class="form-group md-col-span-2"><label class="form-label">Contact Number (optional)</label><input v-model="form.contact_number" class="form-input" /></div>
+            <div class="form-group md-col-span-2"><label class="form-label">Contact Number (optional)</label><input v-model="form.contact_number" @input="onInstructorContactInput" type="text" inputmode="numeric" maxlength="11" placeholder="09XXXXXXXXX" class="form-input" /></div>
             <div class="form-group md-col-span-2"><label class="form-label">Specialization (optional)</label><input v-model="form.specialization" class="form-input" /></div>
           </div>
           <div class="modal-foot"><button type="button" @click="closeModal" class="btn-cancel">Cancel</button><button type="submit" :disabled="saving" class="btn-save btn-green">{{ saving ? 'Saving...' : (isEditing ? 'Update' : 'Save Instructor') }}</button></div></form></div></div></transition></div></transition>
@@ -134,7 +134,7 @@
             <div class="form-group"><label class="form-label">First Name *</label><input v-model="trainerForm.firstname" required class="form-input" /></div>
             <div class="form-group"><label class="form-label">Last Name *</label><input v-model="trainerForm.lastname" required class="form-input" /></div>
             <div class="form-group md-col-span-2"><label class="form-label">Email (optional)</label><input type="email" v-model="trainerForm.email" class="form-input" /></div>
-            <div class="form-group md-col-span-2"><label class="form-label">Contact Number (optional)</label><input v-model="trainerForm.contact_number" class="form-input" /></div>
+            <div class="form-group md-col-span-2"><label class="form-label">Contact Number (optional)</label><input v-model="trainerForm.contact_number" @input="onTrainerContactInput" type="text" inputmode="numeric" maxlength="11" placeholder="09XXXXXXXXX" class="form-input" /></div>
             <div class="form-group md-col-span-2"><label class="form-label">Specialization (optional)</label><input v-model="trainerForm.specialization" class="form-input" /></div>
           </div>
           <div class="modal-foot"><button type="button" @click="closeTrainerModal" class="btn-cancel">Cancel</button><button type="submit" :disabled="savingTrainer" class="btn-save btn-blue">{{ savingTrainer ? 'Saving...' : (isEditingTrainer ? 'Update' : 'Save Trainer') }}</button></div></form></div></div></transition></div></transition>
@@ -235,6 +235,7 @@ export default {
     const resetForm = () => { form.instructor_id = null; form.instructor_code = ""; form.firstname = ""; form.lastname = ""; form.email = ""; form.contact_number = ""; form.specialization = ""; form.status = "active"; };
     const editInstructor = (i) => { isEditing.value = true; form.instructor_id = i.instructor_id; form.instructor_code = i.instructor_code || ""; form.firstname = i.firstname || ""; form.lastname = i.lastname || ""; form.email = i.email || ""; form.contact_number = i.contact_number || ""; form.specialization = i.specialization || ""; form.status = i.status || "active"; showModal.value = true; };
     const closeModal = () => { showModal.value = false; resetForm(); };
+    const onInstructorContactInput = () => { form.contact_number = String(form.contact_number || "").replace(/\D/g, "").slice(0, 11); };
     const saveInstructor = async () => {
     if (saving.value) return;
     saving.value = true;
@@ -319,7 +320,8 @@ export default {
     const filteredTrainers = computed(() => { let r = [...trainers.value]; if (searchQuery.value.trim()) { const q = searchQuery.value.toLowerCase(); r = r.filter((t) => String(t.trainer_code || "").toLowerCase().includes(q) || String(t.firstname || "").toLowerCase().includes(q) || String(t.lastname || "").toLowerCase().includes(q) || String(t.fullname || "").toLowerCase().includes(q) || String(t.email || "").toLowerCase().includes(q) || String(t.specialization || "").toLowerCase().includes(q)); } if (trainerStatusFilter.value) { r = r.filter((t) => (t.status || "") === trainerStatusFilter.value); } return r; });
     const resetTrainerForm = () => { trainerForm.trainer_id = null; trainerForm.trainer_code = ""; trainerForm.firstname = ""; trainerForm.lastname = ""; trainerForm.email = ""; trainerForm.contact_number = ""; trainerForm.specialization = ""; trainerForm.status = "active"; };
     const editTrainer = (t) => { isEditingTrainer.value = true; trainerForm.trainer_id = t.trainer_id; trainerForm.trainer_code = t.trainer_code || ""; trainerForm.firstname = t.firstname || ""; trainerForm.lastname = t.lastname || ""; trainerForm.email = t.email || ""; trainerForm.contact_number = t.contact_number || ""; trainerForm.specialization = t.specialization || ""; trainerForm.status = t.status || "active"; showTrainerModal.value = true; };
-    const closeTrainerModal = () => { showTrainerModal.value = false; resetTrainerForm(); };
+        const closeTrainerModal = () => { showTrainerModal.value = false; resetTrainerForm(); };
+    const onTrainerContactInput = () => { trainerForm.contact_number = String(trainerForm.contact_number || "").replace(/\D/g, "").slice(0, 11); };
    const saveTrainer = async () => {
     if (savingTrainer.value) return;
     savingTrainer.value = true;
@@ -364,8 +366,8 @@ export default {
 
     return {
       activeTab, searchQuery,
-      instructors, loading, statusFilter, filteredInstructors, showModal, showDeleteModal, isEditing, toDelete, form, saving, deleting, editInstructor, closeModal, saveInstructor, confirmDelete, cancelDelete, deleteInstructor,
-      trainers, loadingTrainers, trainerStatusFilter, filteredTrainers, showTrainerModal, showTrainerDeleteModal, isEditingTrainer, trainerToDelete, trainerForm, savingTrainer, deletingTrainer, editTrainer, closeTrainerModal, saveTrainer, confirmDeleteTrainer, cancelDeleteTrainer, deleteTrainer,
+            instructors, loading, statusFilter, filteredInstructors, showModal, showDeleteModal, isEditing, toDelete, form, saving, deleting, editInstructor, closeModal, saveInstructor, confirmDelete, cancelDelete, deleteInstructor, onInstructorContactInput,
+      trainers, loadingTrainers, trainerStatusFilter, filteredTrainers, showTrainerModal, showTrainerDeleteModal, isEditingTrainer, trainerToDelete, trainerForm, savingTrainer, deletingTrainer, editTrainer, closeTrainerModal, saveTrainer, confirmDeleteTrainer, cancelDeleteTrainer, deleteTrainer, onTrainerContactInput,
       messageOpen, messageTitle, messageText, messageType, showMessage, closeMessage,
     };
   },
