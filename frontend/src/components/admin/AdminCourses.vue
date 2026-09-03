@@ -372,18 +372,18 @@
                         tesdaAssignmentsMap[c.id] &&
                         tesdaAssignmentsMap[c.id].length
                       "
-                      class="flex flex-wrap gap-1"
+                      class="flex flex-col gap-1"
                     >
-                      <span
+                      <div
                         v-for="a in tesdaAssignmentsMap[c.id]"
                         :key="a.trainer_id"
-                        class="px-2 py-1 text-xs rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        class="text-sm text-gray-700"
                       >
                         {{ a.trainer_name }}
-                        <template v-if="a.trainer_code">
+                        <span v-if="a.trainer_code" class="text-gray-500">
                           ({{ a.trainer_code }})
-                        </template>
-                      </span>
+                        </span>
+                      </div>
                     </div>
 
                     <span
@@ -394,38 +394,57 @@
                     </span>
                   </td>
 
-                  <!-- MULTIPLE CHECKBOXES -->
+                  <!-- TRAINER DROPDOWN WITH CHECKBOXES -->
                   <td>
-                    <div
-                      class="flex flex-col gap-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50"
-                    >
-                      <label
-                        v-for="t in tesdaTrainers"
-                        :key="t.trainer_id"
-                        class="flex items-center gap-2 cursor-pointer text-sm text-gray-700"
+                    <details class="relative w-full">
+                      <summary
+                        class="select-modern w-full cursor-pointer list-none flex items-center justify-between"
                       >
-                        <input
-                          type="checkbox"
-                          :value="Number(t.trainer_id)"
-                          v-model="tesdaPendingAssign[c.id]"
-                          class="w-4 h-4"
-                        />
-
                         <span>
-                          {{ t.fullname }}
-                          <span class="text-gray-400">
-                            ({{ t.trainer_code }})
-                          </span>
+                          {{
+                            Array.isArray(tesdaPendingAssign[c.id]) &&
+                            tesdaPendingAssign[c.id].length
+                              ? `${tesdaPendingAssign[c.id].length} trainer(s) selected`
+                              : "-- Select Trainers --"
+                          }}
                         </span>
-                      </label>
+
+                        <span class="text-gray-400 text-xs">
+                          ▼
+                        </span>
+                      </summary>
 
                       <div
-                        v-if="tesdaTrainers.length === 0"
-                        class="text-xs text-gray-400"
+                        class="absolute z-50 mt-1 w-full min-w-[230px] max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-white shadow-lg"
                       >
-                        No active trainers available
+                        <label
+                          v-for="t in tesdaTrainers"
+                          :key="t.trainer_id"
+                          class="flex items-center gap-2 cursor-pointer text-sm text-gray-700 px-2 py-2 rounded-md hover:bg-gray-50"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="Number(t.trainer_id)"
+                            v-model="tesdaPendingAssign[c.id]"
+                            class="w-4 h-4"
+                          />
+
+                          <span>
+                            {{ t.fullname }}
+                            <span class="text-gray-400">
+                              ({{ t.trainer_code }})
+                            </span>
+                          </span>
+                        </label>
+
+                        <div
+                          v-if="tesdaTrainers.length === 0"
+                          class="text-xs text-gray-400 px-2 py-2"
+                        >
+                          No active trainers available
+                        </div>
                       </div>
-                    </div>
+                    </details>
                   </td>
 
                   <!-- SAVE -->
