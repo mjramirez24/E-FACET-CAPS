@@ -55,29 +55,87 @@ function normalizeAttendanceStatus(s) {
   return "unmarked";
 }
 
-// ------------------------ INTERNAL: allowed student ids for this trainer ------------------------
-async function getAllowedStudentIds(trainerId) {
-  const [rows] = await pool.execute(
-    `
-    SELECT DISTINCT tr.student_id
-    FROM tesda_schedule_reservations tr
-    JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
-    JOIN users u ON u.id = tr.student_id
-    WHERE ts.trainer_id = ?
-      AND u.role = 'user'
-      AND UPPER(tr.reservation_status) IN ('CONFIRMED', 'APPROVED', 'ACTIVE')
-    `,
-    [trainerId],
-  );
-
-  return new Set((rows || []).map((r) => Number(r.student_id)));
+// ------------------------ TESDA training date helpers ------------------------
+function parseDurationHours(duration) {
+  const m = String(duration || "").match(/(\d+(?:\.\d+)?)/);
+  const n = m ? Number(m[1]) : 0;
+  return Number.isFinite(n) ? n : 0;
 }
 
-// ------------------------ INTERNAL: student snapshot list ------------------------
-async function listStudentsSnapshotForTrainer({ trainerId, q, courseId }) {
+function tesdaDaysFromDuration(duration) {
+  const TESDA_HOURS_PER_DAY = 9;
+  const hours = parseDurationHours(duration);
+
+  return hours > 0 ? Math.max(1, Math.ceil(hours / TESDA_HOURS_PER_DAY)) : 1;
+}
+
+function addDaysSkipSundays(startYmd, addTrainingDays) {
+  const [y, m, d] = String(startYmd).split("-").map(Number);
+
+  let date = new Date(y, m - 1, d);
+  let added = 0;
+
+  while (added < addTrainingDays) {
+    date.setDate(date.getDate() + 1);
+
+    // Sunday = 0
+    if (date.getDay() !== 0) {
+      added++;
+    }
+  }
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}`;
+}
+
+function computeTesdaEndDate(startYmd, duration) {
+  if (!startYmd) return null;
+
+  const daysNeeded = tesdaDaysFromDuration(duration);
+
+  if (daysNeeded <= 1) {
+    return startYmd;
+  }
+
+  return addDaysSkipSundays(startYmd, daysNeeded - 1);
+}
+
+function isAttendanceDateAllowed(attendanceDate, scheduleDate, duration) {
+  if (!attendanceDate || !scheduleDate) return false;
+
+  const selected = String(attendanceDate);
+  const start = String(scheduleDate);
+
+  // Attendance is not allowed on Sunday.
+  const selectedDate = new Date(`${selected}T00:00:00`);
+  if (Number.isNaN(selectedDate.getTime()) || selectedDate.getDay() === 0) {
+    return false;
+  }
+
+  const end = computeTesdaEndDate(start, duration);
+  if (!end) return false;
+
+  return selected >= start && selected <= end;
+}
+
+// ------------------------ INTERNAL: eligible students for selected attendance date ------------------------
+async function getEligibleStudentsForDate({
+  trainerId,
+  date,
+  q = "",
+  courseId,
+}) {
   const where = [
     `ts.trainer_id = ?`,
+    `u.role = 'user'`,
     `UPPER(tr.reservation_status) IN ('CONFIRMED', 'APPROVED', 'ACTIVE')`,
+
+    // TBA schedules must not appear in attendance.
+    `ts.schedule_date IS NOT NULL`,
+    `YEAR(ts.schedule_date) <> 0`,
   ];
 
   const params = [trainerId];
@@ -95,48 +153,89 @@ async function listStudentsSnapshotForTrainer({ trainerId, q, courseId }) {
     params.push(like, like, like);
   }
 
-  // ROW_NUMBER => MySQL 8+
   const [rows] = await pool.execute(
     `
     SELECT
-      b.student_id,
-      MAX(b.fullname) AS fullname,
-      MAX(b.username) AS username,
-      MAX(b.email) AS email,
-
-      MAX(CASE WHEN b.rn = 1 THEN b.course_id END) AS course_id,
-      MAX(CASE WHEN b.rn = 1 THEN b.course_name END) AS course_name,
-      MAX(CASE WHEN b.rn = 1 THEN b.course_code END) AS course_code,
-
-      MAX(CASE WHEN b.rn = 1 THEN b.created_at END) AS enrollmentDate
-    FROM (
-      SELECT
-        tr.reservation_id,
-        tr.student_id,
-        u.fullname,
-        u.username,
-        u.email,
-        ts.course_id,
-        tc.course_name,
-        tc.course_code,
-        tr.created_at,
-        ROW_NUMBER() OVER (
-          PARTITION BY tr.student_id
-          ORDER BY COALESCE(tr.updated_at, tr.created_at) DESC, tr.reservation_id DESC
-        ) AS rn
-      FROM tesda_schedule_reservations tr
-      JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
-      JOIN tesda_courses tc ON tc.id = ts.course_id
-      JOIN users u ON u.id = tr.student_id
-      WHERE ${where.join(" AND ")}
-    ) b
-    GROUP BY b.student_id
-    ORDER BY fullname ASC
+      tr.reservation_id,
+      tr.student_id,
+      u.fullname,
+      u.username,
+      u.email,
+      ts.course_id,
+      tc.course_name,
+      tc.course_code,
+      tc.duration,
+      DATE_FORMAT(ts.schedule_date, '%Y-%m-%d') AS schedule_date,
+      tr.created_at,
+      tr.updated_at
+    FROM tesda_schedule_reservations tr
+    JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
+    JOIN tesda_courses tc ON tc.id = ts.course_id
+    JOIN users u ON u.id = tr.student_id
+    WHERE ${where.join(" AND ")}
+    ORDER BY
+      COALESCE(tr.updated_at, tr.created_at) DESC,
+      tr.reservation_id DESC
     `,
     params,
   );
 
-  return rows || [];
+  const seen = new Set();
+  const eligible = [];
+
+  for (const r of rows || []) {
+    if (!isAttendanceDateAllowed(date, r.schedule_date, r.duration)) {
+      continue;
+    }
+
+    const studentId = Number(r.student_id);
+    if (!Number.isFinite(studentId) || studentId <= 0) continue;
+
+    // Prevent duplicate rows if the same student has multiple reservations.
+    if (seen.has(studentId)) continue;
+    seen.add(studentId);
+
+    eligible.push({
+      student_id: studentId,
+      fullname: r.fullname,
+      username: r.username,
+      email: r.email,
+      course_id: r.course_id,
+      course_name: r.course_name,
+      course_code: r.course_code,
+      enrollmentDate: r.created_at,
+      schedule_date: r.schedule_date,
+      training_end_date: computeTesdaEndDate(r.schedule_date, r.duration),
+    });
+  }
+
+  eligible.sort((a, b) =>
+    String(a.fullname || "").localeCompare(String(b.fullname || "")),
+  );
+
+  return eligible;
+}
+
+// ------------------------ INTERNAL: allowed student ids for this trainer/date ------------------------
+async function getAllowedStudentIds(trainerId, date) {
+  const students = await getEligibleStudentsForDate({ trainerId, date });
+
+  return new Set(students.map((r) => Number(r.student_id)));
+}
+
+// ------------------------ INTERNAL: student snapshot list ------------------------
+async function listStudentsSnapshotForTrainer({
+  trainerId,
+  q,
+  courseId,
+  date,
+}) {
+  return getEligibleStudentsForDate({
+    trainerId,
+    date,
+    q,
+    courseId,
+  });
 }
 
 /**
@@ -162,6 +261,7 @@ exports.getAttendanceSheet = async (req, res) => {
       trainerId,
       q,
       courseId,
+      date,
     });
 
     const [attRows] = await pool.execute(
@@ -228,7 +328,7 @@ exports.saveAttendance = async (req, res) => {
         .json({ status: "error", message: "rows is required" });
     }
 
-    const allowedIds = await getAllowedStudentIds(trainerId);
+    const allowedIds = await getAllowedStudentIds(trainerId, date);
 
     const cleaned = rows
       .map((r) => {
@@ -253,7 +353,7 @@ exports.saveAttendance = async (req, res) => {
       return res.status(403).json({
         status: "error",
         message:
-          "No valid rows to save (students must belong to this trainer).",
+          "No valid rows to save (student must be active and the selected date must be within the assigned TESDA schedule).",
       });
     }
 
