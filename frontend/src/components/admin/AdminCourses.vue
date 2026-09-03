@@ -386,12 +386,12 @@
                       </div>
                     </div>
 
-                    <span
-                      v-else
-                      class="text-gray-400 text-sm"
-                    >
-                      No trainer assigned
-                    </span>
+                  <span
+                    v-else
+                    class="text-gray-400 text-sm"
+                  >
+                    Assign Trainer
+                  </span>
                   </td>
 
                   <!-- TRAINER DROPDOWN WITH CHECKBOXES -->
@@ -718,7 +718,17 @@ export default {
     const fetchDrivingInstructors = async () => { const res = await api.get("/admin/instructors?active=true"); instructors.value = res.data?.data ?? []; };
     const fetchDrivingAssignments = async () => { const res = await api.get("/admin/driving-course-instructors"); const rows = res.data?.data ?? []; const map = {}; for (const r of rows) { map[r.course_id] = { instructor_id: r.instructor_id, instructor_name: r.instructor_name || "—", instructor_code: r.instructor_code || "", status: r.status || "" }; } assignmentsMap.value = map; };
     const refreshAssignments = async () => { try { await fetchDrivingInstructors(); await fetchDrivingAssignments(); Object.keys(pendingAssign).forEach((k) => delete pendingAssign[k]); } catch (err) { showToast("Failed to load assignment data", "error"); } };
-    const assignmentLabel = (courseId) => { const a = assignmentsMap.value[courseId]; if (!a || !a.instructor_id || a.status !== 'active') return "—"; return `${a.instructor_name}${a.instructor_code ? ` (${a.instructor_code})` : ""}`; };
+    const assignmentLabel = (courseId) => {
+      const a = assignmentsMap.value[courseId];
+
+      if (!a || !a.instructor_id || a.status !== "active") {
+        return "Assign Instructor";
+      }
+
+      return `${a.instructor_name}${
+        a.instructor_code ? ` (${a.instructor_code})` : ""
+      }`;
+    };
     const saveAssignment = async (courseId) => { const instructorId = Number(pendingAssign[courseId]); if (!instructorId) return; try { await api.post("/admin/driving-course-instructors", { course_id: courseId, instructor_id: instructorId }); await fetchDrivingAssignments(); showToast("Instructor assigned successfully!"); } catch (err) { showToast("Failed to assign", "error"); } };
 
     const createCourse = async () => { await api.post("/admin/courses", { course_code: formData.course_code, course_name: formData.course_name, description: formData.description, duration: formData.duration, requirements: JSON.stringify(textToRequirementsArray(formData.requirementsText)), course_fee: formData.course_fee, status: formData.status }); };
@@ -844,10 +854,16 @@ export default {
 
             trainer_name:
               r.trainer_name ||
-              "Trainer",
+              tesdaTrainers.value.find(
+                (t) => Number(t.trainer_id) === Number(r.trainer_id)
+              )?.fullname ||
+              "Assign Trainer",
 
             trainer_code:
               r.trainer_code ||
+              tesdaTrainers.value.find(
+                (t) => Number(t.trainer_id) === Number(r.trainer_id)
+              )?.trainer_code ||
               "",
 
             status:
