@@ -321,44 +321,146 @@
         <div class="panel-card mb-5">
           <div class="panel-header-bar">
             <div>
-              <h3 class="text-md font-bold text-gray-800">Trainer Assignment</h3>
-              <p class="text-xs text-gray-500 mt-1">Assign trainers to TESDA courses here.</p>
+              <h3 class="text-md font-bold text-gray-800">
+                Trainer Assignment
+              </h3>
+
+              <p class="text-xs text-gray-500 mt-1">
+                Assign multiple trainers to the same TESDA course.
+              </p>
             </div>
-            <button @click="refreshTesdaAssignments" class="btn-outline-sm">Refresh</button>
+
+            <button
+              @click="refreshTesdaAssignments"
+              class="btn-outline-sm"
+            >
+              Refresh
+            </button>
           </div>
+
           <div class="table-wrap p-4">
             <table class="modern-table">
               <thead>
                 <tr>
                   <th>Course</th>
-                  <th>Current Trainer</th>
-                  <th>Assign New</th>
+                  <th>Assigned Trainers</th>
+                  <th>Select Trainers</th>
                   <th>Action</th>
                 </tr>
               </thead>
+
               <tbody>
-                <tr v-for="c in tesdaCourses" :key="c.id">
+                <tr
+                  v-for="c in tesdaCourses"
+                  :key="c.id"
+                >
+                  <!-- COURSE -->
                   <td>
-                    <div class="font-medium">{{ c.course_name }}</div>
-                    <div class="text-xs text-gray-500">{{ c.course_code }}</div>
+                    <div class="font-medium">
+                      {{ c.course_name }}
+                    </div>
+
+                    <div class="text-xs text-gray-500">
+                      {{ c.course_code }}
+                    </div>
                   </td>
-                  <td><span class="text-gray-700">{{ tesdaAssignmentLabel(c.id) }}</span></td>
+
+                  <!-- CURRENT ASSIGNED TRAINERS -->
                   <td>
-                    <select v-model="tesdaPendingAssign[c.id]" class="select-modern w-full">
-                      <option value="">-- Select Trainer --</option>
-                      <option v-for="t in tesdaTrainers" :key="t.trainer_id" :value="t.trainer_id">{{ t.fullname }} ({{ t.trainer_code }})</option>
-                    </select>
+                    <div
+                      v-if="
+                        tesdaAssignmentsMap[c.id] &&
+                        tesdaAssignmentsMap[c.id].length
+                      "
+                      class="flex flex-wrap gap-1"
+                    >
+                      <span
+                        v-for="a in tesdaAssignmentsMap[c.id]"
+                        :key="a.trainer_id"
+                        class="px-2 py-1 text-xs rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      >
+                        {{ a.trainer_name }}
+                        <template v-if="a.trainer_code">
+                          ({{ a.trainer_code }})
+                        </template>
+                      </span>
+                    </div>
+
+                    <span
+                      v-else
+                      class="text-gray-400 text-sm"
+                    >
+                      No trainer assigned
+                    </span>
                   </td>
+
+                  <!-- MULTIPLE CHECKBOXES -->
                   <td>
-                    <button class="action-edit" :disabled="!tesdaPendingAssign[c.id]" @click="saveTesdaAssignment(c.id)">Save</button>
+                    <div
+                      class="flex flex-col gap-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50"
+                    >
+                      <label
+                        v-for="t in tesdaTrainers"
+                        :key="t.trainer_id"
+                        class="flex items-center gap-2 cursor-pointer text-sm text-gray-700"
+                      >
+                        <input
+                          type="checkbox"
+                          :value="Number(t.trainer_id)"
+                          v-model="tesdaPendingAssign[c.id]"
+                          class="w-4 h-4"
+                        />
+
+                        <span>
+                          {{ t.fullname }}
+                          <span class="text-gray-400">
+                            ({{ t.trainer_code }})
+                          </span>
+                        </span>
+                      </label>
+
+                      <div
+                        v-if="tesdaTrainers.length === 0"
+                        class="text-xs text-gray-400"
+                      >
+                        No active trainers available
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- SAVE -->
+                  <td>
+                    <button
+                      class="action-edit"
+                      :disabled="
+                        !Array.isArray(
+                          tesdaPendingAssign[c.id]
+                        ) ||
+                        tesdaPendingAssign[c.id].length === 0
+                      "
+                      @click="saveTesdaAssignment(c.id)"
+                    >
+                      Save Trainers
+                    </button>
                   </td>
                 </tr>
+
                 <tr v-if="tesdaCourses.length === 0">
-                  <td colspan="4" class="empty-cell">No TESDA courses loaded</td>
+                  <td
+                    colspan="4"
+                    class="empty-cell"
+                  >
+                    No TESDA courses loaded
+                  </td>
                 </tr>
               </tbody>
             </table>
-            <p class="text-xs text-gray-400 mt-3">Tip: Pag nag-Save ka, overwrite agad yung previous assigned trainer.</p>
+
+            <p class="text-xs text-gray-400 mt-3">
+              You may select multiple trainers for one TESDA course.
+              All assigned trainers will share the same course,
+              schedule, students, and attendance.
+            </p>
           </div>
         </div>
 
@@ -613,13 +715,319 @@ export default {
     const cancelDelete = () => { courseToDelete.value = null; showDeleteModal.value = false; };
     const deleteCourse = async () => { try { await removeCourse(courseToDelete.value.id); await fetchCourses(); cancelDelete(); showToast("Course deleted successfully!"); } catch (err) { showToast("Failed to delete course", "error"); } };
 
-    const fetchTesdaTrainers = async () => { const res = await api.get("/admin/tesda/trainers?active=true"); tesdaTrainers.value = res.data?.data ?? []; };
-    const fetchTesdaCourses = async () => { tesdaLoading.value = true; try { const res = await api.get("/admin/tesda/courses"); const rows = res.data?.data ?? []; tesdaCourses.value = rows.map((r) => ({ id: r.id, course_code: r.course_code, course_name: r.course_name, description: r.description, duration: r.duration, requirements: r.requirements, status: r.status })); } catch (err) { tesdaCourses.value = []; showToast("Failed to load TESDA courses", "error"); } finally { tesdaLoading.value = false; } };
-    const fetchTesdaAssignments = async () => { const res = await api.get("/admin/tesda/course-trainers"); const rows = res.data?.data ?? []; const map = {}; for (const r of rows) { map[r.course_id] = { trainer_id: r.trainer_id, trainer_name: r.trainer_name || "—", trainer_code: r.trainer_code || "", status: r.status || "" }; } tesdaAssignmentsMap.value = map; };
-    const tesdaAssignmentLabel = (courseId) => { const a = tesdaAssignmentsMap.value[courseId]; if (!a || !a.trainer_id || a.status !== 'active') return "—"; return `${a.trainer_name}${a.trainer_code ? ` (${a.trainer_code})` : ""}`; };
-    const refreshTesdaAssignments = async () => { try { await fetchTesdaTrainers(); await fetchTesdaAssignments(); Object.keys(tesdaPendingAssign).forEach((k) => delete tesdaPendingAssign[k]); } catch (err) { showToast("Failed to load TESDA assignment data", "error"); } };
-    const saveTesdaAssignment = async (courseId) => { const trainerId = Number(tesdaPendingAssign[courseId]); if (!trainerId) return; try { await api.post("/admin/tesda/course-trainers", { course_id: courseId, trainer_id: trainerId }); await fetchTesdaAssignments(); showToast("TESDA Trainer assigned successfully!"); } catch (err) { showToast("Failed to assign trainer", "error"); } };
+    const fetchTesdaTrainers = async () => {
+      const res = await api.get(
+        "/admin/tesda/trainers?active=true",
+      );
 
+      tesdaTrainers.value =
+        res.data?.data ?? [];
+    };
+
+
+    const fetchTesdaCourses = async () => {
+      tesdaLoading.value = true;
+
+      try {
+        const res = await api.get(
+          "/admin/tesda/courses",
+        );
+
+        const rows =
+          res.data?.data ?? [];
+
+        tesdaCourses.value =
+          rows.map((r) => ({
+            id: r.id,
+
+            course_code:
+              r.course_code,
+
+            course_name:
+              r.course_name,
+
+            description:
+              r.description,
+
+            duration:
+              r.duration,
+
+            requirements:
+              r.requirements,
+
+            status:
+              r.status,
+          }));
+
+        // Important:
+        // bawat course dapat ARRAY ang
+        // selected trainers.
+        for (
+          const c of tesdaCourses.value
+        ) {
+          if (
+            !Array.isArray(
+              tesdaPendingAssign[c.id],
+            )
+          ) {
+            tesdaPendingAssign[c.id] =
+              [];
+          }
+        }
+      } catch (err) {
+        console.error(
+          "fetchTesdaCourses error:",
+          err,
+        );
+
+        tesdaCourses.value = [];
+
+        showToast(
+          "Failed to load TESDA courses",
+          "error",
+        );
+      } finally {
+        tesdaLoading.value = false;
+      }
+    };
+
+
+    const fetchTesdaAssignments =
+      async () => {
+        const res = await api.get(
+          "/admin/tesda/course-trainers",
+        );
+
+        const rows =
+          res.data?.data ?? [];
+
+        const map = {};
+
+        // IMPORTANT:
+        // dati:
+        //
+        // map[r.course_id] = {...}
+        //
+        // kaya nao-overwrite bawat trainer.
+        //
+        // ngayon array na bawat course.
+        for (const r of rows) {
+          const courseId =
+            Number(r.course_id);
+
+          if (!map[courseId]) {
+            map[courseId] = [];
+          }
+
+          map[courseId].push({
+            trainer_id:
+              Number(r.trainer_id),
+
+            trainer_name:
+              r.trainer_name ||
+              "Trainer",
+
+            trainer_code:
+              r.trainer_code ||
+              "",
+
+            status:
+              r.status ||
+              "",
+          });
+        }
+
+        tesdaAssignmentsMap.value =
+          map;
+
+        // Automatically check currently
+        // assigned trainers.
+        for (
+          const c of tesdaCourses.value
+        ) {
+          const assigned =
+            map[c.id] || [];
+
+          tesdaPendingAssign[c.id] =
+            assigned
+              .filter(
+                (a) =>
+                  !a.status ||
+                  String(
+                    a.status,
+                  ).toLowerCase() ===
+                    "active",
+              )
+              .map((a) =>
+                Number(
+                  a.trainer_id,
+                ),
+              );
+        }
+      };
+
+
+    const tesdaAssignmentLabel = (
+      courseId,
+    ) => {
+      const assigned =
+        tesdaAssignmentsMap.value[
+          courseId
+        ] || [];
+
+      if (!assigned.length) {
+        return "—";
+      }
+
+      return assigned
+        .map((a) => {
+          const name =
+            a.trainer_name ||
+            "Trainer";
+
+          return a.trainer_code
+            ? `${name} (${a.trainer_code})`
+            : name;
+        })
+        .join(", ");
+    };
+
+
+    const refreshTesdaAssignments =
+      async () => {
+        try {
+          await fetchTesdaTrainers();
+
+          await fetchTesdaAssignments();
+        } catch (err) {
+          console.error(
+            "refreshTesdaAssignments error:",
+            err,
+          );
+
+          showToast(
+            "Failed to load TESDA assignment data",
+            "error",
+          );
+        }
+      };
+
+
+    const saveTesdaAssignment =
+      async (courseId) => {
+        const selected =
+          Array.isArray(
+            tesdaPendingAssign[
+              courseId
+            ],
+          )
+            ? [
+                ...new Set(
+                  tesdaPendingAssign[
+                    courseId
+                  ]
+                    .map(Number)
+                    .filter(
+                      (id) =>
+                        Number.isFinite(
+                          id,
+                        ) &&
+                        id > 0,
+                    ),
+                ),
+              ]
+            : [];
+
+        if (!selected.length) {
+          showToast(
+            "Select at least one trainer.",
+            "error",
+          );
+
+          return;
+        }
+
+        try {
+          const current =
+            (
+              tesdaAssignmentsMap
+                .value[courseId] ||
+              []
+            )
+              .map((a) =>
+                Number(
+                  a.trainer_id,
+                ),
+              )
+              .filter(
+                (id) =>
+                  Number.isFinite(id) &&
+                  id > 0,
+              );
+
+          // Trainers newly checked.
+          const toAdd =
+            selected.filter(
+              (trainerId) =>
+                !current.includes(
+                  trainerId,
+                ),
+            );
+
+          // Trainers unchecked by admin.
+          const toRemove =
+            current.filter(
+              (trainerId) =>
+                !selected.includes(
+                  trainerId,
+                ),
+            );
+
+          // ADD new assignments
+          for (
+            const trainerId of toAdd
+          ) {
+            await api.post(
+              "/admin/tesda/course-trainers",
+              {
+                course_id:
+                  Number(courseId),
+
+                trainer_id:
+                  trainerId,
+              },
+            );
+          }
+
+          // REMOVE unchecked assignments
+          for (
+            const trainerId of
+            toRemove
+          ) {
+          await api.delete(
+            `/admin/tesda/course-trainers/${Number(courseId)}/${trainerId}`,
+          );
+          }
+
+          await fetchTesdaAssignments();
+
+          showToast(
+            "TESDA trainers updated successfully!",
+          );
+        } catch (err) {
+          console.error(
+            "saveTesdaAssignment error:",
+            err,
+          );
+
+          showToast(
+            err.response?.data
+              ?.message ||
+              "Failed to update trainers",
+            "error",
+          );
+        }
+      };
     const createTesdaCourse = async () => { await api.post("/admin/tesda/courses", { course_code: tesdaFormData.course_code, course_name: tesdaFormData.course_name, description: tesdaFormData.description, duration: tesdaFormData.duration, requirements: JSON.stringify(textToRequirementsArray(tesdaFormData.requirementsText)), status: tesdaFormData.status }); };
     const updateTesdaCourse = async () => { await api.put(`/admin/tesda/courses/${tesdaFormData.id}`, { course_code: tesdaFormData.course_code, course_name: tesdaFormData.course_name, description: tesdaFormData.description, duration: tesdaFormData.duration, requirements: JSON.stringify(textToRequirementsArray(tesdaFormData.requirementsText)), status: tesdaFormData.status }); };
     const removeTesdaCourse = async (id) => { await api.delete(`/admin/tesda/courses/${id}`); };

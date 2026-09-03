@@ -2,6 +2,7 @@
 
 const pool = require("../config/database");
 
+const ASSIGN_TABLE = "tesda_course_trainers";
 const COURSES_TABLE = "tesda_courses";
 const SCHEDULES_TABLE = "tesda_schedules";
 const RESERVATIONS_TABLE = "tesda_schedule_reservations";
@@ -29,7 +30,12 @@ async function getTrainerIdFromUser(req) {
   }
 
   const [trows] = await pool.execute(
-    `SELECT trainer_id FROM trainers WHERE user_id = ? LIMIT 1`,
+    `
+    SELECT trainer_id
+    FROM trainers
+    WHERE user_id = ?
+    LIMIT 1
+    `,
     [userId],
   );
 
@@ -55,6 +61,7 @@ function isValidYMD(ymd) {
 
 function parseDurationHours(duration) {
   const m = String(duration || "").match(/(\d+(?:\.\d+)?)/);
+
   const n = m ? Number(m[1]) : 0;
 
   return Number.isFinite(n) ? n : 0;
@@ -62,6 +69,7 @@ function parseDurationHours(duration) {
 
 function tesdaDaysFromDuration(duration) {
   const TESDA_HOURS_PER_DAY = 9;
+
   const hours = parseDurationHours(duration);
 
   return hours > 0 ? Math.max(1, Math.ceil(hours / TESDA_HOURS_PER_DAY)) : 1;
@@ -98,6 +106,7 @@ function computeTesdaEndDate(startYmd, duration) {
   }
 
   const [y, m, d] = startYmd.split("-").map(Number);
+
   const start = new Date(y, m - 1, d);
 
   if (isSundayDateObj(start)) {
@@ -116,10 +125,20 @@ function computeTesdaEndDate(startYmd, duration) {
 /**
  * GET /api/trainer/tesda/schedules?course_id=123
  *
- * - trainer-only
- * - exclude dated Sundays
- * - keep NULL / zero-date schedules as TBA
- * - returns duration and computed end_date
+ * SHARED TESDA TRAINER ACCESS
+ *
+ * - trainer must be assigned to the course
+ *   through tesda_course_trainers
+ *
+ * - all trainers assigned to the same course
+ *   see the SAME schedules
+ *
+ * - tesda_schedules.trainer_id is retained
+ *   only as legacy/primary trainer information
+ *
+ * - TBA schedules are retained
+ *
+ * - dated Sundays are excluded
  */
 async function listSchedulesByCourse(req, res) {
   try {
@@ -141,50 +160,116 @@ async function listSchedulesByCourse(req, res) {
       });
     }
 
+    // =====================================================
+    // ACCESS CHECK
+    // Trainer must be assigned to this TESDA course.
+    // =====================================================
+
+    const [assignmentRows] = await pool.execute(
+      `
+        SELECT id
+        FROM ${ASSIGN_TABLE}
+        WHERE course_id = ?
+          AND trainer_id = ?
+        LIMIT 1
+        `,
+      [courseId, trainerId],
+    );
+
+    if (!assignmentRows.length) {
+      return res.status(403).json({
+        status: "error",
+        message: "You are not assigned to this TESDA course.",
+      });
+    }
+
     const OCC_PH = ph(OCCUPYING);
+
+    // =====================================================
+    // SHARED SCHEDULE QUERY
+    //
+    // IMPORTANT:
+    // There is NO:
+    //
+    //     AND s.trainer_id = ?
+    //
+    // anymore.
+    //
+    // Once a trainer is assigned to the course,
+    // all schedules for that course are visible.
+    // =====================================================
 
     const [rows] = await pool.execute(
       `
       SELECT
         s.schedule_id AS id,
         s.course_id,
+
         c.course_name AS course,
         c.course_code AS course_code,
         c.duration AS duration,
 
+        -- Legacy / primary trainer stored on schedule
         s.trainer_id AS trainer_id,
 
         CASE
-          WHEN s.schedule_date IS NULL THEN NULL
-          WHEN YEAR(s.schedule_date) = 0 THEN NULL
-          ELSE DATE_FORMAT(s.schedule_date, '%Y-%m-%d')
+          WHEN s.schedule_date IS NULL
+            THEN NULL
+
+          WHEN YEAR(s.schedule_date) = 0
+            THEN NULL
+
+          ELSE DATE_FORMAT(
+            s.schedule_date,
+            '%Y-%m-%d'
+          )
         END AS date,
 
         CASE
-          WHEN s.schedule_date IS NULL THEN NULL
-          WHEN YEAR(s.schedule_date) = 0 THEN NULL
-          ELSE DATE_FORMAT(s.schedule_date, '%a')
+          WHEN s.schedule_date IS NULL
+            THEN NULL
+
+          WHEN YEAR(s.schedule_date) = 0
+            THEN NULL
+
+          ELSE DATE_FORMAT(
+            s.schedule_date,
+            '%a'
+          )
         END AS day,
 
         TIME_FORMAT(
-          COALESCE(s.start_time, '08:00:00'),
+          COALESCE(
+            s.start_time,
+            '08:00:00'
+          ),
           '%H:%i'
         ) AS startTime,
 
         TIME_FORMAT(
-          COALESCE(s.end_time, '17:00:00'),
+          COALESCE(
+            s.end_time,
+            '17:00:00'
+          ),
           '%H:%i'
         ) AS endTime,
 
         s.total_slots AS totalSlots,
+
         s.status AS scheduleStatus,
 
         (
           SELECT COUNT(*)
           FROM ${RESERVATIONS_TABLE} r
-          WHERE r.schedule_id = s.schedule_id
+
+          WHERE r.schedule_id =
+                s.schedule_id
+
             AND UPPER(
-              COALESCE(r.reservation_status, '')
+              COALESCE(
+                r.reservation_status,
+                ''
+              )
             ) IN (${OCC_PH})
         ) AS reservedCount,
 
@@ -192,9 +277,15 @@ async function listSchedulesByCourse(req, res) {
           s.total_slots - (
             SELECT COUNT(*)
             FROM ${RESERVATIONS_TABLE} r
-            WHERE r.schedule_id = s.schedule_id
+
+            WHERE r.schedule_id =
+                  s.schedule_id
+
               AND UPPER(
-                COALESCE(r.reservation_status, '')
+                COALESCE(
+                  r.reservation_status,
+                  ''
+                )
               ) IN (${OCC_PH})
           ),
           0
@@ -206,19 +297,33 @@ async function listSchedulesByCourse(req, res) {
         ON c.id = s.course_id
 
       WHERE s.course_id = ?
-        AND s.trainer_id = ?
 
-        -- exclude dated Sundays; keep TBA
+        -- Keep TBA and Mon-Sat schedules
         AND (
           s.schedule_date IS NULL
-          OR YEAR(s.schedule_date) = 0
-          OR DAYOFWEEK(s.schedule_date) <> 1
+
+          OR YEAR(
+            s.schedule_date
+          ) = 0
+
+          OR DAYOFWEEK(
+            s.schedule_date
+          ) <> 1
         )
 
       ORDER BY
+
+        -- Actual scheduled batches first,
+        -- TBA batches last
         CASE
-          WHEN s.schedule_date IS NULL THEN 1
-          WHEN YEAR(s.schedule_date) = 0 THEN 1
+          WHEN s.schedule_date IS NULL
+            THEN 1
+
+          WHEN YEAR(
+            s.schedule_date
+          ) = 0
+            THEN 1
+
           ELSE 0
         END ASC,
 
@@ -226,10 +331,13 @@ async function listSchedulesByCourse(req, res) {
         s.start_time ASC,
         s.schedule_id ASC
       `,
-      [...OCCUPYING, ...OCCUPYING, courseId, trainerId],
+      [...OCCUPYING, ...OCCUPYING, courseId],
     );
 
-    // add computed end_date (Mon-Sat only)
+    // =====================================================
+    // COMPUTED TESDA END DATE
+    // =====================================================
+
     const data = (rows || []).map((r) => {
       const start = r.date ? String(r.date) : null;
 
@@ -265,6 +373,7 @@ async function listSchedulesByCourse(req, res) {
 
     return res.status(500).json({
       status: "error",
+
       message: err.sqlMessage || err.message || "Failed to load schedules",
     });
   }

@@ -59,16 +59,24 @@ function isTimeWithin8to5(startHHmm, endHHmm) {
 
 async function pickAssignedTrainer(courseId) {
   if (!courseId) return null;
+
   const [rows] = await pool.execute(
     `
-    SELECT trainer_id
-    FROM tesda_course_trainers
-    WHERE course_id=?
-    ORDER BY id ASC
+    SELECT tct.trainer_id
+    FROM tesda_course_trainers tct
+
+    INNER JOIN trainers t
+      ON t.trainer_id = tct.trainer_id
+
+    WHERE tct.course_id = ?
+      AND LOWER(COALESCE(t.status, '')) = 'active'
+
+    ORDER BY tct.id ASC
     LIMIT 1
     `,
     [Number(courseId)],
   );
+
   return rows.length ? Number(rows[0].trainer_id) : null;
 }
 

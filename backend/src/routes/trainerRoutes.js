@@ -10,8 +10,6 @@ const trainerTesdaStudentsController = require("../controllers/trainerTesdaStude
 
 // protect all trainer endpoints
 router.use(requireTrainer);
-router.get("/tesda/courses", trainerController.getMyTesdaCourses);
-
 
 // existing CRUD trainers
 router.post("/", trainerController.createTrainer);
