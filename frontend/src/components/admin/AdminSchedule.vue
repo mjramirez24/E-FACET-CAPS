@@ -253,7 +253,10 @@
             </thead>
 
             <tbody>
-              <tr v-for="schedule in pagedSchedules" :key="schedule.id">
+              <tr
+                v-for="schedule in pagedSchedules"
+                :key="schedule.groupKey || schedule.id"
+              >
                 <td>
                   <div class="font-medium">{{ schedule.course }}</div>
                   <div v-if="activeTrack==='tesda'" class="text-xs text-gray-400">
@@ -263,7 +266,23 @@
 
                 <td>
                   <div class="font-medium">
-                    <template v-if="activeTrack!=='tesda'">{{ formatDate(schedule.date) }}</template>
+                    <template v-if="activeTrack !== 'tesda'">
+                      <template
+                        v-if="Number(schedule.groupSessionCount || 1) > 1"
+                      >
+                        {{ formatDate(schedule.groupStartDate) }}
+                        →
+                        {{ formatDate(schedule.groupEndDate) }}
+
+                        <div class="text-xs text-gray-400 mt-0.5">
+                          {{ schedule.groupSessionCount }} Days
+                        </div>
+                      </template>
+
+                      <template v-else>
+                        {{ formatDate(schedule.date) }}
+                      </template>
+                    </template>
                     <template v-else>
                       <template v-if="isTesdaScheduled(schedule)">
                         {{ formatDate(schedule.date) }} → {{ formatDate(getTesdaEndDate(schedule)) }}
@@ -663,7 +682,30 @@
                 Are you sure you want to delete schedule for
                 <span class="font-semibold text-gray-900">{{ scheduleToDelete?.course }}</span>
                 <template v-if="activeTrack !== 'tesda'">
-                  on <span class="font-semibold text-gray-900">{{ scheduleToDelete ? formatDate(scheduleToDelete.date) : "" }}</span>
+                  <template
+                    v-if="Number(scheduleToDelete?.groupSessionCount || 1) > 1"
+                  >
+                    from
+                    <span class="font-semibold text-gray-900">
+                      {{ formatDate(scheduleToDelete?.groupStartDate) }}
+                    </span>
+                    to
+                    <span class="font-semibold text-gray-900">
+                      {{ formatDate(scheduleToDelete?.groupEndDate) }}
+                    </span>
+                    ({{ scheduleToDelete?.groupSessionCount }} days)
+                  </template>
+
+                  <template v-else>
+                    on
+                    <span class="font-semibold text-gray-900">
+                      {{
+                        scheduleToDelete
+                          ? formatDate(scheduleToDelete.date)
+                          : ""
+                      }}
+                    </span>
+                  </template>
                 </template>
                 <template v-else>
                   <span class="font-semibold text-gray-900">
@@ -1027,21 +1069,11 @@ export default {
 
     // Build all dates between start/end.
     // Used by Weekly and Monthly modes.
-    const buildBulkDates = (
-      startYmd,
-      endYmd
-    ) => {
-      if (!startYmd || !endYmd) {
-        return [];
-      }
+    const buildBulkDates = (startYmd, endYmd, stepDays = 1) => {
+      if (!startYmd || !endYmd) return [];
 
-      const start = new Date(
-        `${startYmd}T00:00:00`
-      );
-
-      const end = new Date(
-        `${endYmd}T00:00:00`
-      );
+      const start = new Date(`${startYmd}T00:00:00`);
+      const end = new Date(`${endYmd}T00:00:00`);
 
       if (
         Number.isNaN(start.getTime()) ||
@@ -1055,14 +1087,61 @@ export default {
       const cursor = new Date(start);
 
       while (cursor <= end) {
+        // Make sure the whole multi-day batch fits inside the range
+        const lastSessionDay = new Date(cursor);
+        lastSessionDay.setDate(
+          lastSessionDay.getDate() + stepDays - 1
+        );
+
+        if (lastSessionDay > end) break;
+
         dates.push(toLocalYMD(cursor));
+
         cursor.setDate(
-          cursor.getDate() + 1
+          cursor.getDate() + stepDays
         );
       }
 
       return dates;
     };
+
+    const getDrivingCourseSpanDays = () => {
+    const courseId = Number(formData.course_id || 0);
+
+    const course = coursesRaw.value.find(
+      (c) => Number(c.id) === courseId
+    );
+
+    if (!course) return 1;
+
+    const name = String(
+      course.course_name || ""
+    ).toUpperCase();
+
+    const code = String(
+      course.course_code || ""
+    ).toUpperCase();
+
+    // TDC = 2 days
+    if (
+      /\bTDC\b/.test(code) ||
+      /THEORETICAL.*DRIVING.*COURSE/.test(name)
+    ) {
+      return 2;
+    }
+
+    // PDC AB = 2 days
+    if (
+      /PDC[\s_-]*(AB|A&B)/.test(code) ||
+      /PRACTICAL.*DRIVING.*COURSE.*\(AB\)/.test(name) ||
+      /PRACTICAL.*A\s*(&|AND)?\s*B/.test(name)
+    ) {
+      return 2;
+    }
+
+    // PDC A / PDC B = 1 day
+    return 1;
+  };
 
     const listCourseFilter = ref(0);
     const listStatusFilter = ref("");
@@ -1193,31 +1272,197 @@ export default {
       let result = [...baseFilteredSchedules.value];
 
       if (Number(listCourseFilter.value) > 0) {
-        result = result.filter((s) => Number(s.course_id) === Number(listCourseFilter.value));
+        result = result.filter(
+          (s) =>
+            Number(s.course_id) ===
+            Number(listCourseFilter.value)
+        );
       }
 
       if (listStatusFilter.value) {
-        const want = String(listStatusFilter.value).toLowerCase();
-        result = result.filter((s) => String(s.computedStatus || "").toLowerCase() === want);
+        const want = String(
+          listStatusFilter.value
+        ).toLowerCase();
+
+        result = result.filter(
+          (s) =>
+            String(
+              s.computedStatus || ""
+            ).toLowerCase() === want
+        );
       }
 
       if (listPersonFilter.value) {
-        const q = listPersonFilter.value.toLowerCase().trim();
-        result = result.filter((s) => String(s.instructor || "").toLowerCase().includes(q));
+        const q = String(
+          listPersonFilter.value
+        )
+          .toLowerCase()
+          .trim();
+
+        result = result.filter((s) =>
+          String(s.instructor || "")
+            .toLowerCase()
+            .includes(q)
+        );
       }
 
-      // sort: scheduled first, TBA last
-      result.sort((a, b) => {
-        const aSched = isTesdaScheduled(a) ? 1 : 0;
-        const bSched = isTesdaScheduled(b) ? 1 : 0;
-        if (aSched !== bSched) return bSched - aSched;
-        const ad = String(a.date || "");
-        const bd = String(b.date || "");
-        if (ad !== bd) return bd.localeCompare(ad);
+      // TESDA stays as-is
+      if (activeTrack.value === "tesda") {
+        result.sort((a, b) => {
+          const aSched = isTesdaScheduled(a)
+            ? 1
+            : 0;
+          const bSched = isTesdaScheduled(b)
+            ? 1
+            : 0;
+
+          if (aSched !== bSched) {
+            return bSched - aSched;
+          }
+
+          const ad = String(a.date || "");
+          const bd = String(b.date || "");
+
+          if (ad !== bd) {
+            return bd.localeCompare(ad);
+          }
+
+          return Number(a.id) - Number(b.id);
+        });
+
+        return result;
+      }
+
+      // =====================================
+      // DRIVING: GROUP MULTI-DAY SCHEDULES
+      // =====================================
+      const grouped = [];
+      const seenGroups = new Set();
+
+      for (const schedule of result) {
+        const groupId = String(
+          schedule.scheduleGroupId ??
+          schedule.schedule_group_id ??
+          ""
+        ).trim();
+
+        // Legacy schedule: no group ID
+        if (!groupId) {
+          grouped.push({
+            ...schedule,
+            groupKey: `legacy-${schedule.id}`,
+            groupStartDate:
+              schedule.date || "",
+            groupEndDate:
+              schedule.date || "",
+            groupSessionCount: 1,
+            groupScheduleIds: [
+              Number(schedule.id),
+            ],
+          });
+
+          continue;
+        }
+
+        if (seenGroups.has(groupId)) {
+          continue;
+        }
+
+        seenGroups.add(groupId);
+
+        // Get ALL sessions in this group,
+        // even if one session was filtered out.
+        const members = schedules.value
+          .filter((item) => {
+            const itemGroupId = String(
+              item.scheduleGroupId ??
+              item.schedule_group_id ??
+              ""
+            ).trim();
+
+            return itemGroupId === groupId;
+          })
+          .sort((a, b) => {
+            const aSession = Number(
+              a.sessionNo ??
+              a.session_no ??
+              999
+            );
+
+            const bSession = Number(
+              b.sessionNo ??
+              b.session_no ??
+              999
+            );
+
+            if (aSession !== bSession) {
+              return aSession - bSession;
+            }
+
+            return String(
+              a.date || ""
+            ).localeCompare(
+              String(b.date || "")
+            );
+          });
+
+        const first =
+          members[0] || schedule;
+
+        const last =
+          members[members.length - 1] ||
+          first;
+
+        grouped.push({
+          ...first,
+
+          scheduleGroupId: groupId,
+          groupKey: `group-${groupId}`,
+
+          groupStartDate:
+            first.date || "",
+
+          groupEndDate:
+            last.date ||
+            first.date ||
+            "",
+
+          groupSessionCount:
+            members.length,
+
+          groupScheduleIds: members
+            .map((item) =>
+              Number(item.id)
+            )
+            .filter(
+              (id) =>
+                Number.isInteger(id) &&
+                id > 0
+            ),
+        });
+      }
+
+      grouped.sort((a, b) => {
+        const ad = String(
+          a.groupStartDate ||
+          a.date ||
+          ""
+        );
+
+        const bd = String(
+          b.groupStartDate ||
+          b.date ||
+          ""
+        );
+
+        if (ad !== bd) {
+          return bd.localeCompare(ad);
+        }
+
         return Number(a.id) - Number(b.id);
       });
 
-      return result;
+      return grouped;
     });
 
     const totalPages = computed(() =>
@@ -1614,60 +1859,257 @@ export default {
       showModal.value = true;
     };
 
-      const editSchedule = async (schedule) => {
-        const id = getScheduleId(schedule);
-        if (!id) {
-          alert("Invalid schedule id. Please refresh.");
-          return;
+    const editSchedule = async (schedule) => {
+      let targetSchedule = schedule;
+
+      // =====================================
+      // DRIVING GROUP:
+      // Always edit Day 1 / group leader
+      // =====================================
+      if (activeTrack.value !== "tesda") {
+        const groupId = String(
+          schedule.scheduleGroupId ??
+          schedule.schedule_group_id ??
+          ""
+        ).trim();
+
+        if (groupId) {
+          const members = schedules.value
+            .filter((item) => {
+              const itemGroupId = String(
+                item.scheduleGroupId ??
+                item.schedule_group_id ??
+                ""
+              ).trim();
+
+              return itemGroupId === groupId;
+            })
+            .sort((a, b) => {
+              const aSession = Number(
+                a.sessionNo ??
+                a.session_no ??
+                999
+              );
+
+              const bSession = Number(
+                b.sessionNo ??
+                b.session_no ??
+                999
+              );
+
+              if (aSession !== bSession) {
+                return aSession - bSession;
+              }
+
+              return Number(a.id) - Number(b.id);
+            });
+
+          if (members.length) {
+            targetSchedule = members[0];
+          }
         }
+      }
 
-        isEditing.value = true;
+      const id = getScheduleId(targetSchedule);
 
-        try {
-          await fetchInstructors();
-          await fetchCourseInstructorMap();
-        } catch (e) {
-          console.error("refresh assignment error:", e);
-        }
-
-        formData.id = id;
-        skipInstructorReset.value = true;
-        formData.course_id = Number(schedule.course_id);
-
-        // ✅ driving keeps instructor_id, tesda sets 0 (no picking)
-        formData.instructor_id = activeTrack.value === "tesda" ? 0 : (Number(schedule.instructor_id || 0) || 0);
-
-        formData.schedule_date = String(schedule.date || "");
-        formData.start_time = activeTrack.value === "tesda" ? OPEN_TIME : String(schedule.startTime);
-        formData.end_time = activeTrack.value === "tesda" ? CLOSE_TIME : String(schedule.endTime);
-
-        formData.total_slots = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : Number(schedule.totalSlots);
-
-        formData.status =
-          schedule.scheduleStatus ||
-          schedule.computedStatus ||
-          (activeTrack.value === "tesda" ? (schedule.date ? "open" : "tba") : "open");
-
-        showModal.value = true;
-      };
-
-    const viewSchedule = (schedule) => {
-      if (activeTrack.value === "tesda") {
-        const start = isTesdaScheduled(schedule) ? formatDate(schedule.date) : "TBA";
-        const end = isTesdaScheduled(schedule) ? formatDate(getTesdaEndDate(schedule)) : "—";
+      if (!id) {
         showMessage(
-          "TESDA Batch Details",
-          `Course: ${schedule.course}\nBatch: ${getTesdaBatchNo(schedule)}\nStart: ${start}\nEnd: ${end}\nEnrollees: ${getTesdaEnrolled(schedule)}/25`,
-          "ℹ️"
+          "Invalid Schedule",
+          "Invalid schedule id. Please refresh.",
+          "⚠️"
         );
         return;
       }
-      showMessage(
-        "Schedule Details",
-        `${schedule.course}\nDate: ${formatDate(schedule.date)}\nTime: ${schedule.startTime} - ${schedule.endTime}`,
-        "ℹ️"
-      );
+
+      isEditing.value = true;
+
+      try {
+        await fetchInstructors();
+        await fetchCourseInstructorMap();
+      } catch (e) {
+        console.error(
+          "refresh assignment error:",
+          e
+        );
+      }
+
+      formData.id = id;
+
+      skipInstructorReset.value = true;
+
+      formData.course_id =
+        Number(targetSchedule.course_id);
+
+      formData.instructor_id =
+        activeTrack.value === "tesda"
+          ? 0
+          : (
+              Number(
+                targetSchedule.instructor_id || 0
+              ) || 0
+            );
+
+      formData.schedule_date =
+        String(targetSchedule.date || "");
+
+      formData.start_time =
+        activeTrack.value === "tesda"
+          ? OPEN_TIME
+          : String(
+              targetSchedule.startTime ||
+              OPEN_TIME
+            );
+
+      formData.end_time =
+        activeTrack.value === "tesda"
+          ? CLOSE_TIME
+          : String(
+              targetSchedule.endTime ||
+              ""
+            );
+
+      formData.total_slots =
+        activeTrack.value === "tesda"
+          ? TESDA_BATCH_CAP
+          : Number(
+              targetSchedule.totalSlots || 0
+            );
+
+      formData.status =
+        targetSchedule.scheduleStatus ||
+        targetSchedule.computedStatus ||
+        (
+          activeTrack.value === "tesda"
+            ? (
+                targetSchedule.date
+                  ? "open"
+                  : "tba"
+              )
+            : "open"
+        );
+
+      showModal.value = true;
     };
+
+      const viewSchedule = (schedule) => {
+        if (activeTrack.value === "tesda") {
+          const start = isTesdaScheduled(schedule)
+            ? formatDate(schedule.date)
+            : "TBA";
+
+          const end = isTesdaScheduled(schedule)
+            ? formatDate(getTesdaEndDate(schedule))
+            : "—";
+
+          showMessage(
+            "TESDA Batch Details",
+            `Course: ${schedule.course}
+      Batch: ${getTesdaBatchNo(schedule)}
+      Start: ${start}
+      End: ${end}
+      Enrollees: ${getTesdaEnrolled(schedule)}/25`,
+            "ℹ️"
+          );
+
+          return;
+        }
+
+        // =====================================
+        // DRIVING GROUP DETAILS
+        // =====================================
+        const groupId = String(
+          schedule.scheduleGroupId ??
+          schedule.schedule_group_id ??
+          ""
+        ).trim();
+
+        let members = [];
+
+        if (groupId) {
+          members = schedules.value
+            .filter((item) => {
+              const itemGroupId = String(
+                item.scheduleGroupId ??
+                item.schedule_group_id ??
+                ""
+              ).trim();
+
+              return itemGroupId === groupId;
+            })
+            .sort((a, b) => {
+              const aSession = Number(
+                a.sessionNo ??
+                a.session_no ??
+                999
+              );
+
+              const bSession = Number(
+                b.sessionNo ??
+                b.session_no ??
+                999
+              );
+
+              if (aSession !== bSession) {
+                return aSession - bSession;
+              }
+
+              return String(a.date || "")
+                .localeCompare(
+                  String(b.date || "")
+                );
+            });
+        }
+
+        // Legacy/single schedule fallback
+        if (!members.length) {
+          members = [schedule];
+        }
+
+        const sessionLines = members
+          .map((item, index) => {
+            const sessionNo = Number(
+              item.sessionNo ??
+              item.session_no ??
+              index + 1
+            );
+
+            return `Day ${sessionNo}: ${formatDate(
+              item.date
+            )} — ${item.startTime} - ${item.endTime}`;
+          })
+          .join("\n");
+
+        const instructor =
+          schedule.instructor || "Unassigned";
+
+        const status =
+          schedule.computedStatus ||
+          schedule.scheduleStatus ||
+          "Open";
+
+        const totalSlots = Number(
+          schedule.totalSlots ??
+          schedule.total_slots ??
+          0
+        );
+
+        const title =
+          members.length > 1
+            ? "Schedule Group Details"
+            : "Schedule Details";
+
+        showMessage(
+          title,
+          `Course: ${schedule.course}
+      Instructor: ${instructor}
+      Status: ${status}
+      Slots: ${totalSlots || "—"}
+      Sessions: ${members.length}
+
+      ${sessionLines}`,
+          "ℹ️"
+        );
+      };
 
     const closeModal = () => {
       showModal.value = false;
@@ -1945,11 +2387,14 @@ export default {
           createMode.value !==
             "single"
         ) {
-          const dates =
-            buildBulkDates(
-              range.start,
-              range.end
-            );
+          const spanDays =
+            getDrivingCourseSpanDays();
+
+          const dates = buildBulkDates(
+            range.start,
+            range.end,
+            spanDays
+          );
 
           if (!dates.length) {
             throw new Error(

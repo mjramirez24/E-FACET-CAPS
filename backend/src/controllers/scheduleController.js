@@ -1,5 +1,6 @@
 // backend/src/controllers/scheduleController.js
 const pool = require("../config/database");
+const { randomUUID } = require("crypto");
 
 function timeToMinutes(t) {
   const [h, m] = String(t || "")
@@ -326,6 +327,8 @@ exports.getSchedules = async (req, res) => {
       `
       SELECT
         s.schedule_id AS id,
+        s.schedule_group_id AS scheduleGroupId,
+        s.session_no AS sessionNo,
         s.course_id,
         c.course_name AS course,
 
@@ -521,23 +524,39 @@ const rule = getDrivingRule(courseName, courseCode);
     }
 
     const createdIds = [];
+    const scheduleGroupId = randomUUID();
 
-    for (const sess of sessions) {
+    for (let index = 0; index < sessions.length; index++) {
+      const sess = sessions[index];
+
       const [result] = await conn.execute(
         `
-        INSERT INTO schedules (course_id, instructor_id, schedule_date, start_time, end_time, total_slots, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO schedules (
+          schedule_group_id,
+          session_no,
+          course_id,
+          instructor_id,
+          schedule_date,
+          start_time,
+          end_time,
+          total_slots,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
+          scheduleGroupId,
+          index + 1,
           Number(course_id),
           Number(instructor_id),
           sess.schedule_date,
           sess.start_time,
           sess.end_time,
-          slots, // ✅ BOTH DAYS SAME SLOTS
+          slots,
           normalizedStatus,
         ],
       );
+
       createdIds.push(result.insertId);
     }
 
@@ -548,7 +567,10 @@ const rule = getDrivingRule(courseName, courseCode);
       message: rule
         ? `Schedule created (${rule.kind}) with ${sessions.length} session(s)`
         : "Schedule created",
-      data: { schedule_ids: createdIds },
+      data: {
+        schedule_group_id: scheduleGroupId,
+        schedule_ids: createdIds,
+      },
     });
   } catch (err) {
     try {
@@ -572,13 +594,18 @@ const rule = getDrivingRule(courseName, courseCode);
  */
 exports.updateSchedule = async (req, res) => {
   const conn = await pool.getConnection();
+
   try {
     const rawId = req.params.id ?? req.params.scheduleId;
+
     const id = parseId(rawId);
-    if (!id)
-      return res
-        .status(400)
-        .json({ status: "error", message: "Invalid schedule id" });
+
+    if (!id) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid schedule id",
+      });
+    }
 
     const {
       course_id,
@@ -605,251 +632,463 @@ exports.updateSchedule = async (req, res) => {
     }
 
     let slots = Number(total_slots);
+
     if (!Number.isFinite(slots) || slots < 0) {
-      return res
-        .status(400)
-        .json({
-          status: "error",
-          message: "total_slots must be a number >= 0",
-        });
+      return res.status(400).json({
+        status: "error",
+        message: "total_slots must be a number >= 0",
+      });
     }
 
     await conn.beginTransaction();
 
+    // =====================================
+    // GET CLICKED SCHEDULE
+    // =====================================
     const [curRows] = await conn.execute(
-      `SELECT schedule_id, course_id, instructor_id, schedule_date, start_time, end_time, total_slots, status
-       FROM schedules WHERE schedule_id = ? LIMIT 1`,
+      `
+      SELECT
+        schedule_id,
+        schedule_group_id,
+        session_no,
+        course_id,
+        instructor_id,
+        DATE_FORMAT(
+          schedule_date,
+          '%Y-%m-%d'
+        ) AS schedule_date,
+        TIME_FORMAT(
+          start_time,
+          '%H:%i'
+        ) AS start_time,
+        TIME_FORMAT(
+          end_time,
+          '%H:%i'
+        ) AS end_time,
+        total_slots,
+        status
+      FROM schedules
+      WHERE schedule_id = ?
+      LIMIT 1
+      FOR UPDATE
+      `,
       [id],
     );
+
     if (!curRows.length) {
       await conn.rollback();
-      return res
-        .status(404)
-        .json({ status: "error", message: "Schedule not found" });
+
+      return res.status(404).json({
+        status: "error",
+        message: "Schedule not found",
+      });
     }
+
     const cur = curRows[0];
 
-    const [courseRows] = await conn.execute(
-      `SELECT id, course_name FROM courses WHERE id = ? LIMIT 1`,
-      [Number(course_id)],
-    );
-    if (!courseRows.length) {
-      await conn.rollback();
-      return res
-        .status(404)
-        .json({ status: "error", message: "Course not found" });
-    }
-    const courseName = courseRows[0].course_name;
+    // =====================================
+    // GET WHOLE EXISTING GROUP
+    // =====================================
+    let groupId = String(cur.schedule_group_id || "").trim();
 
-    const [instRows] = await conn.execute(
-      `SELECT instructor_id FROM instructors WHERE instructor_id = ? LIMIT 1`,
-      [Number(instructor_id)],
-    );
-    if (!instRows.length) {
-      await conn.rollback();
-      return res
-        .status(404)
-        .json({ status: "error", message: "Instructor not found" });
-    }
+    let groupRows = [];
 
-    // reservations: cannot reduce below reserved
-    const placeholders = OCCUPYING_STATUSES.map(() => "?").join(",");
-    const [cntRows] = await conn.execute(
-      `
-      SELECT COUNT(*) AS reservedCount
-      FROM schedule_reservations
-      WHERE schedule_id = ?
-        AND UPPER(reservation_status) IN (${placeholders})
-      `,
-      [id, ...OCCUPYING_STATUSES],
-    );
-    const reservedCount = Number(cntRows[0]?.reservedCount || 0);
-    if (slots < reservedCount) {
-      await conn.rollback();
-      return res.status(400).json({
-        status: "error",
-        message: `total_slots cannot be less than reserved (${reservedCount})`,
-      });
-    }
-
-    let normalizedStatus =
-      String(status || "open").toLowerCase() === "closed" ? "closed" : "open";
-    const rule = getDrivingRule(courseName);
-
-    let finalStart = String(start_time);
-    let finalEnd = String(end_time || "");
-
-    if (!rule) {
-      if (!finalEnd) {
-        await conn.rollback();
-        return res
-          .status(400)
-          .json({
-            status: "error",
-            message: "end_time is required for non-driving courses",
-          });
-      }
-      const facetErr = ensureWithinFacetHours(finalStart, finalEnd);
-      if (facetErr) {
-        await conn.rollback();
-        return res.status(400).json({ status: "error", message: facetErr });
-      }
-    } else {
-      const sessions = buildSessionsFromRule(
-        { schedule_date, start_time },
-        rule,
-      );
-
-      if (rule.kind === "TDC") {
-        // block Day-2 edit
-        const isDay2 = await isTdcDay2Row(conn, {
-          course_id: Number(cur.course_id),
-          instructor_id: Number(cur.instructor_id),
-          schedule_date: String(cur.schedule_date),
-          start_time: String(cur.start_time),
-          end_time: String(cur.end_time),
-        });
-
-        if (isDay2) {
-          await conn.rollback();
-          return res.status(400).json({
-            status: "error",
-            message:
-              "For TDC, please edit Day 1 schedule only (Day 2 is auto-managed).",
-          });
-        }
-
-        // force full day time
-        finalStart = "08:00";
-        finalEnd = "17:00";
-
-        // weekly cap check (Day-1 only)
-        if (slots > TDC_WEEKLY_CAP) slots = TDC_WEEKLY_CAP;
-
-        const range = getWeekRangeMonSun(schedule_date);
-        if (!range) {
-          await conn.rollback();
-          return res
-            .status(400)
-            .json({ status: "error", message: "Invalid schedule_date" });
-        }
-
-        const used = await getTdcWeekUsedSlots(conn, {
-          course_id,
-          weekStart: range.weekStart,
-          weekEnd: range.weekEnd,
-          excludeScheduleId: id,
-        });
-
-        const remaining = Math.max(TDC_WEEKLY_CAP - used, 0);
-        if (slots > remaining) {
-          await conn.rollback();
-          return res.status(400).json({
-            status: "error",
-            message: `TDC weekly limit is ${TDC_WEEKLY_CAP} slots. Remaining this week: ${remaining}.`,
-          });
-        }
-      } else {
-        // PDC_* uses generated session[0]
-        finalStart = sessions[0].start_time;
-        finalEnd = sessions[0].end_time;
-      }
-
-      const facetErr = ensureWithinFacetHours(finalStart, finalEnd);
-      if (facetErr) {
-        await conn.rollback();
-        return res.status(400).json({ status: "error", message: facetErr });
-      }
-    }
-
-    const [result] = await conn.execute(
-      `
-      UPDATE schedules
-      SET course_id=?, instructor_id=?, schedule_date=?, start_time=?, end_time=?, total_slots=?, status=?, updated_at=CURRENT_TIMESTAMP
-      WHERE schedule_id=?
-      `,
-      [
-        Number(course_id),
-        Number(instructor_id),
-        schedule_date,
-        finalStart,
-        finalEnd,
-        slots,
-        normalizedStatus,
-        id,
-      ],
-    );
-
-    if (result.affectedRows === 0) {
-      await conn.rollback();
-      return res
-        .status(404)
-        .json({ status: "error", message: "Schedule not found" });
-    }
-
-    // ✅ If driving PDC_AB: upsert Day-2 same time + same slots/status (optional but consistent)
-    if (rule && rule.kind === "PDC_AB") {
-      const day2date = addDaysYMD(schedule_date, 1);
-      const [d2Rows] = await conn.execute(
+    if (groupId) {
+      [groupRows] = await conn.execute(
         `
-        SELECT schedule_id
+        SELECT
+          schedule_id,
+          schedule_group_id,
+          session_no,
+          course_id,
+          instructor_id,
+          DATE_FORMAT(
+            schedule_date,
+            '%Y-%m-%d'
+          ) AS schedule_date,
+          TIME_FORMAT(
+            start_time,
+            '%H:%i'
+          ) AS start_time,
+          TIME_FORMAT(
+            end_time,
+            '%H:%i'
+          ) AS end_time,
+          total_slots,
+          status
         FROM schedules
-        WHERE course_id=? AND instructor_id=? AND schedule_date=?
-        ORDER BY schedule_id DESC
+        WHERE schedule_group_id = ?
+        ORDER BY
+          session_no ASC,
+          schedule_id ASC
+        FOR UPDATE
+        `,
+        [groupId],
+      );
+    } else {
+      // Legacy row:
+      // give it a group when edited.
+      groupId = randomUUID();
+      groupRows = [cur];
+    }
+
+    if (!groupRows.length) {
+      groupRows = [cur];
+    }
+
+    // Group leader / Day 1
+    const leaderId = Number(groupRows[0].schedule_id);
+
+    // =====================================
+    // COURSE + INSTRUCTOR
+    // =====================================
+    const [courseRows] = await conn.execute(
+      `
+        SELECT
+          id,
+          course_name,
+          course_code
+        FROM courses
+        WHERE id = ?
         LIMIT 1
         `,
-        [Number(course_id), Number(instructor_id), day2date],
+      [Number(course_id)],
+    );
+
+    if (!courseRows.length) {
+      await conn.rollback();
+
+      return res.status(404).json({
+        status: "error",
+        message: "Course not found",
+      });
+    }
+
+    const courseName = courseRows[0].course_name;
+
+    const courseCode = courseRows[0].course_code;
+
+    const [instRows] = await conn.execute(
+      `
+        SELECT instructor_id
+        FROM instructors
+        WHERE instructor_id = ?
+        LIMIT 1
+        `,
+      [Number(instructor_id)],
+    );
+
+    if (!instRows.length) {
+      await conn.rollback();
+
+      return res.status(404).json({
+        status: "error",
+        message: "Instructor not found",
+      });
+    }
+
+    // =====================================
+    // BUILD NEW SESSION SET
+    // =====================================
+    const normalizedStatus =
+      String(status || "open").toLowerCase() === "closed" ? "closed" : "open";
+
+    const rule = getDrivingRule(courseName, courseCode);
+
+    let sessions = [];
+
+    if (rule) {
+      sessions = buildSessionsFromRule(
+        {
+          schedule_date: String(schedule_date),
+          start_time: String(start_time),
+        },
+        rule,
+      );
+    } else {
+      if (!end_time) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message: "end_time is required for non-driving courses",
+        });
+      }
+
+      const facetErr = ensureWithinFacetHours(start_time, end_time);
+
+      if (facetErr) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message: facetErr,
+        });
+      }
+
+      sessions = [
+        {
+          schedule_date: String(schedule_date),
+          start_time: String(start_time),
+          end_time: String(end_time),
+        },
+      ];
+    }
+
+    // Validate generated sessions
+    for (const sess of sessions) {
+      const facetErr = ensureWithinFacetHours(sess.start_time, sess.end_time);
+
+      if (facetErr) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message: facetErr,
+        });
+      }
+    }
+
+    // =====================================
+    // TDC WEEKLY CAP
+    // =====================================
+    if (rule && rule.kind === "TDC") {
+      if (slots > TDC_WEEKLY_CAP) {
+        slots = TDC_WEEKLY_CAP;
+      }
+
+      const range = getWeekRangeMonSun(String(schedule_date));
+
+      if (!range) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message: "Invalid schedule_date",
+        });
+      }
+
+      const used = await getTdcWeekUsedSlots(conn, {
+        course_id: Number(course_id),
+
+        weekStart: range.weekStart,
+
+        weekEnd: range.weekEnd,
+
+        // Exclude current Day 1
+        excludeScheduleId: leaderId,
+      });
+
+      const remaining = Math.max(TDC_WEEKLY_CAP - used, 0);
+
+      if (slots > remaining) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message: `TDC weekly limit is ${TDC_WEEKLY_CAP} slots. Remaining this week: ${remaining}.`,
+        });
+      }
+    }
+
+    // =====================================
+    // RESERVATIONS FOR WHOLE GROUP
+    // =====================================
+    const existingIds = groupRows
+      .map((row) => Number(row.schedule_id))
+      .filter((value) => Number.isInteger(value) && value > 0);
+
+    const reservedMap = new Map();
+
+    if (existingIds.length) {
+      const idPlaceholders = existingIds.map(() => "?").join(",");
+
+      const statusPlaceholders = OCCUPYING_STATUSES.map(() => "?").join(",");
+
+      const [reservationRows] = await conn.execute(
+        `
+          SELECT
+            schedule_id,
+            COUNT(*) AS reservedCount
+          FROM schedule_reservations
+          WHERE schedule_id
+            IN (${idPlaceholders})
+            AND UPPER(
+              reservation_status
+            )
+            IN (${statusPlaceholders})
+          GROUP BY schedule_id
+          `,
+        [...existingIds, ...OCCUPYING_STATUSES],
       );
 
-      if (d2Rows.length) {
-        await conn.execute(
-          `UPDATE schedules SET start_time=?, end_time=?, total_slots=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE schedule_id=?`,
-          [
-            finalStart,
-            finalEnd,
-            slots,
-            normalizedStatus,
-            Number(d2Rows[0].schedule_id),
-          ],
-        );
-      } else {
-        await conn.execute(
-          `
-          INSERT INTO schedules (course_id, instructor_id, schedule_date, start_time, end_time, total_slots, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            Number(course_id),
-            Number(instructor_id),
-            day2date,
-            finalStart,
-            finalEnd,
-            slots,
-            normalizedStatus,
-          ],
+      for (const row of reservationRows) {
+        reservedMap.set(
+          Number(row.schedule_id),
+          Number(row.reservedCount || 0),
         );
       }
     }
 
-    // ✅ If driving TDC: enforce Day-2 exists + SAME slots/status + forced 08–17
-    if (rule && rule.kind === "TDC") {
-      await upsertTdcDay2(conn, {
-        course_id: Number(course_id),
-        instructor_id: Number(instructor_id),
-        day1_date: String(schedule_date),
-        slots,
-        status: normalizedStatus,
-      });
+    // Slots cannot be below reservations
+    // on ANY existing day.
+    for (const row of groupRows) {
+      const reserved = reservedMap.get(Number(row.schedule_id)) || 0;
+
+      if (slots < reserved) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message: `Total slots cannot be less than reserved (${reserved}) in one of the schedule sessions.`,
+        });
+      }
+    }
+
+    // If course becomes shorter
+    // (2 days -> 1 day), don't remove
+    // a reserved session.
+    const rowsToRemove = groupRows.slice(sessions.length);
+
+    for (const row of rowsToRemove) {
+      const reserved = reservedMap.get(Number(row.schedule_id)) || 0;
+
+      if (reserved > 0) {
+        await conn.rollback();
+
+        return res.status(400).json({
+          status: "error",
+          message:
+            "Cannot remove a schedule session because it has active reservations.",
+        });
+      }
+    }
+
+    // =====================================
+    // UPDATE / INSERT GROUP SESSIONS
+    // =====================================
+    const finalIds = [];
+
+    for (let index = 0; index < sessions.length; index++) {
+      const sess = sessions[index];
+
+      const existing = groupRows[index];
+
+      if (existing) {
+        await conn.execute(
+          `
+          UPDATE schedules
+          SET
+            schedule_group_id = ?,
+            session_no = ?,
+            course_id = ?,
+            instructor_id = ?,
+            schedule_date = ?,
+            start_time = ?,
+            end_time = ?,
+            total_slots = ?,
+            status = ?,
+            updated_at =
+              CURRENT_TIMESTAMP
+          WHERE schedule_id = ?
+          `,
+          [
+            groupId,
+            index + 1,
+            Number(course_id),
+            Number(instructor_id),
+            sess.schedule_date,
+            sess.start_time,
+            sess.end_time,
+            slots,
+            normalizedStatus,
+            Number(existing.schedule_id),
+          ],
+        );
+
+        finalIds.push(Number(existing.schedule_id));
+      } else {
+        const [insertResult] = await conn.execute(
+          `
+            INSERT INTO schedules (
+              schedule_group_id,
+              session_no,
+              course_id,
+              instructor_id,
+              schedule_date,
+              start_time,
+              end_time,
+              total_slots,
+              status
+            )
+            VALUES (
+              ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            `,
+          [
+            groupId,
+            index + 1,
+            Number(course_id),
+            Number(instructor_id),
+            sess.schedule_date,
+            sess.start_time,
+            sess.end_time,
+            slots,
+            normalizedStatus,
+          ],
+        );
+
+        finalIds.push(Number(insertResult.insertId));
+      }
+    }
+
+    // =====================================
+    // DELETE EXTRA OLD SESSION ROWS
+    // =====================================
+    if (rowsToRemove.length) {
+      const removeIds = rowsToRemove
+        .map((row) => Number(row.schedule_id))
+        .filter((value) => Number.isInteger(value) && value > 0);
+
+      if (removeIds.length) {
+        const removePlaceholders = removeIds.map(() => "?").join(",");
+
+        await conn.execute(
+          `
+          DELETE FROM schedules
+          WHERE schedule_id
+          IN (${removePlaceholders})
+          `,
+          removeIds,
+        );
+      }
     }
 
     await conn.commit();
-    return res.json({ status: "success", message: "Schedule updated" });
+
+    return res.json({
+      status: "success",
+      message:
+        sessions.length > 1 ? "Schedule group updated" : "Schedule updated",
+      data: {
+        schedule_group_id: groupId,
+
+        schedule_ids: finalIds,
+
+        sessions: sessions.length,
+      },
+    });
   } catch (err) {
     try {
       await conn.rollback();
     } catch (_) {}
+
     console.error("updateSchedule error:", err);
-    return res.status(500).json({ status: "error", message: err.message });
+
+    return res.status(500).json({
+      status: "error",
+      message: err.sqlMessage || err.message || "Failed to update schedule",
+    });
   } finally {
     conn.release();
   }
@@ -859,47 +1098,125 @@ exports.updateSchedule = async (req, res) => {
  * DELETE /api/admin/schedules/:id  (or :scheduleId)
  */
 exports.deleteSchedule = async (req, res) => {
+  const conn = await pool.getConnection();
+
   try {
     const rawId = req.params.id ?? req.params.scheduleId;
+
     const id = parseId(rawId);
-    if (!id)
-      return res
-        .status(400)
-        .json({ status: "error", message: "Invalid schedule id" });
 
-    const placeholders = OCCUPYING_STATUSES.map(() => "?").join(",");
-
-    const [cntRows] = await pool.execute(
-      `
-      SELECT COUNT(*) AS reservedCount
-      FROM schedule_reservations
-      WHERE schedule_id = ?
-        AND UPPER(reservation_status) IN (${placeholders})
-      `,
-      [id, ...OCCUPYING_STATUSES],
-    );
-
-    if (Number(cntRows[0]?.reservedCount || 0) > 0) {
+    if (!id) {
       return res.status(400).json({
         status: "error",
-        message: "Cannot delete schedule with active reservations",
+        message: "Invalid schedule id",
       });
     }
 
-    const [result] = await pool.execute(
-      `DELETE FROM schedules WHERE schedule_id = ?`,
+    await conn.beginTransaction();
+
+    const [rows] = await conn.execute(
+      `
+      SELECT
+        schedule_id,
+        schedule_group_id
+      FROM schedules
+      WHERE schedule_id = ?
+      LIMIT 1
+      `,
       [id],
     );
 
-    if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ status: "error", message: "Schedule not found" });
+    if (!rows.length) {
+      await conn.rollback();
+
+      return res.status(404).json({
+        status: "error",
+        message: "Schedule not found",
+      });
     }
 
-    return res.json({ status: "success", message: "Schedule deleted" });
+    const groupId = rows[0].schedule_group_id;
+
+    let scheduleIds = [];
+
+    if (groupId) {
+      const [groupRows] = await conn.execute(
+        `
+          SELECT schedule_id
+          FROM schedules
+          WHERE schedule_group_id = ?
+          ORDER BY session_no ASC
+          `,
+        [groupId],
+      );
+
+      scheduleIds = groupRows
+        .map((row) => Number(row.schedule_id))
+        .filter((value) => Number.isInteger(value) && value > 0);
+    } else {
+      // Old schedules without group ID
+      scheduleIds = [id];
+    }
+
+    const idPlaceholders = scheduleIds.map(() => "?").join(",");
+
+    const statusPlaceholders = OCCUPYING_STATUSES.map(() => "?").join(",");
+
+    // Check reservations on ALL days
+    const [cntRows] = await conn.execute(
+      `
+        SELECT COUNT(*) AS reservedCount
+        FROM schedule_reservations
+        WHERE schedule_id
+          IN (${idPlaceholders})
+          AND UPPER(reservation_status)
+          IN (${statusPlaceholders})
+        `,
+      [...scheduleIds, ...OCCUPYING_STATUSES],
+    );
+
+    if (Number(cntRows[0]?.reservedCount || 0) > 0) {
+      await conn.rollback();
+
+      return res.status(400).json({
+        status: "error",
+        message:
+          "Cannot delete this schedule because one or more sessions have active reservations.",
+      });
+    }
+
+    const [result] = await conn.execute(
+      `
+        DELETE FROM schedules
+        WHERE schedule_id
+        IN (${idPlaceholders})
+        `,
+      scheduleIds,
+    );
+
+    await conn.commit();
+
+    return res.json({
+      status: "success",
+      message:
+        scheduleIds.length > 1 ? "Schedule group deleted" : "Schedule deleted",
+      data: {
+        deleted_sessions: result.affectedRows,
+        schedule_group_id: groupId || null,
+      },
+    });
   } catch (err) {
+    try {
+      await conn.rollback();
+    } catch (_) {}
+
     console.error("deleteSchedule error:", err);
-    return res.status(500).json({ status: "error", message: err.message });
+
+    return res.status(500).json({
+      status: "error",
+      message: err.sqlMessage || err.message || "Failed to delete schedule",
+    });
+  } finally {
+    conn.release();
   }
 };
