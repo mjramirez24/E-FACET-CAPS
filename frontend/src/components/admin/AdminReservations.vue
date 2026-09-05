@@ -138,8 +138,8 @@
                   </div>
                   <div class="text-xs text-gray-600 mt-1">
                     {{ b.count }}/25 learners •
-                    <span :class="b.is_full ? 'badge-full' : 'badge-open'">
-                      {{ b.is_full ? "FULL" : "OPEN" }}
+                    <span :class="tesdaBatchStatusClass(b)">
+                      {{ tesdaBatchStatus(b) }}
                     </span>
                   </div>
                 </div>
@@ -657,6 +657,43 @@ export default {
       return out;
     });
 
+      const tesdaBatchStatus = (b) => {
+      if (b?.is_placeholder) {
+        return "OPEN";
+      }
+
+      if (activeTab.value === "history") {
+        const statuses = (b?.rows || []).map((r) =>
+          String(r?.reservation_status || "").toUpperCase()
+        );
+
+        if (
+          statuses.length > 0 &&
+          statuses.every((status) => status === "CANCELLED")
+        ) {
+          return "CANCELLED";
+        }
+
+        return "CLOSED";
+      }
+
+      return b?.is_full ? "FULL" : "OPEN";
+    };
+
+    const tesdaBatchStatusClass = (b) => {
+      const status = tesdaBatchStatus(b);
+
+      if (status === "CLOSED") {
+        return "badge-closed";
+      }
+
+      if (status === "FULL" || status === "CANCELLED") {
+        return "badge-full";
+      }
+
+      return "badge-open";
+    };
+
     const toggleBatch = (key) => { expandedBatchMap.value[key] = !expandedBatchMap.value[key]; };
 
     const fetchReservations = async () => {
@@ -742,7 +779,11 @@ export default {
       searchQuery, selectedCourse, selectedStatus, courseOptions, clearFilters,
       currentRows, filteredRows, displayStatus, getStatusPill,
       isGcash, isRequirementsWalkIn, formatManilaDateOnly, fetchReservations,
-      tesdaBatches, expandedBatchMap, toggleBatch,
+      tesdaBatches,
+      tesdaBatchStatus,
+      tesdaBatchStatusClass,
+      expandedBatchMap,
+      toggleBatch,
       showStatusModal, selectedReservation, newStatus, saving, openUpdateStatus, closeStatusModal, saveStatus,
       showDetailsModal, detailsLoading, details, openDetails, closeDetailsModal, paymentSectionRef, requirementsSectionRef,
       showProofModal, proofType, proofFullUrl, openProof, closeProofModal,
@@ -813,6 +854,16 @@ export default {
 .batch-placeholder-tag { font-size: 0.7rem; padding: 2px 8px; background: #e5e7eb; border-radius: 6px; color: #6b7280; margin-left: 8px; }
 .badge-full { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; background: #fee2e2; color: #dc2626; }
 .badge-open { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; background: #d1fae5; color: #059669; }
+.badge-closed {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #6b7280;
+}
 
 /* ========== ACTION BUTTONS ========== */
 .action-btns { display: flex; gap: 6px; }

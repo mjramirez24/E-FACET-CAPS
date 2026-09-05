@@ -52,7 +52,13 @@ function getWeekRangeMonSun(ymd) {
 }
 
 // ✅ IMPORTANT: robust reserved statuses (handles DB being uppercase)
-const OCCUPYING_STATUSES = ["PENDING", "CONFIRMED", "APPROVED", "ACTIVE"];
+const OCCUPYING_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "APPROVED",
+  "ACTIVE",
+  "DONE",
+];
 
 // FACET operating hours
 const FACET_OPEN_MIN = 8 * 60; // 08:00

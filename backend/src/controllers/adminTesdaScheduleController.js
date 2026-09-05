@@ -21,7 +21,7 @@ const OPEN_TIME = "08:00";
 const CLOSE_TIME = "17:00";
 
 // statuses that occupy a slot (same as student side)
-const OCCUPYING = ["CONFIRMED", "APPROVED", "ACTIVE"];
+const OCCUPYING = ["CONFIRMED", "APPROVED", "ACTIVE", "DONE"];
 
 function ph(arr) {
   return arr.map(() => "?").join(",");

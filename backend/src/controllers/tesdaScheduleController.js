@@ -3,7 +3,7 @@
 const pool = require("../config/database");
 
 // statuses that occupy a slot
-const OCCUPYING = ["CONFIRMED", "APPROVED", "ACTIVE"];
+const OCCUPYING = ["CONFIRMED", "APPROVED", "ACTIVE", "DONE"];
 
 function ph(arr) {
   return arr.map(() => "?").join(",");
