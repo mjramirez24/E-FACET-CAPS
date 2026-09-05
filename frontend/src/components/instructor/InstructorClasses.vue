@@ -201,7 +201,7 @@
                     <div class="text-xs text-gray-400">{{ s.day || '' }}</div>
                   </td>
 
-                  <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
+                  <td class="font-medium">{{ $formatTimeRange12(s.startTime, s.endTime) }}</td>
 
                   <td>
                     <div class="font-medium">{{ s.students }}</div>
@@ -280,7 +280,7 @@
                       <div v-if="h.course_code" class="text-xs text-gray-400">{{ h.course_code }}</div>
                     </td>
                     <td>{{ formatDate(h.date) }}</td>
-                    <td>{{ h.startTime }} - {{ h.endTime }}</td>
+                    <td>{{ $formatTimeRange12(h.startTime, h.endTime) }}</td>
                     <td>
                       {{ h.students }}
                       <span class="text-xs text-gray-400" v-if="Number.isFinite(h.totalSlots)">/ {{ h.totalSlots }}</span>
@@ -350,7 +350,7 @@
                         <div class="font-medium">{{ s.course }}</div>
                         <div v-if="s.course_code" class="text-xs text-gray-400">{{ s.course_code }}</div>
                       </td>
-                      <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
+                      <td class="font-medium">{{ $formatTimeRange12(s.startTime, s.endTime) }}</td>
                       <td>
                         {{ s.students }}
                         <span class="text-xs text-gray-400" v-if="Number.isFinite(s.totalSlots)">/ {{ s.totalSlots }}</span>
@@ -403,7 +403,7 @@
                 {{ formatDate(selectedSchedule.date) }}
                 <span class="text-gray-500">({{ selectedSchedule.day || '' }})</span>
               </div>
-              <div class="detail-row"><span class="detail-label">Time:</span> {{ selectedSchedule.startTime }} - {{ selectedSchedule.endTime }}</div>
+              <div class="detail-row"><span class="detail-label">Time:</span> {{ $formatTimeRange12(selectedSchedule.startTime, selectedSchedule.endTime) }}</div>
               <div class="detail-row">
                 <span class="detail-label">Students:</span>
                 {{ selectedSchedule.students }}

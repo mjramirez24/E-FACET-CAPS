@@ -299,7 +299,7 @@
                   </div>
                 </td>
 
-                <td class="font-medium">{{ schedule.startTime }} - {{ schedule.endTime }}</td>
+                <td class="font-medium">{{ formatTime12(schedule.startTime) }} - {{ formatTime12(schedule.endTime) }}</td>
                 <td>{{ schedule.instructor || (activeTrack==='tesda' ? '—' : '') }}</td>
 
                 <td v-if="activeTrack !== 'tesda'">{{ schedule.availableSlots }} / {{ schedule.totalSlots }}</td>
@@ -416,7 +416,7 @@
                           {{ formatDate(s.date) }} → {{ formatDate(getTesdaEndDate(s)) }}
                         </div>
                       </td>
-                      <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
+                      <td class="font-medium">{{ $formatTimeRange12(s.startTime, s.endTime) }}</td>
                       <td>{{ s.instructor || (activeTrack==='tesda' ? '—' : '') }}</td>
 
                       <td>
@@ -773,6 +773,21 @@ const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
 });
+
+const formatTime12 = (time) => {
+  if (!time) return "—";
+
+  const parts = String(time).split(":");
+  let hour = Number(parts[0]);
+  const minute = String(parts[1] ?? "00").padStart(2, "0");
+
+  if (!Number.isFinite(hour)) return String(time);
+
+  const period = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+
+  return `${hour}:${minute} ${period}`;
+};
 
 const toLocalYMD = (dateLike) => {
   const d = new Date(dateLike);
@@ -2075,7 +2090,7 @@ export default {
 
             return `Day ${sessionNo}: ${formatDate(
               item.date
-            )} — ${item.startTime} - ${item.endTime}`;
+            )} — ${formatTime12(item.startTime)} - ${formatTime12(item.endTime)}`;
           })
           .join("\n");
 
@@ -2582,6 +2597,10 @@ export default {
 
       messageOpen, messageTitle, messageText, messageIcon,
       showMessage, closeMessage, notifIconClass,
+
+      formatDate,
+      formatTime12,
+      getStatusClass,
 
       confirmDelete,
       cancelDelete,

@@ -41,7 +41,7 @@
             </div>
             <div class="text-sm text-amber-800">
               Date: <span class="font-semibold">{{ formatDateYMD(activeReservation.date) }}</span>
-              • Time: <span class="font-semibold">{{ activeReservation.startTime }} - {{ activeReservation.endTime }}</span>
+              • Time: <span class="font-semibold">{{ $formatTimeRange12(activeReservation.startTime, activeReservation.endTime) }}</span>
             </div>
             <div class="text-sm text-amber-800">
               Schedule #<span class="font-semibold">{{ activeReservation.schedule_id }}</span>
@@ -51,7 +51,7 @@
               Package Day 2:
               <span class="font-semibold">
                 {{ formatDateYMD(activeReservation.sibling.date) }}
-                • {{ activeReservation.sibling.startTime }} - {{ activeReservation.sibling.endTime }}
+                • {{ $formatTimeRange12(activeReservation.sibling.startTime, activeReservation.sibling.endTime) }}
                 • Schedule #{{ activeReservation.sibling.schedule_id }}
               </span>
             </div>
@@ -343,7 +343,7 @@
               :class="['slot-card', isPicked(s) ? 'slot-card-picked' : '']"
             >
               <div class="slot-card-top">
-                <div class="slot-time">{{ s.startTime }} - {{ s.endTime }}</div>
+                <div class="slot-time">{{ $formatTimeRange12(s.startTime, s.endTime) }}</div>
                 <span v-if="s.isPackage" class="badge badge-green text-xs">2-Day Package</span>
               </div>
               <div class="slot-instructor">

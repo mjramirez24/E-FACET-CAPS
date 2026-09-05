@@ -121,4 +121,26 @@ const app = createApp(App);
 app.component("font-awesome-icon", FontAwesomeIcon);
 
 app.use(router);
+
+app.config.globalProperties.$formatTime12 = (time) => {
+  if (!time) return "—";
+
+  const value = String(time).slice(0, 5);
+  const [h, m] = value.split(":").map(Number);
+
+  if (!Number.isFinite(h) || !Number.isFinite(m)) {
+    return String(time);
+  }
+
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+
+  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+};
+
+app.config.globalProperties.$formatTimeRange12 = (start, end) => {
+  const format = app.config.globalProperties.$formatTime12;
+  return `${format(start)} - ${format(end)}`;
+};
+
 app.mount("#app");

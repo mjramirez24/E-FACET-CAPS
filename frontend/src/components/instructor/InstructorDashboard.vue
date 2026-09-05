@@ -205,7 +205,7 @@
                 <td>{{ row.course_name || "—" }}</td>
                 <td>{{ row.schedule_date ? formatDate(row.schedule_date) : "—" }}</td>
                 <td>
-                  <span v-if="row.start_time && row.end_time">{{ row.start_time }} - {{ row.end_time }}</span>
+                  <span v-if="row.start_time && row.end_time">{{ $formatTimeRange12(row.start_time, row.end_time) }}</span>
                   <span v-else>—</span>
                 </td>
                 <td>{{ Number(row.reserved_count || 0) }} / {{ Number(row.total_slots || 0) }}</td>
@@ -270,7 +270,7 @@
                 <td class="truncate-text max-w-[200px]">{{ r.course_name || "—" }}</td>
                 <td>
                   <div class="text-sm">{{ r.schedule_date ? formatDate(r.schedule_date) : "—" }}</div>
-                  <div class="text-xs text-gray-400" v-if="r.start_time && r.end_time">{{ r.start_time }} - {{ r.end_time }}</div>
+                  <div class="text-xs text-gray-400" v-if="r.start_time && r.end_time">{{ $formatTimeRange12(r.start_time, r.end_time) }}</div>
                 </td>
                 <td><span :class="statusPill(r.status)">{{ r.status || "—" }}</span></td>
                 <td class="text-sm text-gray-500">{{ r.created_at ? formatDateTime(r.created_at) : "—" }}</td>

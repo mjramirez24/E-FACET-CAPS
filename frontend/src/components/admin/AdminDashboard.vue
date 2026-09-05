@@ -296,7 +296,7 @@
                 <td class="truncate-text max-w-[200px]">{{ row.course_name || '—' }}</td>
                 <td>
                   <div class="text-sm">{{ row.schedule_date ? formatDate(row.schedule_date) : '—' }}</div>
-                  <div class="text-xs text-gray-400" v-if="row.start_time">{{ row.start_time }} - {{ row.end_time }}</div>
+                  <div class="text-xs text-gray-400" v-if="row.start_time">{{ $formatTimeRange12(row.start_time, row.end_time) }}</div>
                 </td>
                 <td><span :class="statusPill(row.status)">{{ row.status || '—' }}</span></td>
                 <td class="text-sm text-gray-500">{{ row.created_at ? formatDateTime(row.created_at) : '—' }}</td>

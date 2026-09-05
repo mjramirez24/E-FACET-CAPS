@@ -226,7 +226,7 @@
                     <div class="font-medium">{{ displayDateRange(r) }}</div>
                   </template>
                 </td>
-                <td><span class="font-medium">{{ r.startTime }}-{{ r.endTime }}</span></td>
+                <td><span class="font-medium">{{ $formatTimeRange12(r.startTime, r.endTime) }}</span></td>
                 <td><span class="font-medium">Batch {{ r.batch_no || '—' }}</span></td>
                 <td>
                   <div class="flex items-center gap-2">
@@ -286,7 +286,7 @@
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">Time</span>
-                  <span class="detail-value">{{ details?.startTime }}-{{ details?.endTime }}</span>
+                  <span class="detail-value">{{ $formatTimeRange12(details?.startTime, details?.endTime) }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">Batch</span>

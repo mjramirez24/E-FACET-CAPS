@@ -316,7 +316,7 @@
                   <!-- End -->
                   <td class="text-gray-600">{{ formatDateOrTBA(s.endDate) }}</td>
 
-                  <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
+                  <td class="font-medium">{{ $formatTimeRange12(s.startTime, s.endTime) }}</td>
 
                   <td>
                     <div class="font-medium">{{ s.students }}</div>
@@ -417,7 +417,7 @@
                         <div class="font-medium">{{ selectedCourseName }}</div>
                         <div class="text-xs text-gray-400">Batch: {{ s.date }} → {{ s.endDate || s.date }}</div>
                       </td>
-                      <td class="font-medium">{{ s.startTime }} - {{ s.endTime }}</td>
+                      <td class="font-medium">{{ $formatTimeRange12(s.startTime, s.endTime) }}</td>
                       <td>
                         {{ s.students }}
                         <span class="text-xs text-gray-400" v-if="Number.isFinite(s.totalSlots)">/ {{ s.totalSlots }}</span>
@@ -471,7 +471,7 @@
                 <span class="detail-label">End:</span>
                 {{ formatDateOrTBA(selectedSchedule.endDate) }}
               </div>
-              <div class="detail-row"><span class="detail-label">Time:</span> {{ selectedSchedule.startTime }} - {{ selectedSchedule.endTime }}</div>
+              <div class="detail-row"><span class="detail-label">Time:</span> {{ $formatTimeRange12(selectedSchedule.startTime, selectedSchedule.endTime) }}</div>
               <div class="detail-row">
                 <span class="detail-label">Students:</span>
                 {{ selectedSchedule.students }}

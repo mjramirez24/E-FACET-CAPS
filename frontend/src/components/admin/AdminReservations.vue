@@ -173,7 +173,7 @@
                           <div class="text-xs text-gray-500">{{ r.email }}</div>
                         </td>
                         <td>
-                          <div class="text-xs">{{ formatManilaDateOnly(r.schedule_date) }}<br />{{ r.startTime }} - {{ r.endTime }}</div>
+                          <div class="text-xs">{{ formatManilaDateOnly(r.schedule_date) }}<br />{{ $formatTimeRange12(r.startTime, r.endTime) }}</div>
                         </td>
                         <td><span :class="getStatusPill(displayStatus(r))">{{ String(displayStatus(r) || "").toUpperCase() }}</span></td>
                         <td>
@@ -238,7 +238,7 @@
                 </td>
                 <td>{{ r.course_name }}</td>
                 <td>
-                  <div class="text-xs">{{ formatManilaDateOnly(r.schedule_date) }}<br />{{ r.startTime }} - {{ r.endTime }}</div>
+                  <div class="text-xs">{{ formatManilaDateOnly(r.schedule_date) }}<br />{{ $formatTimeRange12(r.startTime, r.endTime) }}</div>
                 </td>
                 <td><span :class="getStatusPill(displayStatus(r))">{{ String(displayStatus(r) || "").toUpperCase() }}</span></td>
                 <td>
@@ -292,7 +292,11 @@
                   <div><b>Reservation:</b> {{ selectedReservation?.reservation_id }}</div>
                   <div><b>Student:</b> {{ selectedReservation?.student_name }}</div>
                   <div><b>Course:</b> {{ selectedReservation?.course_name }}</div>
-                  <div><b>Schedule:</b> {{ selectedReservation ? formatManilaDateOnly(selectedReservation.schedule_date) : "" }} {{ selectedReservation?.startTime }}-{{ selectedReservation?.endTime }}</div>
+                  <div>
+                    <b>Schedule:</b>
+                    {{ selectedReservation ? formatManilaDateOnly(selectedReservation.schedule_date) : "" }}
+                    {{ $formatTimeRange12(selectedReservation?.startTime, selectedReservation?.endTime) }}
+                  </div>
                   <div class="text-xs text-gray-500 mt-2">Track: <b class="uppercase">{{ activeTrack }}</b></div>
                   <div v-if="String(selectedReservation?.admin_status || '').toUpperCase() === 'PENDING'" class="text-xs text-amber-600 mt-2">
                     <span v-if="activeTrack !== 'tesda'">*This is PENDING in admin because payment proof is still for verification.</span>
@@ -338,7 +342,11 @@
                       <div><b>Status:</b> {{ details?.reservation?.reservation_status }}</div>
                       <div><b>Student:</b> {{ details?.reservation?.student_name }} ({{ details?.reservation?.email }})</div>
                       <div><b>Course:</b> {{ details?.reservation?.course_name }}</div>
-                      <div><b>Schedule:</b> {{ formatManilaDateOnly(details?.reservation?.schedule_date) }} {{ details?.reservation?.startTime }}-{{ details?.reservation?.endTime }}</div>
+                      <div>
+                        <b>Schedule:</b>
+                        {{ formatManilaDateOnly(details?.reservation?.schedule_date) }}
+                        {{ $formatTimeRange12(details?.reservation?.startTime, details?.reservation?.endTime) }}
+                      </div>
                       <div><b>Payment Method:</b> <span v-if="activeTrack === 'tesda'">No payment (TESDA)</span><span v-else>{{ details?.reservation?.payment_method || "—" }}</span></div>
                       <div><b>Requirements Mode:</b> {{ details?.reservation?.requirements_mode || "—" }}</div>
                       <div><b>Notes:</b> {{ details?.reservation?.notes || "—" }}</div>

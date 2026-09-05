@@ -162,7 +162,7 @@
                       </template>
                     </div>
                     <div class="slot-meta">
-                      <span><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> {{ s.startTime || "08:00" }}-{{ s.endTime || "17:00" }}</span>
+                      <span><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> {{ $formatTimeRange12(s.startTime || "08:00", s.endTime || "17:00") }}</span>
                       <span><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {{ s.instructor || "—" }}</span>
                     </div>
                     <div class="slot-availability">
@@ -539,7 +539,34 @@ export default {
 
     enrollButtonText(course, s) { const ongoing = this.anyOngoingReservation(); if (ongoing) { if (Number(ongoing.course_id) === Number(course?.id)) return "Enrolled"; return "Locked"; } if (this.isScheduled(s) && this.isPastSchedule(s)) return "Closed"; if (this.courseCompletedReservation(course?.id)) return this.reserving ? "..." : "Retake"; return this.reserving ? "..." : "Enroll"; },
 
-    reservationPreview(r) { const d = String(r?.schedule_date || "").trim(); const a = r?.startTime || "08:00"; const b = r?.endTime || "17:00"; const batchNo = r?.batch_no ? `Batch ${r.batch_no}` : "Batch"; const st = String(r?.reservation_status || "").toUpperCase(); const name = r?.course_name || "Training"; const batchText = (!d || d === "TBA") ? `${batchNo} • TBA (Pooling) ${a}-${b}` : `${batchNo} • ${d} ${a}-${b}`; return `${name} • ${batchText} • ${st}${r?.is_retake ? " • RETAKE" : ""}`; },
+    reservationPreview(r) {
+      const d = String(r?.schedule_date || "").trim();
+
+      const time = this.$formatTimeRange12(
+        r?.startTime || "08:00",
+        r?.endTime || "17:00"
+      );
+
+      const batchNo = r?.batch_no
+        ? `Batch ${r.batch_no}`
+        : "Batch";
+
+      const st = String(
+        r?.reservation_status || ""
+      ).toUpperCase();
+
+      const name =
+        r?.course_name || "Training";
+
+      const batchText =
+        !d || d === "TBA"
+          ? `${batchNo} • TBA (Pooling) ${time}`
+          : `${batchNo} • ${d} ${time}`;
+
+      return `${name} • ${batchText} • ${st}${
+        r?.is_retake ? " • RETAKE" : ""
+      }`;
+    },
 
     async openUploadFromReservation(r) { if (!r) return; const courseId = Number(r?.course_id || 0); const rid = r?.reservation_id || null; const c = (this.courses || []).find(x => Number(x?.id) === courseId) || null; if (c) this.selectedCourse = c; this.selectedReservationId = rid; this.activeTab = "upload"; await this.fetchMyUploads(); },
 
@@ -572,7 +599,34 @@ export default {
 
     canReserveSchedule(course, s) { if (this.hasAnyOngoingReservation()) return false; const st = String(this.displayStatus(s) || "").toLowerCase(); const avail = Number(s?.availableSlots || 0); if (!this.isScheduled(s)) return st === "open" && avail > 0 && !this.reserving; if (this.isPastSchedule(s)) return false; return st === "open" && avail > 0 && !this.reserving; },
 
-    displayScheduleForStudent(r) { const st = String(r?.reservation_status || "").toUpperCase(); const d = String(r?.schedule_date || "").trim(); const a = r?.startTime || "08:00"; const b = r?.endTime || "17:00"; const batchNo = r?.batch_no ? `Batch ${r.batch_no}` : "Batch"; if (st === "PENDING") return (!d || d === "TBA") ? `${batchNo} • TBA (Pooling) ${a}-${b} (Pending verification)` : `${batchNo} • ${d} ${a}-${b} (Pending verification)`; return (!d || d === "TBA") ? `${batchNo} • TBA (Pooling) ${a}-${b}` : `${batchNo} • ${d} ${a}-${b}`; },
+    displayScheduleForStudent(r) {
+      const st = String(
+        r?.reservation_status || ""
+      ).toUpperCase();
+
+      const d = String(
+        r?.schedule_date || ""
+      ).trim();
+
+      const time = this.$formatTimeRange12(
+        r?.startTime || "08:00",
+        r?.endTime || "17:00"
+      );
+
+      const batchNo = r?.batch_no
+        ? `Batch ${r.batch_no}`
+        : "Batch";
+
+      if (st === "PENDING") {
+        return !d || d === "TBA"
+          ? `${batchNo} • TBA (Pooling) ${time} (Pending verification)`
+          : `${batchNo} • ${d} ${time} (Pending verification)`;
+      }
+
+      return !d || d === "TBA"
+        ? `${batchNo} • TBA (Pooling) ${time}`
+        : `${batchNo} • ${d} ${time}`;
+    },
 
     fullFileUrl(path) { const p = String(path || ""); if (!p) return ""; return p.startsWith("http") ? p : `${API_URL.replace(/\/api\/?$/, "")}${p.startsWith("/") ? p : "/" + p}`; },
 
