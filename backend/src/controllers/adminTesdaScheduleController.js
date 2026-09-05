@@ -155,8 +155,20 @@ exports.getTesdaSchedules = async (req, res) => {
         CASE
           WHEN s.schedule_date IS NULL THEN 'TBA'
           WHEN LOWER(COALESCE(s.status,'')) = 'closed' THEN 'Closed'
+
+          WHEN TIMESTAMP(
+            s.schedule_date,
+            COALESCE(s.end_time, '23:59:59')
+          ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+            THEN 'Closed'
+
           WHEN s.total_slots <= 0 THEN 'Full'
-          WHEN GREATEST(s.total_slots - COALESCE(rc.reservedCount, 0), 0) = 0 THEN 'Full'
+
+          WHEN GREATEST(
+            s.total_slots - COALESCE(rc.reservedCount, 0),
+            0
+          ) = 0 THEN 'Full'
+
           ELSE 'Open'
         END AS computedStatus,
 

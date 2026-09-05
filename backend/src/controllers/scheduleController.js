@@ -339,8 +339,21 @@ exports.getSchedules = async (req, res) => {
         GREATEST(s.total_slots - COALESCE(r.reservedCount, 0), 0) AS availableSlots,
 
         CASE
-          WHEN LOWER(s.status) = 'closed' THEN 'Closed'
-          WHEN GREATEST(s.total_slots - COALESCE(r.reservedCount, 0), 0) = 0 THEN 'Full'
+          WHEN LOWER(COALESCE(s.status,'')) = 'closed'
+            THEN 'Closed'
+
+          WHEN TIMESTAMP(
+            s.schedule_date,
+            COALESCE(s.end_time, '23:59:59')
+          ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+            THEN 'Closed'
+
+          WHEN GREATEST(
+            s.total_slots - COALESCE(r.reservedCount, 0),
+            0
+          ) = 0
+            THEN 'Full'
+
           ELSE 'Open'
         END AS computedStatus,
 

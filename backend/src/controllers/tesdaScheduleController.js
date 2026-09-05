@@ -84,9 +84,25 @@ exports.listSchedulesByCourse = async (req, res) => {
         ) AS availableSlots,
 
         CASE
+          -- TBA / walang schedule date
+          WHEN s.schedule_date IS NULL
+            THEN 'TBA'
+
+          WHEN YEAR(s.schedule_date) = 0
+            THEN 'TBA'
+
+          -- manually closed
           WHEN LOWER(COALESCE(s.status, 'open')) = 'closed'
             THEN 'Closed'
 
+          -- automatic close kapag tapos na ang date + end time
+          WHEN TIMESTAMP(
+            s.schedule_date,
+            COALESCE(s.end_time, '17:00:00')
+          ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+            THEN 'Closed'
+
+          -- full kapag walang slots
           WHEN s.total_slots <= 0
             THEN 'Full'
 
