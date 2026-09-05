@@ -2659,6 +2659,7 @@ exports.getForecast = async (req, res) => {
       FROM schedule_reservations sr
       LEFT JOIN courses c ON c.id = sr.course_id
       WHERE sr.created_at >= '2024-01-01'
+        AND sr.created_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
       GROUP BY month, sr.course_id
       ORDER BY month ASC
     `);

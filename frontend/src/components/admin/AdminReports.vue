@@ -2233,7 +2233,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
     const mlForecastLoading = ref(false);
     const mlForecastError = ref("");
 
-        const FORECAST_CACHE_KEY = "efacet_ml_forecast_cache_v2";
+        const FORECAST_CACHE_KEY = "efacet_ml_forecast_cache_v3";
 
     
     async function loadPromoFlags() {
