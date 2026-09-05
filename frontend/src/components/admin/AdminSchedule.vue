@@ -459,9 +459,32 @@
               <div v-if="!isEditing && activeTrack === 'driving'" class="mb-5">
                 <label class="form-label" style="margin-bottom: 8px;">Create Mode</label>
                 <div class="flex flex-wrap gap-2">
-                  <button type="button" @click="createMode = 'single'" class="toggle-btn" :class="createMode === 'single' ? 'toggle-btn-active-green' : ''">Single</button>
-                  <button type="button" @click="createMode = 'weekly'" class="toggle-btn" :class="createMode === 'weekly' ? 'toggle-btn-active-green' : ''">Weekly</button>
-                  <button type="button" @click="createMode = 'monthly'" class="toggle-btn" :class="createMode === 'monthly' ? 'toggle-btn-active-green' : ''">Monthly</button>
+                  <button
+                    type="button"
+                    @click="setCreateMode('single')"
+                    class="toggle-btn"
+                    :class="createMode === 'single' ? 'toggle-btn-active-green' : ''"
+                  >
+                    Single
+                  </button>
+
+                  <button
+                    type="button"
+                    @click="setCreateMode('weekly')"
+                    class="toggle-btn"
+                    :class="createMode === 'weekly' ? 'toggle-btn-active-green' : ''"
+                  >
+                    Weekly
+                  </button>
+
+                  <button
+                    type="button"
+                    @click="setCreateMode('monthly')"
+                    class="toggle-btn"
+                    :class="createMode === 'monthly' ? 'toggle-btn-active-green' : ''"
+                  >
+                    Monthly
+                  </button>
                 </div>
                 <div class="text-xs text-gray-400 mt-2">Weekly/Monthly generates many dates and will create schedules automatically.</div>
               </div>
@@ -470,7 +493,12 @@
                 <div class="form-grid">
                   <div class="form-col-2">
                     <label class="form-label">Course</label>
-                    <select v-model.number="formData.course_id" required class="form-input">
+                    <select
+                      v-model.number="formData.course_id"
+                      @change="syncAssignedInstructor"
+                      required
+                      class="form-input"
+                    >
                       <option value="" disabled>Select a course</option>
                       <option v-for="c in coursesRaw" :key="c.id" :value="c.id">{{ c.course_name }}</option>
                     </select>
@@ -496,14 +524,42 @@
                   </div>
 
                   <!-- BULK range (Driving only) -->
-                  <template v-if="!isEditing && activeTrack === 'driving' && createMode !== 'single'">
+                  <template
+                    v-if="
+                      !isEditing &&
+                      activeTrack === 'driving' &&
+                      createMode !== 'single'
+                    "
+                  >
                     <div>
                       <label class="form-label">Start Date</label>
-                      <input type="date" v-model="range.start" required class="form-input" />
+
+                      <input
+                        type="date"
+                        v-model="range.start"
+                        @change="syncBulkRange"
+                        required
+                        class="form-input"
+                      />
                     </div>
+
                     <div>
                       <label class="form-label">End Date</label>
-                      <input type="date" v-model="range.end" required class="form-input" />
+
+                      <input
+                        type="date"
+                        v-model="range.end"
+                        readonly
+                        class="form-input bg-gray-50"
+                      />
+
+                      <div class="text-xs text-gray-500 mt-1">
+                        {{
+                          createMode === "weekly"
+                            ? "Automatically set to a 7-day range."
+                            : "Automatically set to a 1-month range."
+                        }}
+                      </div>
                     </div>
                   </template>
 
@@ -840,6 +896,173 @@ export default {
       start: toLocalYMD(new Date()),
       end: toLocalYMD(new Date()),
     });
+
+    // =========================================
+    // DRIVING CREATE MODE HELPERS
+    // =========================================
+
+    const addCalendarDays = (ymd, days) => {
+      if (!ymd) return "";
+
+      const d = new Date(`${ymd}T00:00:00`);
+
+      if (Number.isNaN(d.getTime())) {
+        return "";
+      }
+
+      d.setDate(d.getDate() + Number(days || 0));
+
+      return toLocalYMD(d);
+    };
+
+    const addOneMonthMinusOneDay = (ymd) => {
+      if (!ymd) return "";
+
+      const [year, month, day] = String(ymd)
+        .split("-")
+        .map(Number);
+
+      if (!year || !month || !day) {
+        return "";
+      }
+
+      // Target = same date next month
+      // then minus 1 day = one complete monthly range
+      const targetMonthIndex = month; // JS month is 0-based
+
+      const targetYear =
+        year + Math.floor(targetMonthIndex / 12);
+
+      const targetMonth =
+        targetMonthIndex % 12;
+
+      const lastDayOfTargetMonth =
+        new Date(
+          targetYear,
+          targetMonth + 1,
+          0
+        ).getDate();
+
+      const safeDay = Math.min(
+        day,
+        lastDayOfTargetMonth
+      );
+
+      const target = new Date(
+        targetYear,
+        targetMonth,
+        safeDay
+      );
+
+      target.setDate(target.getDate() - 1);
+
+      return toLocalYMD(target);
+    };
+
+    const syncBulkRange = () => {
+      if (!range.start) {
+        range.end = "";
+        return;
+      }
+
+      if (createMode.value === "weekly") {
+        // 7 calendar days inclusive
+        range.end = addCalendarDays(
+          range.start,
+          6
+        );
+        return;
+      }
+
+      if (createMode.value === "monthly") {
+        // Example:
+        // Sep 5 -> Oct 4
+        range.end =
+          addOneMonthMinusOneDay(
+            range.start
+          );
+        return;
+      }
+
+      range.end = range.start;
+    };
+
+    const setCreateMode = (mode) => {
+      createMode.value = mode;
+
+      if (!range.start) {
+        range.start =
+          toLocalYMD(new Date());
+      }
+
+      syncBulkRange();
+    };
+
+    // Automatically use the instructor assigned
+    // to the selected Driving course.
+    const syncAssignedInstructor = () => {
+      if (activeTrack.value !== "driving") {
+        formData.instructor_id = 0;
+        return;
+      }
+
+      const courseId =
+        Number(formData.course_id || 0);
+
+      if (!courseId) {
+        formData.instructor_id = 0;
+        return;
+      }
+
+      const assigned =
+        courseInstructorMap.value?.[
+          courseId
+        ];
+
+      formData.instructor_id =
+        Number(
+          assigned?.instructor_id || 0
+        );
+    };
+
+    // Build all dates between start/end.
+    // Used by Weekly and Monthly modes.
+    const buildBulkDates = (
+      startYmd,
+      endYmd
+    ) => {
+      if (!startYmd || !endYmd) {
+        return [];
+      }
+
+      const start = new Date(
+        `${startYmd}T00:00:00`
+      );
+
+      const end = new Date(
+        `${endYmd}T00:00:00`
+      );
+
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime()) ||
+        start > end
+      ) {
+        return [];
+      }
+
+      const dates = [];
+      const cursor = new Date(start);
+
+      while (cursor <= end) {
+        dates.push(toLocalYMD(cursor));
+        cursor.setDate(
+          cursor.getDate() + 1
+        );
+      }
+
+      return dates;
+    };
 
     const listCourseFilter = ref(0);
     const listStatusFilter = ref("");
@@ -1470,75 +1693,337 @@ export default {
     const saveSchedule = async () => {
       if (saving.value) return;
 
-      const courseId = Number(formData.course_id);
-      const instructorId = Number(formData.instructor_id || 0);
+      const courseId =
+        Number(formData.course_id || 0);
 
-    if (!courseId) return showMessage("Validation Error", "Course is required.", "⚠️");
-    if (activeTrack.value !== "tesda" && !instructorId) return showMessage("Validation Error", "Instructor is required.", "⚠️");
-
-    if (activeTrack.value === "tesda" && formData.schedule_date) {
-      const ymd = String(formData.schedule_date);
-      if (!isMonToSatYMD(ymd)) {
-        return showMessage("Invalid Date", "Bawal ang Sunday sa TESDA. Piliin ang Monday–Saturday.", "⚠️");
+      if (!courseId) {
+        return showMessage(
+          "Validation Error",
+          "Course is required.",
+          "⚠️"
+        );
       }
-    }
 
-    const totalSlotsToSend = activeTrack.value === "tesda" ? TESDA_BATCH_CAP : Number(formData.total_slots);
-    if (!Number.isFinite(totalSlotsToSend) || totalSlotsToSend < 1) {
-      return showMessage("Validation Error", "Total slots must be >= 1.", "⚠️");
-    }
+      // =====================================
+      // RESOLVE ASSIGNED DRIVING INSTRUCTOR
+      // =====================================
+      let instructorId = 0;
 
-    if (!withinFacetHours(formData.start_time, formData.end_time)) {
-      return showMessage("Invalid Time", `FACET hours only: ${OPEN_TIME} - ${CLOSE_TIME}.`, "⚠️");
-    }
+      if (
+        activeTrack.value === "driving"
+      ) {
+        const assigned =
+          courseInstructorMap.value?.[
+            courseId
+          ];
+
+        instructorId = Number(
+          formData.instructor_id ||
+            assigned?.instructor_id ||
+            0
+        );
+
+        // update UI dropdown too
+        formData.instructor_id =
+          instructorId;
+
+        if (!instructorId) {
+          return showMessage(
+            "No Assigned Instructor",
+            "This course has no assigned instructor. Assign an instructor first in Manage Courses.",
+            "⚠️"
+          );
+        }
+      }
+
+      // =====================================
+      // TESDA DATE VALIDATION
+      // =====================================
+      if (
+        activeTrack.value === "tesda" &&
+        formData.schedule_date
+      ) {
+        const ymd = String(
+          formData.schedule_date
+        );
+
+        if (!isMonToSatYMD(ymd)) {
+          return showMessage(
+            "Invalid Date",
+            "Bawal ang Sunday sa TESDA. Piliin ang Monday–Saturday.",
+            "⚠️"
+          );
+        }
+      }
+
+      // =====================================
+      // DRIVING DATE VALIDATION
+      // =====================================
+      if (
+        activeTrack.value === "driving"
+      ) {
+        if (
+          isEditing.value ||
+          createMode.value === "single"
+        ) {
+          if (!formData.schedule_date) {
+            return showMessage(
+              "Validation Error",
+              "Schedule date is required.",
+              "⚠️"
+            );
+          }
+        } else {
+          if (
+            !range.start ||
+            !range.end
+          ) {
+            return showMessage(
+              "Validation Error",
+              "Start date and end date are required.",
+              "⚠️"
+            );
+          }
+
+          if (
+            new Date(
+              `${range.start}T00:00:00`
+            ) >
+            new Date(
+              `${range.end}T00:00:00`
+            )
+          ) {
+            return showMessage(
+              "Invalid Date Range",
+              "End date cannot be earlier than start date.",
+              "⚠️"
+            );
+          }
+        }
+      }
+
+      // =====================================
+      // SLOT VALIDATION
+      // =====================================
+      const totalSlotsToSend =
+        activeTrack.value === "tesda"
+          ? TESDA_BATCH_CAP
+          : Number(
+              formData.total_slots
+            );
+
+      if (
+        !Number.isFinite(
+          totalSlotsToSend
+        ) ||
+        totalSlotsToSend < 1
+      ) {
+        return showMessage(
+          "Validation Error",
+          "Total slots must be >= 1.",
+          "⚠️"
+        );
+      }
+
+      // =====================================
+      // TIME VALIDATION
+      // =====================================
+      if (
+        !withinFacetHours(
+          formData.start_time,
+          formData.end_time
+        )
+      ) {
+        return showMessage(
+          "Invalid Time",
+          `FACET hours only: ${OPEN_TIME} - ${CLOSE_TIME}.`,
+          "⚠️"
+        );
+      }
 
       saving.value = true;
+
       try {
         const base = {
           course_id: courseId,
-          total_slots: totalSlotsToSend,
+
+          total_slots:
+            totalSlotsToSend,
+
           status:
-            activeTrack.value === "tesda"
-              ? (formData.schedule_date ? "open" : "tba")
-              : (formData.status || "open"),
+            activeTrack.value ===
+            "tesda"
+              ? formData.schedule_date
+                ? "open"
+                : "tba"
+              : formData.status ||
+                "open",
         };
 
-        // ✅ ONLY driving sends instructor_id
-        if (activeTrack.value !== "tesda") base.instructor_id = instructorId;
+        // Driving always sends the
+        // resolved assigned instructor
+        if (
+          activeTrack.value ===
+          "driving"
+        ) {
+          base.instructor_id =
+            instructorId;
+        }
 
-        const payload = {
+        const makePayload = (
+          scheduleDate
+        ) => ({
           ...base,
+
           schedule_date:
-            activeTrack.value === "tesda"
-              ? (formData.schedule_date ? String(formData.schedule_date) : null)
-              : String(formData.schedule_date),
-          start_time: activeTrack.value === "tesda" ? OPEN_TIME : String(formData.start_time),
-          end_time: activeTrack.value === "tesda" ? CLOSE_TIME : String(formData.end_time),
-        };
+            activeTrack.value ===
+            "tesda"
+              ? scheduleDate
+                ? String(scheduleDate)
+                : null
+              : String(scheduleDate),
 
-      const wasEditing = isEditing.value;
+          start_time:
+            activeTrack.value ===
+            "tesda"
+              ? OPEN_TIME
+              : String(
+                  formData.start_time
+                ),
 
-      if (isEditing.value) {
-        const id = parseInt(formData.id, 10);
-        if (!Number.isInteger(id) || id < 1) {
-          showMessage("Invalid Schedule", "Invalid schedule id (client). Please refresh and try again.", "⚠️");
+          end_time:
+            activeTrack.value ===
+            "tesda"
+              ? CLOSE_TIME
+              : String(
+                  formData.end_time
+                ),
+        });
+
+        const wasEditing =
+          isEditing.value;
+
+        // =====================================
+        // EDIT EXISTING
+        // =====================================
+        if (isEditing.value) {
+          const id = parseInt(
+            formData.id,
+            10
+          );
+
+          if (
+            !Number.isInteger(id) ||
+            id < 1
+          ) {
+            showMessage(
+              "Invalid Schedule",
+              "Invalid schedule id (client). Please refresh and try again.",
+              "⚠️"
+            );
+
+            return;
+          }
+
+          const payload =
+            makePayload(
+              formData.schedule_date
+            );
+
+          await api.put(
+            `${scheduleUrl()}/${id}`,
+            payload
+          );
+        }
+
+        // =====================================
+        // WEEKLY / MONTHLY BULK CREATE
+        // =====================================
+        else if (
+          activeTrack.value ===
+            "driving" &&
+          createMode.value !==
+            "single"
+        ) {
+          const dates =
+            buildBulkDates(
+              range.start,
+              range.end
+            );
+
+          if (!dates.length) {
+            throw new Error(
+              "No valid dates generated."
+            );
+          }
+
+          let created = 0;
+
+          for (const date of dates) {
+            const payload =
+              makePayload(date);
+
+            await api.post(
+              scheduleUrl(),
+              payload
+            );
+
+            created++;
+          }
+
+          await fetchSchedules();
+
+          closeModal();
+
+          showMessage(
+            "Success",
+            `${created} schedule date(s) created successfully for the ${createMode.value} range.`,
+            "✅"
+          );
+
           return;
         }
-        await api.put(`${scheduleUrl()}/${id}`, payload);
-      } else {
-        await api.post(scheduleUrl(), payload);
-      }
 
-      await fetchSchedules();
-      closeModal();
-      showMessage(
-        "Success",
-        wasEditing ? "Schedule updated successfully." : "New schedule added successfully.",
-        "✅"
-      );
+        // =====================================
+        // SINGLE / TESDA CREATE
+        // =====================================
+        else {
+          const payload =
+            makePayload(
+              formData.schedule_date
+            );
+
+          await api.post(
+            scheduleUrl(),
+            payload
+          );
+        }
+
+        await fetchSchedules();
+
+        closeModal();
+
+        showMessage(
+          "Success",
+          wasEditing
+            ? "Schedule updated successfully."
+            : "New schedule added successfully.",
+          "✅"
+        );
       } catch (err) {
-        console.error("saveSchedule error:", err?.response?.data || err);
-        showMessage("Error", err?.response?.data?.message || err.message || "Failed to save schedule", "❌");
+        console.error(
+          "saveSchedule error:",
+          err
+        );
+
+        showMessage(
+          "Error",
+          err?.response?.data
+            ?.message ||
+            err?.message ||
+            "Failed to save schedule.",
+          "❌"
+        );
       } finally {
         saving.value = false;
       }
@@ -1661,6 +2146,9 @@ export default {
 
       createMode,
       range,
+      setCreateMode,
+      syncBulkRange,
+      syncAssignedInstructor,
 
       listCourseFilter,
       listCourses,

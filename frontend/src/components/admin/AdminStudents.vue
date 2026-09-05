@@ -273,8 +273,8 @@
                 <div class="form-group">
                   <label class="form-label">Source</label>
                   <select v-model="formData.source" class="form-input">
-                    <option value="online">online</option>
-                    <option value="walkin">walkin</option>
+                    <option value="walkin">Walk-in</option>
+                    <option value="online">Online</option>
                   </select>
                 </div>
 
@@ -422,7 +422,7 @@ export default {
 
     const formData = reactive({
       reservation_id: null, student_id: null, schedule_id: null,
-      track: "driving", source: "online", status: "confirmed",
+      track: "driving", source: "walkin", status: "confirmed",
       client_id: "", full_name: "", birthdate: "", sex: "",
       instructor_name: "", course_start: "", course_end: "", training_purpose: "",
       course_id: "", dl_code: "", email: "", contact_no: "", address: "",
@@ -535,7 +535,7 @@ export default {
     watch(activeTotalPages, () => { if (activePage.value > activeTotalPages.value) setActivePage(activeTotalPages.value); });
     watch(() => [formData.track, formData.course_start, formData.course_id], () => { if (formData.track !== "tesda") return; const c = findCourseById(formData.course_id); if (!c || !formData.course_start) return; formData.course_end = tesdaEndDateFromStart(formData.course_start, c.duration || ""); });
 
-    const resetForm = () => { formError.value = ""; Object.assign(formData, { reservation_id: null, student_id: null, schedule_id: null, source: "online", status: "confirmed", client_id: "", full_name: "", birthdate: "", sex: "", instructor_name: "", course_start: "", course_end: "", training_purpose: "", course_id: "", dl_code: "", email: "", contact_no: "", address: "" }); };
+    const resetForm = () => { formError.value = ""; Object.assign(formData, { reservation_id: null, student_id: null, schedule_id: null, source: "walkin", status: "confirmed", client_id: "", full_name: "", birthdate: "", sex: "", instructor_name: "", course_start: "", course_end: "", training_purpose: "", course_id: "", dl_code: "", email: "", contact_no: "", address: "" }); };
     const openAddModal = () => { isEditing.value = false; resetForm(); formData.track = activeTab.value; showModal.value = true; };
 
     const openEditModal = (row, track) => {
