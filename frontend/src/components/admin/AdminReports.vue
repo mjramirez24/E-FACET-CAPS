@@ -1779,6 +1779,7 @@ export default {
     const revenueStats = reactive({
       verifiedCount: 0,
       avgFeePeso: 0,
+      avgFeePesoForForecast: 0,
       verifiedRevenuePeso: 0,
       forecastRevenuePeso: 0,
     });
@@ -2228,12 +2229,14 @@ export default {
       };
     }
 
-const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multiply
-    const courseForecastRows = ref([]);
-    const mlForecastLoading = ref(false);
-    const mlForecastError = ref("");
+const FORECAST_CACHE_KEY = "efacet_ml_forecast_cache_v3";
 
-        const FORECAST_CACHE_KEY = "efacet_ml_forecast_cache_v3";
+const rawForecastData = ref([]);
+const courseForecastRows = ref([]);
+
+const mlForecastLoading = ref(!readMlCache(FORECAST_CACHE_KEY));
+
+const mlForecastError = ref("");
 
     
     async function loadPromoFlags() {
@@ -2310,6 +2313,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
       if (reportMode.value !== "driving") {
         rawForecastData.value = [];
         courseForecastRows.value = [];
+        mlForecastLoading.value = false;
         computeForecastAndRevenueModel();
         return;
       }
@@ -2318,6 +2322,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
         if (cached) {
           rawForecastData.value = cached;
           applyForecastMultiplier();
+          mlForecastLoading.value = false;
           return;
         }
       }
@@ -2468,7 +2473,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
 
     // ✅ #4 Revenue Forecast Chart (base sa multi-horizon totals x avg fee)
     const revenueForecastChartOption = computed(() => {
-      const avgFee = Number(revenueStats.avgFeePeso || 0);
+      const avgFee = Number(revenueStats.avgFeePesoForForecast || 0);
       const revenueByHorizon = multiHorizonTotals.value.map((t) => Math.round(t * avgFee));
 
       return {
@@ -2664,13 +2669,13 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
     );
 
     const revenueForecastLowPeso = computed(() => {
-      const avgFee = Number(revenueStats.avgFeePeso || 0);
+      const avgFee = Number(revenueStats.avgFeePesoForForecast || 0);
       const lowEnrollments = revenueForecastRows.value.reduce((sum, r) => sum + Number(r.low || 0), 0);
       return avgFee > 0 ? Math.round(avgFee * lowEnrollments) : 0;
     });
 
     const revenueForecastHighPeso = computed(() => {
-      const avgFee = Number(revenueStats.avgFeePeso || 0);
+      const avgFee = Number(revenueStats.avgFeePesoForForecast || 0);
       const highEnrollments = revenueForecastRows.value.reduce((sum, r) => sum + Number(r.high || 0), 0);
       return avgFee > 0 ? Math.round(avgFee * highEnrollments) : 0;
     });
@@ -2700,7 +2705,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
       forecast.dataPoints = dataPoints;
       forecast.confidence = dataPoints >= 12 ? "High" : dataPoints >= 6 ? "Medium" : "Low";
 
-      const avgFee = Number(revenueStats.avgFeePeso || 0);
+      const avgFee = Number(revenueStats.avgFeePesoForForecast || 0);
       revenueStats.forecastRevenuePeso = avgFee > 0 ? Math.round(avgFee * revenueForecastEnrollment.value) : 0;
     }
 
@@ -2888,6 +2893,7 @@ const rawForecastData = ref([]); // ✅ raw galing sa API, hindi pa naka-multipl
         if (json.status === "success" && json.data) {
           revenueStats.verifiedCount = Number(json.data.verifiedCount || 0);
           revenueStats.avgFeePeso = Number(json.data.avgFeePeso || 0);
+          revenueStats.avgFeePesoForForecast = Number(json.data.avgFeePesoForForecast || 0);
           revenueStats.verifiedRevenuePeso = Number(json.data.verifiedRevenuePeso || 0);
           revenuePayments.value = Array.isArray(json.data.payments) ? json.data.payments : [];
         } else {
@@ -4623,25 +4629,49 @@ async function reloadCertificateReport() {
     }
 
 onMounted(async () => {
-      const today = new Date();
-      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const today = new Date();
+  const lastMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() - 1,
+    1
+  );
 
-      overviewFilters.customFrom = "2000-01-01";
-      overviewFilters.customTo = toISODateLocal(today);
+  overviewFilters.customFrom = "2000-01-01";
+  overviewFilters.customTo = toISODateLocal(today);
 
-      revenueTabFilters.customFrom = toISODateLocal(lastMonth);
-      revenueTabFilters.customTo = toISODateLocal(today);
+  revenueTabFilters.customFrom = toISODateLocal(lastMonth);
+  revenueTabFilters.customTo = toISODateLocal(today);
 
-      syncDetailedMonthToFilters();
+  syncDetailedMonthToFilters();
 
-      await loadCourses();
-      await loadOverview();
-      await loadDetailed();
-      await loadPromoFlags();
-      if (reportMode.value === "driving") {
-        await loadRevenue();
-        await loadMLForecast(); // ✅ dagdag
-      }
+  // ✅ IMPORTANT:
+  // Simulan AGAD ang forecast.
+  // Kapag may cache, instant itong matatapos at walang API/ML call.
+  // Kapag walang cache, saka lang siya magco-compute.
+  const forecastPromise =
+    reportMode.value === "driving"
+      ? loadMLForecast()
+      : Promise.resolve();
+
+  await loadCourses();
+
+  // ✅ Pwedeng sabay-sabay ang independent requests
+  await Promise.all([
+    loadOverview(),
+    loadDetailed(),
+    loadPromoFlags(),
+    reportMode.value === "driving"
+      ? loadRevenue()
+      : Promise.resolve(),
+  ]);
+
+      // ✅ Hintayin lang kung talagang nag-compute ang forecast
+      await forecastPromise;
+
+      // ✅ Final recompute — sigurado na tapos na parehong loadRevenue at
+      // loadMLForecast sa puntong ito, kaya tama na ang combined data.
+      computeForecastAndRevenueModel();
+
       await nextTick();
       resizeCharts();
     });

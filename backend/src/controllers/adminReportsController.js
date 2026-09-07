@@ -1213,6 +1213,8 @@ COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
   }
 };
 
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
+
 // GET /api/admin/reports/revenue-preview?from&to&course_id&payment_method
 exports.getRevenuePreview = async (req, res) => {
   try {
@@ -1222,8 +1224,8 @@ exports.getRevenuePreview = async (req, res) => {
     const paymentMethod = safeStr(req.query.payment_method).toUpperCase();
 
     const dateExpr = `
-      COALESCE(sr.done_at, sr.updated_at, sr.created_at)
-    `;
+          COALESCE(sr.done_at, sr.updated_at, sr.created_at)
+        `;
 
     // =====================================================
     // MAIN WHERE
@@ -1231,10 +1233,10 @@ exports.getRevenuePreview = async (req, res) => {
     // Ginagamit ito sa revenue computation
     // =====================================================
     let where = `
-      WHERE ${dateExpr} >= ?
-        AND ${dateExpr} < ?
-        AND ${isDoneConditionSql()}
-    `;
+          WHERE ${dateExpr} >= ?
+            AND ${dateExpr} < ?
+            AND ${isDoneConditionSql()}
+        `;
 
     const params = [from, to];
 
@@ -1254,9 +1256,9 @@ exports.getRevenuePreview = async (req, res) => {
     // Historical/mock students are hidden here
     // =====================================================
     const previewWhere = `
-      ${where}
-      AND COALESCE(sr.is_historical, 0) = 0
-    `;
+          ${where}
+          AND COALESCE(sr.is_historical, 0) = 0
+        `;
 
     // =====================================================
     // QUERY #1
@@ -1265,43 +1267,43 @@ exports.getRevenuePreview = async (req, res) => {
     // =====================================================
     const [rows] = await pool.execute(
       `
-      SELECT
-        sr.reservation_id,
-        sr.payment_method AS reservation_payment_method,
-        sr.reservation_status,
-        sr.done_at,
+          SELECT
+            sr.reservation_id,
+            sr.payment_method AS reservation_payment_method,
+            sr.reservation_status,
+            sr.done_at,
 
-        ${dateExpr} AS sort_date,
+            ${dateExpr} AS sort_date,
 
-        u.fullname,
-        c.course_name,
+            u.fullname,
+            c.course_name,
 
-        sps.id AS submission_id,
-        sps.payment_ref,
-        sps.verified_at AS submission_verified_at,
-        sps.created_at AS submission_created_at,
+            sps.id AS submission_id,
+            sps.payment_ref,
+            sps.verified_at AS submission_verified_at,
+            sps.created_at AS submission_created_at,
 
-        CASE
-          WHEN sps.amount_centavos IS NOT NULL
-            THEN ROUND(sps.amount_centavos / 100, 2)
-          ELSE COALESCE(c.course_fee, 0)
-        END AS amount_peso
+            CASE
+              WHEN sps.amount_centavos IS NOT NULL
+                THEN ROUND(sps.amount_centavos / 100, 2)
+              ELSE COALESCE(c.course_fee, 0)
+            END AS amount_peso
 
-      FROM schedule_reservations sr
+          FROM schedule_reservations sr
 
-      LEFT JOIN users u
-        ON u.id = sr.student_id
+          LEFT JOIN users u
+            ON u.id = sr.student_id
 
-      LEFT JOIN courses c
-        ON c.id = sr.course_id
+          LEFT JOIN courses c
+            ON c.id = sr.course_id
 
-      ${latestSubmissionJoinSql()}
+          ${latestSubmissionJoinSql()}
 
-      ${previewWhere}
+          ${previewWhere}
 
-      ORDER BY sort_date DESC
-      LIMIT 500
-      `,
+          ORDER BY sort_date DESC
+          LIMIT 500
+          `,
       params,
     );
 
@@ -1318,35 +1320,35 @@ exports.getRevenuePreview = async (req, res) => {
     // =====================================================
     const [statsRows] = await pool.execute(
       `
-      SELECT
-        COUNT(*) AS verifiedCount,
+          SELECT
+            COUNT(*) AS verifiedCount,
 
-        COALESCE(
-          SUM(
-            CASE
-              WHEN sps.amount_centavos IS NOT NULL
-                THEN ROUND(
-                  sps.amount_centavos / 100,
-                  2
-                )
-              ELSE COALESCE(c.course_fee, 0)
-            END
-          ),
-          0
-        ) AS totalRevenuePeso
+            COALESCE(
+              SUM(
+                CASE
+                  WHEN sps.amount_centavos IS NOT NULL
+                    THEN ROUND(
+                      sps.amount_centavos / 100,
+                      2
+                    )
+                  ELSE COALESCE(c.course_fee, 0)
+                END
+              ),
+              0
+            ) AS totalRevenuePeso
 
-      FROM schedule_reservations sr
+          FROM schedule_reservations sr
 
-      LEFT JOIN users u
-        ON u.id = sr.student_id
+          LEFT JOIN users u
+            ON u.id = sr.student_id
 
-      LEFT JOIN courses c
-        ON c.id = sr.course_id
+          LEFT JOIN courses c
+            ON c.id = sr.course_id
 
-      ${latestSubmissionJoinSql()}
+          ${latestSubmissionJoinSql()}
 
-      ${where}
-      `,
+          ${where}
+          `,
       params,
     );
 
@@ -1357,6 +1359,56 @@ exports.getRevenuePreview = async (req, res) => {
     const avgFeePeso = verifiedCount
       ? Math.round(totalRevenuePeso / verifiedCount)
       : 0;
+
+    // =====================================================
+    // FORECAST REVENUE SUPPORT DATA
+    // Enrollment prediction is already computed by /forecast.
+    // Revenue endpoint only needs to provide the average fee.
+    // =====================================================
+    let avgFeePesoForForecast = 0;
+
+    try {
+      const [allTimeFeeRows] = await pool.execute(`
+        SELECT
+          COUNT(*) AS doneCount,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN sps.amount_centavos IS NOT NULL
+                  THEN ROUND(sps.amount_centavos / 100, 2)
+                ELSE COALESCE(c.course_fee, 0)
+              END
+            ),
+            0
+          ) AS totalRevenuePeso
+        FROM schedule_reservations sr
+        LEFT JOIN courses c
+          ON c.id = sr.course_id
+        ${latestSubmissionJoinSql()}
+        WHERE ${isDoneConditionSql()}
+      `);
+
+      const allTimeDoneCount = Number(allTimeFeeRows?.[0]?.doneCount || 0);
+
+      const allTimeRevenue = Number(allTimeFeeRows?.[0]?.totalRevenuePeso || 0);
+
+      avgFeePesoForForecast =
+        allTimeDoneCount > 0
+          ? Math.round(allTimeRevenue / allTimeDoneCount)
+          : 0;
+    } catch (feeErr) {
+      console.error(
+        "avgFeePesoForForecast computation failed:",
+        feeErr.message,
+      );
+
+      avgFeePesoForForecast = 0;
+    }
+
+    // Compatibility only.
+    // The actual forecast revenue is computed in Vue using
+    // the already-loaded enrollment forecast.
+    const forecastRevenuePeso = 0;
 
     return res.json({
       status: "success",
@@ -1371,7 +1423,8 @@ exports.getRevenuePreview = async (req, res) => {
         totalRevenuePeso,
 
         avgFeePeso,
-        forecastRevenuePeso: 0,
+        avgFeePesoForForecast,
+        forecastRevenuePeso,
 
         // Payment Preview:
         // actual students ONLY
@@ -2454,12 +2507,6 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
   }
 };
 
-// ========================================
-// FORECAST (DRIVING ONLY) — ML-powered
-// GET /api/admin/reports/forecast
-// ========================================
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
-
 exports.getForecastBacktest = async (req, res) => {
   try {
     const mode = String(req.query.report_mode || "driving").toLowerCase();
@@ -2591,13 +2638,11 @@ exports.getPromoFlags = async (req, res) => {
     return res.json({ status: "success", data: map });
   } catch (err) {
     console.error("getPromoFlags error:", err);
-    return res
-      .status(500)
-      .json({
-        status: "error",
-        message: "Failed to load promo flags",
-        debug: err.sqlMessage || err.message,
-      });
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to load promo flags",
+      debug: err.sqlMessage || err.message,
+    });
   }
 };
 
@@ -2607,12 +2652,10 @@ exports.setPromoFlag = async (req, res) => {
     const hasPromo = req.body.has_promo ? 1 : 0;
 
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      return res
-        .status(400)
-        .json({
-          status: "error",
-          message: "Invalid month format. Expected YYYY-MM.",
-        });
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid month format. Expected YYYY-MM.",
+      });
     }
 
     const setBy = req.user?.id || null;
@@ -2630,13 +2673,11 @@ exports.setPromoFlag = async (req, res) => {
     });
   } catch (err) {
     console.error("setPromoFlag error:", err);
-    return res
-      .status(500)
-      .json({
-        status: "error",
-        message: "Failed to save promo flag",
-        debug: err.sqlMessage || err.message,
-      });
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to save promo flag",
+      debug: err.sqlMessage || err.message,
+    });
   }
 };
 
