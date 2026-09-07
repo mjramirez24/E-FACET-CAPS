@@ -23,7 +23,12 @@
           <div class="flex justify-between items-center w-full flex-wrap gap-3">
             <div>
               <h2 class="page-title">
-                📈 Analytics &amp; Reports
+                <span class="inline-flex items-center gap-2">
+                  <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19V9m6 10V5m6 14v-7m4 7H2" />
+</svg>
+                  Analytics &amp; Reports
+                </span>
                 <span class="page-title-accent" :class="reportMode==='driving' ? 'accent-green' : 'accent-blue'">
                   — {{ reportModeLabel }}
                 </span>
@@ -38,8 +43,18 @@
               :class="reportMode === 'driving' ? 'tab-active-green' : 'tab-active-blue'"
               :title="reportMode === 'driving' ? 'Switch to TESDA' : 'Switch to Driving'"
             >
-              <span v-if="reportMode === 'driving'">🚗 Driving</span>
-              <span v-else>🎓 TESDA</span>
+              <span v-if="reportMode === 'driving'" class="inline-flex items-center gap-1.5">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 13l1.5-4.5A2 2 0 016.4 7h11.2a2 2 0 011.9 1.5L21 13m-18 0h18v5a1 1 0 01-1 1h-2a1 1 0 01-1-1v-1H7v1a1 1 0 01-1 1H4a1 1 0 01-1-1v-5zm3 0h.01M18 13h.01" />
+</svg>
+                Driving
+              </span>
+              <span v-else class="inline-flex items-center gap-1.5">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4L3 9l9 5 9-5-9-5zm-6 7v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" />
+</svg>
+                TESDA
+              </span>
               <span class="ml-1 opacity-90">⇄</span>
             </button>
           </div>
@@ -64,13 +79,18 @@
 
         <!-- ✅ DRIVING ONLY: REVENUE CARD -->
         <div v-if="reportMode === 'driving'" class="kpi-card kpi-emerald">
-          <p class="kpi-label">💰 Verified Revenue</p>
+          <p class="kpi-label inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="12" rx="2" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-width="2" d="M7 10h.01M17 14h.01M9 12h6" />
+</svg><span>Verified Revenue</span></p>
           <h3 class="kpi-value">{{ formatCurrency(summary.totalRevenuePeso) }}</h3>
         </div>
 
         <!-- ✅ TESDA ONLY: Attendance KPI -->
         <div v-else class="kpi-card kpi-emerald">
-          <p class="kpi-label">📌 Attendance Rate</p>
+          <p class="kpi-label inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4h6m-7 3h8a2 2 0 012 2v10H6V9a2 2 0 012-2zm2 4h4m-4 4h4" />
+</svg><span>Attendance Rate</span></p>
           <h3 class="kpi-value">{{ tesdaKpiLabel }}</h3>
         </div>
 
@@ -88,7 +108,9 @@
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
               <div class="min-w-0 text-left">
-                <p class="kpi-label" style="margin:0;">🔮 Enrollment Forecast</p>
+                <p class="kpi-label inline-flex items-center gap-1.5" style="margin:0;"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 18l5-5 4 4 7-8M16 9h4v4" />
+</svg><span>Enrollment Forecast</span></p>
                 <p class="kpi-subtext" style="margin-top:4px;">Computing forecast from past enrollments…</p>
               </div>
             </div>
@@ -96,7 +118,9 @@
             <!-- LOADED STATE (existing content) -->
             <div v-else class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="kpi-label">🔮 Enrollment Forecast</p>
+                <p class="kpi-label inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 18l5-5 4 4 7-8M16 9h4v4" />
+</svg><span>Enrollment Forecast</span></p>
                 <div class="mt-2 flex items-end gap-2">
                   <h3 class="kpi-value" style="margin:0;">{{ forecast.nextForecast }}</h3>
                   <span class="kpi-unit">students</span>
@@ -206,15 +230,29 @@
             </div>
 
             <button @click="reloadOverview()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
-            <button @click="openExport('overview')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Overview</button>
+            <button @click="openExport('overview')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Overview</span></span></button>
           </div>
 
           <div class="mt-3 flex items-center justify-between flex-wrap gap-2">
             <p class="filter-note">Last updated: {{ lastUpdated }}</p>
             <div class="flex gap-2 flex-wrap">
-              <button @click="downloadChartImage('trend')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">🖼️ Trend PNG</button>
-              <button @click="downloadChartImage('topCourses')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">🖼️ Top Courses PNG</button>
-              <button @click="downloadChartImage('gender')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">🖼️ Gender PNG</button>
+              <button @click="downloadChartImage('trend')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <rect x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/>
+  <circle cx="9" cy="10" r="2" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 16l-5-5-8 8" />
+</svg><span>Trend PNG</span></span></button>
+              <button @click="downloadChartImage('topCourses')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <rect x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/>
+  <circle cx="9" cy="10" r="2" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 16l-5-5-8 8" />
+</svg><span>Top Courses PNG</span></span></button>
+              <button @click="downloadChartImage('gender')" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <rect x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/>
+  <circle cx="9" cy="10" r="2" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 16l-5-5-8 8" />
+</svg><span>Gender PNG</span></span></button>
             </div>
           </div>
 
@@ -227,7 +265,9 @@
           <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
               <h3 class="panel-title">Enrollment Trend</h3>
-              <button @click="openExport('overview-trend')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Trend</button>
+              <button @click="openExport('overview-trend')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Trend</span></span></button>
             </div>
 
             <div class="h-64">
@@ -241,7 +281,9 @@
           <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
               <h3 class="panel-title">Top Courses</h3>
-              <button @click="openExport('overview-top-courses')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Courses</button>
+              <button @click="openExport('overview-top-courses')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Courses</span></span></button>
             </div>
 
             <div class="h-64">
@@ -253,7 +295,9 @@
           <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
               <h3 class="panel-title">Students by Gender</h3>
-              <button @click="openExport('overview-gender')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Gender</button>
+              <button @click="openExport('overview-gender')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Gender</span></span></button>
             </div>
 
             <div class="h-64">
@@ -265,7 +309,9 @@
           <div class="panel-card" style="padding: 20px;">
             <div class="flex items-start justify-between gap-3 mb-3">
               <h3 class="panel-title">Course Enrollments per Month</h3>
-              <button @click="openExport('overview-monthly')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;">📤 Export Monthly</button>
+              <button @click="openExport('overview-monthly')" class="pg-btn pg-btn-emerald" style="padding: 7px 12px; font-size: 0.75rem;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Monthly</span></span></button>
             </div>
 
             <div class="table-wrap" style="max-height: 340px; overflow-y: auto;">
@@ -302,7 +348,10 @@
       <div v-else-if="activeTab === 'revenue' && reportMode === 'driving'" class="stack-6">
         <div class="panel-card" style="padding: 20px;">
           <div class="flex items-start justify-between gap-3 mb-1">
-            <h3 class="panel-title">💰 Revenue Analytics</h3>
+            <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="12" rx="2" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-width="2" d="M7 10h.01M17 14h.01M9 12h6" />
+</svg><span>Revenue Analytics</span></h3>
           </div>
 
           <div class="filters-panel" style="background: transparent; border: none; padding: 14px 0 0;">
@@ -341,7 +390,9 @@
             </div>
 
             <button @click="reloadRevenue()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
-            <button @click="openExport('revenue')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Revenue</button>
+            <button @click="openExport('revenue')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Revenue</span></span></button>
           </div>
 
           <div class="kpi-grid kpi-grid-3 mt-5">
@@ -461,7 +512,9 @@
               </div>
 
               <button @click="reloadDetailed()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
-              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Detailed</button>
+              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Detailed</span></span></button>
             </div>
 
             <div v-if="detailedError" class="alert-error mt-4">{{ detailedError }}</div>
@@ -470,13 +523,17 @@
           <div class="panel-card" style="padding: 16px;">
             <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
               <div>
-                <h3 class="panel-title">📋 Detailed Reports</h3>
+                <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h11M8 12h11M8 18h11M4 6h.01M4 12h.01M4 18h.01" />
+</svg><span>Detailed Reports</span></h3>
                 <p class="filter-note mt-1">
                   Showing {{ detailedFiltered.length }} record{{ detailedFiltered.length === 1 ? '' : 's' }}
                 </p>
               </div>
 
-              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald">📤 Export Detailed</button>
+              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Detailed</span></span></button>
             </div>
 
             <div v-if="detailedLoading" class="empty-cell" style="border: 1px dashed #e5e7eb; border-radius: 10px;">
@@ -647,7 +704,9 @@
               </div>
 
               <button @click="reloadDetailed()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
-              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export Detailed</button>
+              <button @click="openExport('detailed')" class="pg-btn pg-btn-emerald" style="align-self: flex-end;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Detailed</span></span></button>
               <button @click="columnsOpen = !columnsOpen" class="pg-btn" style="align-self: flex-end;">{{ columnsOpen ? 'Hide' : 'Show' }} Columns</button>
             </div>
 
@@ -674,7 +733,9 @@
           <div class="panel-card">
             <div class="panel-header-bar">
               <div>
-                <h3 class="panel-title">📋 Detailed Reports</h3>
+                <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h11M8 12h11M8 18h11M4 6h.01M4 12h.01M4 18h.01" />
+</svg><span>Detailed Reports</span></h3>
                 <p class="filter-note mt-1">Showing {{ detailedPageStart }}–{{ detailedPageEnd }} of {{ detailedFiltered.length }}</p>
               </div>
 
@@ -778,7 +839,9 @@
         <div class="panel-card" style="padding: 20px;">
           <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3" style="border-bottom: 1px solid #f3f4f6;">
             <div>
-              <h3 class="panel-title">📚 Select Course</h3>
+              <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a3 3 0 013-3h5v18H7a3 3 0 00-3 3V5zm16 0a3 3 0 00-3-3h-5v18h5a3 3 0 013 3V5z" />
+</svg><span>Select Course</span></h3>
               <p class="filter-note mt-1">Select one course first. Attendance records, calendar, and follow-up list will be based on that course only.</p>
             </div>
             <button type="button" @click="openAttendanceCourseModal" class="pg-btn pg-btn-accent">Select Course</button>
@@ -838,8 +901,12 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-              <button @click="exportAttendance('xlsx')" class="pg-btn pg-btn-emerald">📤 Excel</button>
-              <button @click="exportAttendance('pdf')" class="pg-btn pg-btn-red">📄 PDF</button>
+              <button @click="exportAttendance('xlsx')" class="pg-btn pg-btn-emerald"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Excel</span></span></button>
+              <button @click="exportAttendance('pdf')" class="pg-btn pg-btn-red"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h7l5 5v13H7V3zm7 0v6h6M10 13h6m-6 4h6" />
+</svg><span>PDF</span></span></button>
             </div>
           </div>
 
@@ -861,7 +928,9 @@
           <div class="modal-card modal-card-xl">
             <div class="modal-head modal-head-green">
               <div>
-                <h3 class="modal-title">📚 Select TESDA Course</h3>
+                <h3 class="modal-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a3 3 0 013-3h5v18H7a3 3 0 00-3 3V5zm16 0a3 3 0 00-3-3h-5v18h5a3 3 0 013 3V5z" />
+</svg><span>Select TESDA Course</span></h3>
                 <p class="text-xs text-gray-500 mt-0.5">Choose one course. Courses without assigned trainers are clearly marked.</p>
               </div>
               <button type="button" @click="attendanceCourseModalOpen = false" class="modal-close-btn">
@@ -917,7 +986,10 @@
           <div v-if="attendanceShowCalendar" class="lg:col-span-2 panel-card" style="padding: 16px;">
             <div class="flex items-center justify-between mb-3">
               <div>
-                <h3 class="panel-title">📅 Attendance Calendar</h3>
+                <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <rect x="3" y="5" width="18" height="16" rx="2" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-width="2" d="M8 3v4m8-4v4M3 10h18" />
+</svg><span>Attendance Calendar</span></h3>
                 <p class="filter-note mt-1">Click a date to filter records.</p>
               </div>
               <button @click="attendanceFilters.from = ''; attendanceFilters.to = ''; attendancePage = 1; loadAttendance()" class="pg-btn" style="padding: 7px 12px; font-size: 0.75rem;">Clear Range</button>
@@ -932,9 +1004,16 @@
               >
                 <p class="text-xs text-gray-500">{{ formatDate(day.date) }}</p>
                 <p class="mt-1 text-sm font-bold" :class="day.complete ? 'text-green-700' : day.total ? 'text-yellow-700' : 'text-red-700'">
-                  <span v-if="day.complete">✅ Complete</span>
-                  <span v-else-if="day.total">⚠️ Incomplete</span>
-                  <span v-else>❌ No attendance</span>
+                  <span v-if="day.complete" class="inline-flex items-center gap-1"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12l4 4L19 6" />
+</svg><span>Complete</span></span>
+                  <span v-else-if="day.total" class="inline-flex items-center gap-1"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4l9 16H3L12 4zm0 6v4m0 3h.01" />
+</svg><span>Incomplete</span></span>
+                  <span v-else class="inline-flex items-center gap-1"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <circle cx="12" cy="12" r="9" stroke-width="2"/>
+  <path stroke-linecap="round" stroke-width="2" d="M9 9l6 6m0-6l-6 6" />
+</svg><span>No attendance</span></span>
                 </p>
                 <p class="text-xs text-gray-500 mt-1">{{ day.present }}/{{ day.total }} present</p>
               </button>
@@ -943,7 +1022,9 @@
 
           <div v-if="attendanceShowWarnings" ref="attendanceWarningsSectionRef" class="panel-card" style="padding: 16px;" :class="attendanceShowCalendar ? '' : 'lg:col-span-3'">
             <div class="flex items-center justify-between mb-3">
-              <h3 class="panel-title" style="color:#b45309;">⚡ Attendance Alerts</h3>
+              <h3 class="panel-title inline-flex items-center gap-2" style="color:#b45309;"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+</svg><span>Attendance Alerts</span></h3>
               <span class="filter-note">{{ atRiskStudents.length }} alert(s)</span>
             </div>
             <div v-if="atRiskStudents.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-1">
@@ -964,7 +1045,9 @@
         <div class="panel-card">
           <div class="panel-header-bar">
             <div>
-              <h3 class="panel-title">🧑‍🎓 Student Attendance</h3>
+              <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2m7-10a4 4 0 100-8 4 4 0 000 8zm13 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+</svg><span>Student Attendance</span></h3>
               <p class="filter-note mt-1">Showing {{ attendancePageStart }}–{{ attendancePageEnd }} of {{ attendanceDisplayRows.length }} record(s)</p>
             </div>
             <div class="pill pill-green-outline" style="padding: 8px 14px;">{{ selectedAttendanceCourseLabel }}</div>
@@ -1015,7 +1098,9 @@
 
         <!-- Per Student Attendance History -->
         <div v-if="attendanceShowHistory" ref="attendanceHistorySectionRef" class="panel-card" style="padding: 16px;">
-          <h3 class="panel-title mb-3">📊 Per Student Attendance History</h3>
+          <h3 class="panel-title mb-3 inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19V9m6 10V5m6 14v-7m4 7H2" />
+</svg><span>Per Student Attendance History</span></h3>
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             <div v-for="student in attendanceHistoryPaginated" :key="student.name" class="history-card">
               <div class="flex items-center justify-between gap-2">
@@ -1041,7 +1126,9 @@
         <div class="panel-card" style="padding: 20px;">
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
             <div>
-              <h3 class="panel-title">📄 Issued Certificates of Completion</h3>
+              <h3 class="panel-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h7l5 5v13H7V3zm7 0v6h6M10 13h6m-6 4h6" />
+</svg><span>Issued Certificates of Completion</span></h3>
               <p class="filter-note mt-1">
                 {{ reportMode === 'tesda' ? 'TESDA certificate summary by course.' : 'Driving certificate summary by TDC/PDC.' }}
               </p>
@@ -1053,7 +1140,9 @@
                 <input v-model="certificateMonth" type="month" class="date-input-modern" style="width: 170px;" />
               </div>
               <button @click="reloadCertificateReport()" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
-              <button @click="exportCertificateReport()" class="pg-btn pg-btn-emerald" style="align-self: flex-end;">📤 Export</button>
+              <button @click="exportCertificateReport()" class="pg-btn pg-btn-emerald" style="align-self: flex-end;"><span class="inline-flex items-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export</span></span></button>
             </div>
           </div>
 
@@ -1284,7 +1373,9 @@
   <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
     <!-- Kaliwang bahagi: paglalarawan -->
     <div class="flex-1">
-      <h4 class="panel-title" style="color: #92400e;">🏷️ Will There Be an LTO Promo in {{ nextMonthLabel }}?</h4>
+      <h4 class="panel-title inline-flex items-center gap-2" style="color: #92400e;"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13l-7 7-10-10V3h7l10 10zM7 7h.01" />
+</svg><span>Will There Be an LTO Promo in {{ nextMonthLabel }}?</span></h4>
       <p class="filter-note mt-1" style="color: #b45309;">
         LTO promos are a major factor in enrollment spikes. If you know there will be
         a promo next month, toggle this option to improve the forecast accuracy.
@@ -1333,7 +1424,9 @@
         class="pg-btn pg-btn-accent w-full"
         :disabled="promoSaving || previewPromoValue === null"
       >
-        ✅ Save setting
+        <span class="inline-flex items-center justify-center gap-1.5"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12l4 4L19 6" />
+</svg><span>Save setting</span></span>
       </button>
     </div>
   </div>
@@ -1470,7 +1563,9 @@
           <transition name="modal-scale">
             <div class="modal-card modal-card-xl" style="max-width: 900px;">
               <div class="modal-head modal-head-green">
-                <h3 class="modal-title">📤 Export Builder</h3>
+                <h3 class="modal-title inline-flex items-center gap-2"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" />
+</svg><span>Export Builder</span></h3>
                 <button @click="exportOpen=false" class="modal-close-btn">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1801,11 +1896,35 @@ export default {
     const topCoursesChartRef = ref(null);
     const genderChartRef = ref(null);
 
-    // ✅ helper: get echarts instance safely (vue-echarts)
+    // Get a usable ECharts API from vue-echarts across component versions.
     function getChartInstance(chartRef) {
       try {
-        return chartRef?.value?.getEchartsInstance?.() || null;
-      } catch {
+        const component = chartRef?.value;
+        if (!component) return null;
+
+        // vue-echarts exposes ECharts methods directly in recent versions.
+        if (typeof component.getDataURL === "function") return component;
+
+        // Some versions expose the underlying instance as `chart`.
+        if (component.chart && typeof component.chart.getDataURL === "function") {
+          return component.chart;
+        }
+
+        // Compatibility with wrappers that expose getEchartsInstance().
+        if (typeof component.getEchartsInstance === "function") {
+          const instance = component.getEchartsInstance();
+          if (instance) return instance;
+        }
+
+        // Last fallback: resolve the instance from the rendered DOM node.
+        const dom = component.getDom?.() || component.$el || null;
+        if (dom && typeof echarts.getInstanceByDom === "function") {
+          return echarts.getInstanceByDom(dom) || null;
+        }
+
+        return null;
+      } catch (err) {
+        console.error("Unable to resolve chart instance:", err);
         return null;
       }
     }
@@ -3242,22 +3361,54 @@ attendancePage.value = 1;
       ],
     }));
 
-    // ✅ FIXED: PNG export uses getEchartsInstance()
-    function downloadChartImage(which) {
+    async function downloadChartImage(which) {
       const refMap = {
         trend: trendChartRef,
         topCourses: topCoursesChartRef,
         gender: genderChartRef,
       };
-      const targetRef = refMap[which];
-      const instance = getChartInstance(targetRef);
-      if (!instance) return;
 
-      const dataUrl = instance.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#ffffff" });
-      const link = document.createElement("a");
-      link.download = `${which}-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = dataUrl;
-      link.click();
+      const fileNameMap = {
+        trend: "enrollment-trend",
+        topCourses: "top-courses",
+        gender: "students-by-gender",
+      };
+
+      try {
+        await nextTick();
+
+        const targetRef = refMap[which];
+        const instance = getChartInstance(targetRef);
+
+        if (!instance || typeof instance.getDataURL !== "function") {
+          throw new Error("Chart is not ready yet.");
+        }
+
+        const dataUrl = instance.getDataURL({
+          type: "png",
+          pixelRatio: 2,
+          backgroundColor: "#ffffff",
+          excludeComponents: ["toolbox"],
+        });
+
+        if (!dataUrl || !String(dataUrl).startsWith("data:image/")) {
+          throw new Error("Unable to create chart image.");
+        }
+
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `${fileNameMap[which] || which}-${new Date()
+          .toISOString()
+          .slice(0, 10)}.png`;
+        link.style.display = "none";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error(`PNG export failed for ${which}:`, err);
+        alert("Unable to download the chart PNG. Please wait for the chart to finish loading and try again.");
+      }
     }
 
     // Computed: detailed filtered + pagination
@@ -4913,6 +5064,31 @@ onMounted(async () => {
 .search-icon-svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #9ca3af; }
 .search-input-modern { width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; color: #111827 !important; background: #fff !important; }
 .search-input-modern:focus { border-color: #10b981; }
+
+/* ========== SVG UI ICONS ========== */
+.ui-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.page-title .ui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.modal-title .ui-icon,
+.panel-title .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.kpi-label .ui-icon {
+  width: 15px;
+  height: 15px;
+}
 
 /* ========== TABS ========== */
 .tab-group { display: flex; gap: 8px; flex-wrap: wrap; }
