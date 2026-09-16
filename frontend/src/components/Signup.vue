@@ -112,27 +112,57 @@
           </p>
         </div>
 
-      <!-- Contact -->
-      <div>
-        <label class="block text-xs text-gray-300 font-medium mb-1">Contact Number:</label>
-        <input
-          type="text"
-          v-model="formData.contact"
-          @input="onContactInput"
-          inputmode="numeric"
-          maxlength="11"
-          required
-          class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
-          :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
-          placeholder="09XX XXX XXXX"
-        />
-        <p v-if="errors.contact" class="text-red-400 text-xs mt-1 flex items-center">
-          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
-          {{ errors.contact }}
-        </p>
-      </div>
+          <!-- Contact -->
+          <div>
+            <label class="block text-xs text-gray-300 font-medium mb-1">
+              Contact Number:
+            </label>
+
+            <div
+              class="flex items-center w-full bg-white/5 border border-white/15 rounded-lg
+                    text-gray-100 text-sm focus-within:ring-2 focus-within:border-transparent transition"
+              :class="track === 'tesda'
+                ? 'focus-within:ring-blue-500'
+                : 'focus-within:ring-green-500'"
+            >
+              <!-- Fixed 09 prefix -->
+              <div class="px-4 py-3 border-r border-white/15 text-gray-300 font-medium select-none">
+                09
+              </div>
+
+              <!-- User types remaining 9 digits -->
+              <input
+                type="text"
+                v-model="contactNumber"
+                @input="onContactInput"
+                inputmode="numeric"
+                maxlength="9"
+                required
+                class="flex-1 bg-transparent px-4 py-3 text-gray-100 text-sm
+                      placeholder-gray-400 focus:outline-none"
+                placeholder="XXXXXXXXX"
+              />
+            </div>
+
+            <p class="text-[11px] text-gray-400 mt-1">
+              Enter the remaining 9 digits of your mobile number.
+            </p>
+
+            <p
+              v-if="errors.contact"
+              class="text-red-400 text-xs mt-1 flex items-center"
+            >
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+
+              {{ errors.contact }}
+            </p>
+          </div>
 
         <!-- Address -->
         <div>
@@ -341,18 +371,39 @@
 
         <!-- Birthday -->
         <div>
-          <label class="block text-xs text-gray-300 font-medium mb-1">Birthday: *</label>
+          <label class="block text-xs text-gray-300 font-medium mb-1">
+            Birthday: *
+          </label>
+
           <input
             type="date"
             v-model="formData.birthday"
+            :max="maxBirthday"
             required
             class="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition"
             :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
           />
-          <p v-if="errors.birthday" class="text-red-400 text-xs mt-1 flex items-center">
-            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+
+          <p class="text-[11px] text-gray-400 mt-1">
+            You must be at least 17 years old to create an account.
+          </p>
+
+          <p
+            v-if="errors.birthday"
+            class="text-red-400 text-xs mt-1 flex items-center"
+          >
+            <svg
+              class="w-3 h-3 mr-1"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                clip-rule="evenodd"
+              />
             </svg>
+
             {{ errors.birthday }}
           </p>
         </div>
@@ -580,12 +631,12 @@ export default {
       nationalityQuery: "",
       isNationalityOpen: false,
       nationalityHighlight: 0,
+      contactNumber: "",
 
       formData: {
         fullname: "",
         username: "",
         email: "",
-        contact: "",
         address: "",
         civil_status: "",
         nationality: "",
@@ -623,6 +674,8 @@ export default {
         : "Register for driving course portal access";
     },
 
+
+
     composedAddressPreview() {
       const parts = [
         this.addressParts.street?.trim(),
@@ -641,7 +694,8 @@ export default {
       if (!q) return list.slice(0, 12);
       return list.filter((n) => n.toLowerCase().includes(q)).slice(0, 12);
     },
-          passwordStrength() {
+
+      passwordStrength() {
       const pw = this.formData.password || "";
       if (!pw) return { score: 0, label: "", barColor: "", textColor: "" };
 
@@ -660,6 +714,21 @@ export default {
 
       return { score, ...levels[Math.max(0, score - 1)] };
     },
+    maxBirthday() {
+      const today = new Date();
+
+      const maxDate = new Date(
+        today.getFullYear() - 17,
+        today.getMonth(),
+        today.getDate()
+      );
+
+      const year = maxDate.getFullYear();
+      const month = String(maxDate.getMonth() + 1).padStart(2, "0");
+      const day = String(maxDate.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    },
 
   },
 
@@ -668,10 +737,37 @@ export default {
       if (!s) return "";
       return s.charAt(0).toUpperCase() + s.slice(1);
     },
-    onContactInput() {
-      // strip non-digits, cap at 11 characters
-      this.formData.contact = this.formData.contact.replace(/\D/g, "").slice(0, 11);
-    },
+
+      getAge(birthday) {
+        if (!birthday) return 0;
+
+        const birthDate = new Date(`${birthday}T00:00:00`);
+        const today = new Date();
+
+        let age = today.getFullYear() - birthDate.getFullYear();
+
+        const monthDifference = today.getMonth() - birthDate.getMonth();
+
+        if (
+          monthDifference < 0 ||
+          (monthDifference === 0 &&
+            today.getDate() < birthDate.getDate())
+        ) {
+          age--;
+        }
+
+        return age;
+      },
+
+        onContactInput() {
+          // Only allow numbers and maximum of 9 digits
+          this.contactNumber = this.contactNumber
+            .replace(/\D/g, "")
+            .slice(0, 9);
+
+          // Store complete mobile number
+          this.formData.contact = "09" + this.contactNumber;
+        },
 
     closeAllDropdowns() {
       this.isCivilOpen = false;
@@ -767,11 +863,18 @@ export default {
         isValid = false;
       }
 
-      const contact = (this.formData.contact || "").trim();
-      if (contact && contact.length !== 11) {
-        this.errors.contact = "Contact number must be exactly 11 digits";
-        isValid = false;
-      }
+    const contact = (this.formData.contact || "").trim();
+
+    if (!this.contactNumber) {
+      this.errors.contact = "Contact number is required";
+      isValid = false;
+    } else if (this.contactNumber.length !== 9) {
+      this.errors.contact = "Please enter the remaining 9 digits";
+      isValid = false;
+    } else if (!/^09\d{9}$/.test(contact)) {
+      this.errors.contact = "Please enter a valid mobile number";
+      isValid = false;
+    }
 
       if (
         !this.addressParts.street.trim() ||
@@ -799,10 +902,18 @@ export default {
         isValid = false;
       }
 
-      if (!this.formData.birthday) {
-        this.errors.birthday = "Birthday is required";
+    if (!this.formData.birthday) {
+      this.errors.birthday = "Birthday is required";
+      isValid = false;
+    } else {
+      const age = this.getAge(this.formData.birthday);
+
+      if (age < 17) {
+        this.errors.birthday =
+          "You must be at least 17 years old to create an account.";
         isValid = false;
       }
+    }
 
       if (!this.formData.password) {
         this.errors.password = "Password is required";
