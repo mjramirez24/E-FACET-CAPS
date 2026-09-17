@@ -3914,6 +3914,34 @@ attendancePage.value = 1;
       return d.toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
     }
 
+    function normalizeCertificateTrainingPurposeRows(rows = []) {
+      let newDriverLicense = 0;
+      let additionalDlCode = 0;
+
+      for (const row of Array.isArray(rows) ? rows : []) {
+        const label = String(row?.label || "").trim().toUpperCase();
+        const count = Number(row?.count || 0);
+
+        if (label.includes("ADDITIONAL")) {
+          additionalDlCode += count;
+        } else {
+          // NEW / blank / UNSPECIFIED
+          newDriverLicense += count;
+        }
+      }
+
+      return [
+        {
+          label: "Application for new Driver’s License",
+          count: newDriverLicense,
+        },
+        {
+          label: "Application for Additional DL Code",
+          count: additionalDlCode,
+        },
+      ];
+    }
+
     function emptyCertificateReport(monthValue) {
       return {
         monthLabel: certificateMonthLabelFallback(monthValue),
@@ -4018,8 +4046,24 @@ async function reloadCertificateReport() {
           certificateReport.value = {
             ...emptyCertificateReport(certificateMonth.value),
             ...json.data,
-            tdc: json.data.tdc || { sex: { Male: 0, Female: 0 } },
-            pdc: json.data.pdc || { sex: { Male: 0, Female: 0 } },
+
+            tdc: json.data.tdc || {
+              sex: {
+                Male: 0,
+                Female: 0,
+              },
+            },
+
+            pdc: json.data.pdc || {
+              sex: {
+                Male: 0,
+                Female: 0,
+              },
+            },
+
+            trainingPurposeRows: normalizeCertificateTrainingPurposeRows(
+              json.data.trainingPurposeRows
+            ),
           };
         } else {
           certificateReport.value = emptyCertificateReport(certificateMonth.value);

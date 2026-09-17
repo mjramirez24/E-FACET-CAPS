@@ -1073,16 +1073,29 @@ exports.listReservationsAdmin = async (req, res) => {
 
       if (st === "PENDING") {
         where.push(`
-          UPPER(r.payment_method) = 'GCASH'
-          AND UPPER(COALESCE(sp.status,'')) IN ('FOR_VERIFICATION','PROOF_SUBMITTED')
-        `);
+      UPPER(r.payment_method) = 'GCASH'
+      AND UPPER(COALESCE(sp.status,'')) IN ('FOR_VERIFICATION','PROOF_SUBMITTED')
+    `);
       } else {
         where.push("UPPER(r.reservation_status) = ?");
         params.push(st);
       }
     }
 
-    if (where.length) sql += ` WHERE ${where.join(" AND ")}`;
+    // ✅ For grouped multi-day Driving schedules,
+    // show only Day 1 in Manage Reservations.
+    // Day 2 stays in the database.
+    where.push(`
+  (
+    s.schedule_group_id IS NULL
+    OR s.session_no = 1
+  )
+`);
+
+    if (where.length) {
+      sql += ` WHERE ${where.join(" AND ")}`;
+    }
+
     sql += ` ORDER BY r.created_at DESC`;
 
     const [rows] = await pool.execute(sql, params);
@@ -1133,23 +1146,57 @@ let result;
 
 if (track === "tesda") {
   [result] = await pool.execute(
-    `UPDATE tesda_schedule_reservations
-     SET reservation_status = ?,
-         updated_at = NOW()
-     WHERE reservation_id = ?`,
+    `
+    UPDATE tesda_schedule_reservations
+    SET
+      reservation_status = ?,
+      updated_at = NOW()
+    WHERE reservation_id = ?
+    `,
     [status, reservationId],
   );
 } else {
   [result] = await pool.execute(
-    `UPDATE schedule_reservations
-     SET reservation_status = ?,
-         updated_at = NOW(),
-         done_at = CASE
-           WHEN ? = 'DONE' THEN COALESCE(done_at, NOW())
-           ELSE NULL
-         END
-     WHERE reservation_id = ?`,
-    [status, status, reservationId],
+    `
+    UPDATE schedule_reservations r
+
+    JOIN schedules s
+      ON s.schedule_id = r.schedule_id
+
+    JOIN schedule_reservations selected_r
+      ON selected_r.reservation_id = ?
+
+    JOIN schedules selected_s
+      ON selected_s.schedule_id = selected_r.schedule_id
+
+    SET
+      r.reservation_status = ?,
+      r.updated_at = NOW(),
+
+      r.done_at = CASE
+        WHEN ? = 'DONE'
+          THEN COALESCE(r.done_at, NOW())
+        ELSE NULL
+      END
+
+    WHERE
+      r.student_id = selected_r.student_id
+
+      AND (
+        (
+          selected_s.schedule_group_id IS NOT NULL
+          AND s.schedule_group_id = selected_s.schedule_group_id
+        )
+
+        OR
+
+        (
+          selected_s.schedule_group_id IS NULL
+          AND r.reservation_id = selected_r.reservation_id
+        )
+      )
+    `,
+    [reservationId, status, status],
   );
 }
 

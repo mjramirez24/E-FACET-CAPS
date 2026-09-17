@@ -935,13 +935,27 @@ exports.listCompletions = async (req, res) => {
         cert.pdf_path
 
       FROM schedule_reservations r
-      JOIN users u ON u.id = r.student_id
-      JOIN courses c ON c.id = r.course_id
+
+      JOIN schedules s
+        ON s.schedule_id = r.schedule_id
+
+      JOIN users u
+        ON u.id = r.student_id
+
+      JOIN courses c
+        ON c.id = r.course_id
+
       LEFT JOIN certificates cert
         ON cert.reservation_id = r.reservation_id
-       AND cert.certificate_type = 'DRIVING'
-      WHERE r.reservation_status = 'DONE'
+      AND cert.certificate_type = 'DRIVING'
+
+      WHERE UPPER(r.reservation_status) = 'DONE'
         AND u.role = 'user'
+
+        AND (
+          s.schedule_group_id IS NULL
+          OR s.session_no = 1
+        )
 
       UNION ALL
 
@@ -1105,10 +1119,41 @@ exports.generateDriving = async (req, res) => {
     }
 
     const [existing] = await pool.execute(
-      `SELECT certificate_id
-FROM certificates
-WHERE reservation_id = ? AND certificate_type='DRIVING'
-LIMIT 1`,
+      `
+      SELECT cert.certificate_id
+      FROM certificates cert
+
+      JOIN schedule_reservations cert_r
+        ON cert_r.reservation_id = cert.reservation_id
+
+      LEFT JOIN schedules cert_s
+        ON cert_s.schedule_id = cert_r.schedule_id
+
+      JOIN schedule_reservations selected_r
+        ON selected_r.reservation_id = ?
+
+      LEFT JOIN schedules selected_s
+        ON selected_s.schedule_id = selected_r.schedule_id
+
+      WHERE cert.certificate_type = 'DRIVING'
+        AND cert_r.student_id = selected_r.student_id
+
+        AND (
+          (
+            selected_s.schedule_group_id IS NOT NULL
+            AND cert_s.schedule_group_id = selected_s.schedule_group_id
+          )
+
+          OR
+
+          (
+            selected_s.schedule_group_id IS NULL
+            AND cert.reservation_id = selected_r.reservation_id
+          )
+        )
+
+      LIMIT 1
+      `,
       [reservation_id],
     );
 

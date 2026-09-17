@@ -444,14 +444,46 @@
             <div v-if="!twoByTwoFile" class="text-xs text-red-500 mt-1">Required before continuing.</div>
           </div>
 
-          <!-- PDC field -->
+          <!-- PDC required information -->
           <div v-if="isPDCCourse" class="req-upload-card req-upload-card-pdc">
             <div class="req-upload-header">
-              <span class="req-upload-title">LTO Client ID <span class="text-red-500">*</span></span>
+              <span class="req-upload-title">PDC Information <span class="text-red-500">*</span></span>
               <span class="badge badge-green text-xs">PDC Required</span>
             </div>
-            <p class="text-xs text-gray-500 mb-2">Required for PDC enrollment. Found on your Student Permit or Driver's License.</p>
-            <input type="text" v-model="ltoClientId" placeholder="e.g. N02-12-345678" maxlength="50" class="text-input" />
+
+            <div class="mb-4">
+              <label class="text-sm font-semibold text-gray-700 block mb-1">
+                Training Purpose <span class="text-red-500">*</span>
+              </label>
+              <select v-model="trainingPurpose" class="select-modern w-full">
+                <option value="" disabled>Select training purpose</option>
+                <option value="Application for new Driver's License">
+                  Application for new Driver's License
+                </option>
+                <option value="Application for Additional DL Code">
+                  Application for Additional DL Code
+                </option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">
+                Required for PDC enrollment.
+              </p>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold text-gray-700 block mb-1">
+                LTO Client ID <span class="text-red-500">*</span>
+              </label>
+              <p class="text-xs text-gray-500 mb-2">
+                Found on your Student Permit or Driver's License.
+              </p>
+              <input
+                type="text"
+                v-model="ltoClientId"
+                placeholder="e.g. N02-12-345678"
+                maxlength="50"
+                class="text-input"
+              />
+            </div>
           </div>
 
           <!-- Other requirements -->
@@ -502,6 +534,17 @@
           <div class="payment-summary-row">
             <span class="payment-summary-label">Course</span>
             <span class="payment-summary-value">{{ selectedCourse?.course_name }} ({{ selectedCourse?.course_code }})</span>
+          </div>
+          <div v-if="isPDCCourse" class="payment-summary-row">
+            <span class="payment-summary-label">
+              Training Purpose <span class="text-red-500">*</span>
+            </span>
+            <span
+              class="payment-summary-value"
+              :class="{ 'text-red-500 font-semibold': !trainingPurpose }"
+            >
+              {{ trainingPurpose || "Required" }}
+            </span>
           </div>
           <div class="payment-summary-row">
             <span class="payment-summary-label">Slot</span>
@@ -752,6 +795,7 @@ export default {
         _timer: null,
       },
       ltoClientId: "",
+      trainingPurpose: "",
     };
   },
 
@@ -900,7 +944,10 @@ export default {
     canProceedUploadStep() {
       if (!this.canGoUpload) return false;
       if (!this.twoByTwoFile) return false;
-      if (this.isPDCCourse && !this.ltoClientId.trim()) return false;
+      if (
+        this.isPDCCourse &&
+        (!this.ltoClientId.trim() || !this.trainingPurpose)
+      ) return false;
       if (this.requirementsMode === "walkin") return true;
       const reqs = this.selectedRequirements;
       if (!reqs.length) return true;
@@ -1111,6 +1158,8 @@ export default {
       this.payment.paymentMethod = "";
       this.payment.proofFile = null;
       this.twoByTwoFile = null;
+      this.ltoClientId = "";
+      this.trainingPurpose = "";
       this.paymentRef = "";
       this.qrphProofFile = null;
       this.qrphSubmitted = false;
@@ -1301,6 +1350,9 @@ export default {
           requirements_mode: this.requirementsMode,
           fee_option_code: null,
           lto_client_id: this.ltoClientId?.trim() || null,
+          training_purpose: this.isPDCCourse
+            ? this.trainingPurpose
+            : null,
         };
 
         if (payment_method === "GCASH") {
@@ -1368,6 +1420,8 @@ export default {
       this.gcashLoading = false;
       this.gcashError = "";
       this.twoByTwoFile = null;
+      this.ltoClientId = "";
+      this.trainingPurpose = "";
       this.fetchCourses();
     },
   },

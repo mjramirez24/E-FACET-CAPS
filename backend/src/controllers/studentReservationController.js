@@ -55,6 +55,42 @@ function normalizeRequirementsMode(mode) {
   return "walkin";
 }
 
+const TRAINING_PURPOSE_NEW = "Application for new Driver's License";
+
+const TRAINING_PURPOSE_ADDITIONAL = "Application for Additional DL Code";
+
+function normalizeTrainingPurpose(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  const upper = raw.toUpperCase();
+
+  if (upper === "NEW_DRIVER_LICENSE" || upper.includes("NEW DRIVER")) {
+    return TRAINING_PURPOSE_NEW;
+  }
+
+  if (upper === "ADDITIONAL_DL_CODE" || upper.includes("ADDITIONAL")) {
+    return TRAINING_PURPOSE_ADDITIONAL;
+  }
+
+  return null;
+}
+
+function isPdcCourse(course) {
+  const code = String(course?.course_code || "")
+    .trim()
+    .toUpperCase();
+
+  const name = String(course?.course_name || "")
+    .trim()
+    .toUpperCase();
+
+  return code.includes("PDC") || name.includes("PRACTICAL DRIVING COURSE");
+}
+
 // ✅ Detect "2-day package" courses by course_code (recommended)
 function isTwoDayCourseByCode(course_code) {
   const code = String(course_code || "")
@@ -197,11 +233,9 @@ exports.getAvailability = async (req, res) => {
           ) AS availableSlots
         FROM schedules s1
         JOIN schedules s2
-          ON s2.course_id = s1.course_id
-         AND s2.instructor_id = s1.instructor_id
-         AND s2.start_time = s1.start_time
-         AND s2.end_time = s1.end_time
-         AND s2.schedule_date = ?
+          ON s2.schedule_group_id = s1.schedule_group_id
+        AND s2.session_no = 2
+        AND s2.schedule_date = ?
         LEFT JOIN courses c ON c.id = s1.course_id
         LEFT JOIN instructors i ON i.instructor_id = s1.instructor_id
 
@@ -223,6 +257,8 @@ exports.getAvailability = async (req, res) => {
           AND LOWER(s1.status) = 'open'
           AND LOWER(s2.status) = 'open'
           AND s1.course_id = ?
+          AND s1.session_no = 1
+          AND s1.schedule_group_id IS NOT NULL
         ORDER BY s1.start_time ASC, s1.schedule_id ASC
         `,
         [
@@ -361,6 +397,7 @@ exports.createReservation = async (req, res) => {
       payment_ref,
       fee_option_code,
       lto_client_id,
+      training_purpose,
     } = req.body;
 
     if (!schedule_id || !payment_method) {
@@ -451,13 +488,48 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    // ✅ course_code check
+    // ✅ course_code + training purpose check
     const [courseRows] = await conn.execute(
-      `SELECT id, course_code, course_name, course_fee FROM courses WHERE id = ? LIMIT 1`,
+      `
+      SELECT
+        id,
+        course_code,
+        course_name,
+        course_fee
+      FROM courses
+      WHERE id = ?
+      LIMIT 1
+      `,
       [course_id],
     );
+
     const course = courseRows[0] || null;
-    const isTwoDay = isTwoDayCourseByCode(course?.course_code);
+
+    if (!course) {
+      await conn.rollback();
+
+      return res.status(404).json({
+        status: "error",
+        message: "Course not found.",
+      });
+    }
+
+    const isTwoDay = isTwoDayCourseByCode(course.course_code);
+
+    const courseIsPdc = isPdcCourse(course);
+
+    const normalizedTrainingPurpose = courseIsPdc
+      ? normalizeTrainingPurpose(training_purpose)
+      : null;
+
+    if (courseIsPdc && !normalizedTrainingPurpose) {
+      await conn.rollback();
+
+      return res.status(400).json({
+        status: "error",
+        message: "Please select a valid training purpose for PDC.",
+      });
+    }
 
     // 2) ✅ One active reservation per student (any schedule, today or future)
     const [activeRows] = await conn.execute(
@@ -679,25 +751,36 @@ exports.createReservation = async (req, res) => {
     // 6) INSERT (slot locked immediately)
     const reservation_status = "CONFIRMED";
 
-    // ✅ DAY 1 insert (FIXED placeholder count)
+    // ✅ DAY 1 insert
     const [r1] = await conn.execute(
       `
-      INSERT INTO schedule_reservations
-        (schedule_id, student_id, course_id,
-         reservation_source, reservation_status,
-         payment_method, fee_option_code,
-         requirements_mode,
-         lto_client_id,
-         expires_at,
-         created_by, created_at, updated_at)
-      VALUES
-        (?, ?, ?,
-         'ONLINE', ?,
-         ?, ?, ?,
-         ?,
-         TIMESTAMP(?, '23:59:59'),
-         ?, NOW(), NOW())
-      `,
+  INSERT INTO schedule_reservations
+    (
+      schedule_id,
+      student_id,
+      course_id,
+      reservation_source,
+      reservation_status,
+      payment_method,
+      fee_option_code,
+      requirements_mode,
+      lto_client_id,
+      training_purpose,
+      expires_at,
+      created_by,
+      created_at,
+      updated_at
+    )
+  VALUES
+    (
+      ?, ?, ?,
+      'ONLINE', ?,
+      ?, ?, ?,
+      ?, ?,
+      TIMESTAMP(?, '23:59:59'),
+      ?, NOW(), NOW()
+    )
+  `,
       [
         sid,
         student_id,
@@ -707,6 +790,7 @@ exports.createReservation = async (req, res) => {
         fee_option_code ? String(fee_option_code).trim() : null,
         reqMode,
         lto_client_id ? String(lto_client_id).trim() : null,
+        normalizedTrainingPurpose,
         scheduleDateYMD,
         student_id,
       ],
@@ -714,30 +798,42 @@ exports.createReservation = async (req, res) => {
 
     const reservation_id = r1.insertId;
 
-    // ✅ DAY 2 insert (FIXED placeholder count)
+    // ✅ DAY 2 insert
     let reservation_id_2 = null;
+
     if (isTwoDay && day2Schedule) {
       const day2Sid = Number(day2Schedule.schedule_id);
       const day2DateYMD = toYMD(day2Schedule.schedule_date);
 
       const [r2] = await conn.execute(
         `
-        INSERT INTO schedule_reservations
-          (schedule_id, student_id, course_id,
-           reservation_source, reservation_status,
-           payment_method, fee_option_code,
-           requirements_mode,
-           lto_client_id,
-           expires_at,
-           created_by, created_at, updated_at)
-        VALUES
-          (?, ?, ?,
-           'ONLINE', ?,
-           ?, ?, ?,
-           ?,
-           TIMESTAMP(?, '23:59:59'),
-           ?, NOW(), NOW())
-        `,
+    INSERT INTO schedule_reservations
+      (
+        schedule_id,
+        student_id,
+        course_id,
+        reservation_source,
+        reservation_status,
+        payment_method,
+        fee_option_code,
+        requirements_mode,
+        lto_client_id,
+        training_purpose,
+        expires_at,
+        created_by,
+        created_at,
+        updated_at
+      )
+    VALUES
+      (
+        ?, ?, ?,
+        'ONLINE', ?,
+        ?, ?, ?,
+        ?, ?,
+        TIMESTAMP(?, '23:59:59'),
+        ?, NOW(), NOW()
+      )
+    `,
         [
           day2Sid,
           student_id,
@@ -747,6 +843,7 @@ exports.createReservation = async (req, res) => {
           fee_option_code ? String(fee_option_code).trim() : null,
           reqMode,
           lto_client_id ? String(lto_client_id).trim() : null,
+          normalizedTrainingPurpose,
           day2DateYMD,
           student_id,
         ],

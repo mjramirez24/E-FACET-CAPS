@@ -455,6 +455,15 @@ exports.listStudents = async (req, res) => {
       where += ` AND ${tesdaWhere}`;
     } else {
       where += ` AND ${drivingWhere}`;
+
+      // Sa multi-day Driving schedules (PDC-AB / TDC),
+      // Day 1 lang ang ipapakita sa Students Management.
+      where += `
+        AND (
+          s.schedule_group_id IS NULL
+          OR s.session_no = 1
+        )
+      `;
     }
 
     if (source === "online" || source === "walkin") {
@@ -534,14 +543,37 @@ exports.listStudents = async (req, res) => {
         s.schedule_date,
         s.start_time,
         s.end_time,
+        s.schedule_group_id,
+        s.session_no,
 
         i.fullname AS instructor_name,
 
         ${sourceExprSql()} AS source,
         ${statusExprSql()} AS status,
 
-        COALESCE(s.schedule_date, DATE(sr.created_at)) AS course_start,
-        COALESCE(s.schedule_date, DATE(sr.created_at)) AS course_end,
+        COALESCE(
+          CASE
+            WHEN s.schedule_group_id IS NOT NULL THEN (
+              SELECT MIN(sg.schedule_date)
+              FROM schedules sg
+              WHERE sg.schedule_group_id = s.schedule_group_id
+            )
+            ELSE s.schedule_date
+          END,
+          DATE(sr.created_at)
+        ) AS course_start,
+
+        COALESCE(
+          CASE
+            WHEN s.schedule_group_id IS NOT NULL THEN (
+              SELECT MAX(sg.schedule_date)
+              FROM schedules sg
+              WHERE sg.schedule_group_id = s.schedule_group_id
+            )
+            ELSE s.schedule_date
+          END,
+          DATE(sr.created_at)
+        ) AS course_end,
 
         ${trainingPurposeSelect},
 

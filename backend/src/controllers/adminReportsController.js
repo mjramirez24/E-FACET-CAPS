@@ -452,6 +452,11 @@ exports.getDetailed = async (req, res) => {
       WHERE sr.created_at >= ?
         AND sr.created_at < ?
         AND COALESCE(sr.is_historical, 0) = 0
+
+        AND (
+          s.schedule_group_id IS NULL
+          OR s.session_no = 1
+        )
     `;
 
     const params = [from, to];
@@ -550,8 +555,29 @@ exports.getDetailed = async (req, res) => {
         sps.amount_centavos,
         sps.currency,
 
-        COALESCE(s.schedule_date, DATE(sr.created_at)) AS course_start,
-        COALESCE(s.schedule_date, DATE(sr.created_at)) AS course_end,
+        COALESCE(
+          CASE
+            WHEN s.schedule_group_id IS NOT NULL THEN (
+              SELECT MIN(sg.schedule_date)
+              FROM schedules sg
+              WHERE sg.schedule_group_id = s.schedule_group_id
+            )
+            ELSE s.schedule_date
+          END,
+          DATE(sr.created_at)
+        ) AS course_start,
+
+        COALESCE(
+          CASE
+            WHEN s.schedule_group_id IS NOT NULL THEN (
+              SELECT MAX(sg.schedule_date)
+              FROM schedules sg
+              WHERE sg.schedule_group_id = s.schedule_group_id
+            )
+            ELSE s.schedule_date
+          END,
+          DATE(sr.created_at)
+        ) AS course_end,
 
         sr.training_purpose,
 
@@ -2415,14 +2441,26 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
 
     function normalizePurposeLocal(v) {
       const s = String(v || "").trim();
-      if (!s) return "Unspecified";
+
+      if (!s) {
+        return null;
+      }
 
       const up = s.toUpperCase();
-      if (up.includes("NEW")) return "Application for new Driver's License";
-      if (up.includes("ADDITIONAL"))
-        return "Application for Additional DL Code";
 
-      return s;
+      if (up === "ADDITIONAL_DL_CODE" || up.includes("ADDITIONAL")) {
+        return "Application for Additional DL Code";
+      }
+
+      if (
+        up === "NEW_DRIVER_LICENSE" ||
+        up.includes("NEW DRIVER") ||
+        up.includes("NEW DRIVER'S LICENSE")
+      ) {
+        return "Application for new Driver's License";
+      }
+
+      return null;
     }
 
     function parseDlCodes(row) {
@@ -2467,13 +2505,9 @@ exports.getIssuedCertificatesSummary = async (req, res) => {
 
       const purpose = normalizePurposeLocal(row.training_purpose);
 
-      if (!purposeMap.has(purpose)) {
-        const newRow = { label: purpose, count: 0 };
-        report.trainingPurposeRows.push(newRow);
-        purposeMap.set(purpose, newRow);
+      if (purpose && purposeMap.has(purpose)) {
+        purposeMap.get(purpose).count += 1;
       }
-
-      purposeMap.get(purpose).count += 1;
 
       const dlCodes = parseDlCodes(row);
 
