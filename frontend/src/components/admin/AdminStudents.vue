@@ -1,8 +1,11 @@
 <!-- frontend/src/components/admin/AdminStudents.vue -->
+
 <template>
 
   <AdminLayout>
+
 <!-- Header -->
+
     <template #header-left>
 
       <div class="search-box">
@@ -32,7 +35,9 @@
     </template>
 
     <div class="students-wrapper">
+
 <!-- Page Header -->
+
       <div class="page-top">
 
         <div>
@@ -56,7 +61,9 @@
         </button>
 
       </div>
+
 <!-- Tabs -->
+
       <div class="tab-group mb-5">
 
         <button
@@ -106,7 +113,9 @@
         </button>
 
       </div>
+
 <!-- Filters -->
+
       <div class="filters-row">
 
         <div class="filter-item">
@@ -174,7 +183,9 @@
         </div>
 
       </div>
+
 <!-- Table -->
+
       <div class="panel-card">
 
         <div v-if="loading" class="p-8 text-center text-gray-400">
@@ -190,7 +201,9 @@
           Loading students...
 
         </div>
+
 <!-- DRIVING -->
+
         <div v-else-if="activeTab === 'driving'" class="table-wrap">
 
           <table class="modern-table">
@@ -282,7 +295,9 @@
           </table>
 
         </div>
+
 <!-- TESDA -->
+
         <div v-else class="table-wrap">
 
           <table class="modern-table">
@@ -366,7 +381,9 @@
           </table>
 
         </div>
+
 <!-- Pagination with page number buttons -->
+
         <div class="pagination-bar">
 
           <span class="page-info">Page {{ activePage }} of {{ activeTotalPages }}</span>
@@ -386,7 +403,9 @@
       </div>
 
     </div>
+
 <!-- ADD/EDIT MODAL -->
+
     <transition name="modal-fade">
 
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
@@ -529,17 +548,85 @@
 
                   <label class="form-label">Course *</label>
 
-                  <select v-model="formData.course_id" class="form-input" @change="onCoursePick">
+                  <select
+
+                    v-model="formData.course_id"
+
+                    class="form-input"
+
+                    @change="onCoursePick"
+
+                    :disabled="isEditing"
+
+                  >
 
                     <option value="">— Select course —</option>
 
-                    <option v-for="c in modalCourses"  :key="c.id"  :value="String(c.id)">
+                    <option v-for="c in modalCourses" :key="c.id" :value="String(c.id)">
 
-                      {{ c.course_name }} <span v-if="c.course_code">({{ c.course_code }})</span>
+                      {{ c.course_name }}{{ c.course_code ? ` (${c.course_code})` : "" }}
 
                     </option>
 
                   </select>
+
+                </div>
+
+                <!-- ADD MODE: schedule must come from Schedule Management -->
+
+                <div v-if="!isEditing" class="form-group md-col-span-2">
+
+                  <label class="form-label">
+
+                    Available Schedule <span class="text-red-500">*</span>
+
+                  </label>
+
+                  <select
+
+                    v-model="formData.schedule_id"
+
+                    class="form-input"
+
+                    :disabled="!formData.course_id || scheduleLoading"
+
+                    @change="onSchedulePick"
+
+                  >
+
+                    <option value="">
+
+                      {{ scheduleLoading ? "Loading schedules..." : "— Select available schedule —" }}
+
+                    </option>
+
+                    <option
+
+                      v-for="s in availableSchedules"
+
+                      :key="s.id"
+
+                      :value="String(s.id)"
+
+                    >
+
+                      {{ scheduleOptionLabel(s) }}
+
+                    </option>
+
+                  </select>
+
+                  <p
+
+                    v-if="formData.course_id && !scheduleLoading && availableSchedules.length === 0"
+
+                    class="text-xs text-red-500 mt-1"
+
+                  >
+
+                    {{ formData.track === "tesda" ? "No available TESDA batch/schedule for this course. Create one first in Schedule Management." : "No available schedule for this course. Create one first in Schedule Management." }}
+
+                  </p>
 
                 </div>
 
@@ -547,7 +634,7 @@
 
                   <label class="form-label">Course Start</label>
 
-                  <input v-model="formData.course_start" class="form-input" type="date" />
+                  <input v-model="formData.course_start" class="form-input" type="date" readonly />
 
                 </div>
 
@@ -555,9 +642,31 @@
 
                   <label class="form-label">Course End</label>
 
-                  <input v-model="formData.course_end" class="form-input" type="date"  :readonly="formData.track === 'tesda'" />
+                  <input v-model="formData.course_end" class="form-input" type="date" readonly />
 
-                  <p v-if="formData.track === 'tesda'" class="text-xs text-gray-400 mt-1">Auto-computed based on course duration when start date is set.</p>
+                </div>
+
+                <div class="form-group">
+
+                  <label class="form-label">
+
+                    {{ formData.track === "tesda" ? "Trainer" : "Instructor" }}
+
+                  </label>
+
+                  <input
+
+                    v-model="formData.instructor_name"
+
+                    class="form-input"
+
+                    type="text"
+
+                    readonly
+
+                    placeholder="Auto from selected schedule"
+
+                  />
 
                 </div>
 
@@ -565,31 +674,108 @@
 
                   <label class="form-label">DL Code</label>
 
-                  <input v-model="formData.dl_code" class="form-input" type="text" placeholder="A / B / AB" />
+                  <input
+
+                    v-model="formData.dl_code"
+
+                    class="form-input"
+
+                    type="text"
+
+                    readonly
+
+                    placeholder="Auto from selected course"
+
+                  />
+
+                  <p class="text-xs text-gray-400 mt-1">
+
+                    Automatically based on the course configured in Manage Courses.
+
+                  </p>
+
+                </div>
+
+                <div v-if="formData.track === 'driving'" class="form-group">
+
+                  <label class="form-label">Course Fee</label>
+
+                  <input
+
+                    :value="selectedCourseFee > 0 ? formatPeso(selectedCourseFee) : '—'"
+
+                    class="form-input"
+
+                    type="text"
+
+                    readonly
+
+                  />
+
+                  <p class="text-xs text-gray-400 mt-1">
+
+                    Based on the fee configured in Manage Courses for accurate revenue reporting.
+
+                  </p>
+
+                </div>
+
+                <div v-if="formData.track === 'driving' && !isEditing" class="form-group">
+
+                  <label class="form-label">
+
+                    Payment Method <span class="text-red-500">*</span>
+
+                  </label>
+
+                  <select v-model="formData.payment_method" class="form-input">
+
+                    <option value="CASH">Cash</option>
+
+                    <option value="GCASH">GCash</option>
+
+                  </select>
 
                 </div>
 
                 <div
+
                   v-if="formData.track === 'driving' && isSelectedDrivingPdc"
+
                   class="form-group md-col-span-2"
+
                 >
+
                   <label class="form-label">
+
                     Training Purpose <span class="text-red-500">*</span>
+
                   </label>
 
                   <select v-model="formData.training_purpose" class="form-input">
+
                     <option value="">— Select training purpose —</option>
+
                     <option value="Application for new Driver's License">
+
                       Application for new Driver's License
+
                     </option>
+
                     <option value="Application for Additional DL Code">
+
                       Application for Additional DL Code
+
                     </option>
+
                   </select>
 
                   <p class="text-xs text-gray-400 mt-1">
+
                     Required for Practical Driving Course (PDC).
+
                   </p>
+
                 </div>
 
               </div>
@@ -615,7 +801,9 @@
       </div>
 
     </transition>
+
 <!-- DELETE MODAL -->
+
     <transition name="modal-fade">
 
       <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
@@ -758,6 +946,10 @@ export default {
 
     const tesdaCourses = ref([]);
 
+    const availableSchedules = ref([]);
+
+    const scheduleLoading = ref(false);
+
     const showModal = ref(false);
 
     const showDeleteModal = ref(false);
@@ -778,7 +970,7 @@ export default {
 
       instructor_name: "", course_start: "", course_end: "", training_purpose: "",
 
-      course_id: "", dl_code: "", email: "", contact_no: "", address: "",
+      course_id: "", dl_code: "", payment_method: "CASH", email: "", contact_no: "", address: "",
 
     });
 
@@ -845,35 +1037,541 @@ export default {
     const modalCourses = computed(() => (formData.track === "tesda" ? tesdaCourses.value : drivingCourses.value));
 
     const findCourseById = (id) => {
+
       const all = formData.track === "tesda" ? tesdaCourses.value : drivingCourses.value;
+
       return all.find((c) => String(c.id) === String(id)) || null;
+
     };
 
     const isDrivingPdcCourse = (course) => {
+
       if (!course) return false;
+
       const code = String(course.course_code || "").toUpperCase();
+
       const name = String(course.course_name || "").toUpperCase();
+
       return code.includes("PDC") || name.includes("PRACTICAL DRIVING COURSE");
+
     };
 
     const isSelectedDrivingPdc = computed(() => {
+
       if (formData.track !== "driving") return false;
+
       return isDrivingPdcCourse(findCourseById(formData.course_id));
+
     });
 
-    const deriveDlFromCourseCode = (course_code) => { const code = String(course_code || "").toUpperCase(); if (code.startsWith("PDC-")) return code.split("-").pop() || ""; return ""; };
+    const selectedCourse = computed(() => findCourseById(formData.course_id));
 
-    const onCoursePick = () => {
-      const c = findCourseById(formData.course_id);
-      if (!c) { formData.training_purpose = ""; return; }
-      if (formData.track === "driving") {
-        const dl = deriveDlFromCourseCode(c.course_code);
-        if (dl) formData.dl_code = dl;
-        if (!isDrivingPdcCourse(c)) formData.training_purpose = "";
-      } else {
-        formData.training_purpose = "";
-        if (formData.course_start) formData.course_end = tesdaEndDateFromStart(formData.course_start, c.duration || "");
+    const selectedCourseFee = computed(() => Number(selectedCourse.value?.course_fee || 0));
+
+    const formatPeso = (value) => {
+
+      return `₱${Number(value || 0).toLocaleString("en-PH", {
+
+        minimumFractionDigits: 2,
+
+        maximumFractionDigits: 2,
+
+      })}`;
+
+    };
+
+    const deriveDlFromCourseCode = (course_code) => {
+
+      const code = String(course_code || "").toUpperCase();
+
+      if (code.startsWith("PDC-")) return code.split("-").pop() || "";
+
+      return "";
+
+    };
+
+    const formatTime12Local = (value) => {
+
+      if (!value) return "";
+
+      const [hRaw, mRaw] = String(value).split(":");
+
+      let h = Number(hRaw);
+
+      const m = String(mRaw || "00").padStart(2, "0");
+
+      const suffix = h >= 12 ? "PM" : "AM";
+
+      h = h % 12;
+
+      if (h === 0) h = 12;
+
+      return `${h}:${m} ${suffix}`;
+
+    };
+
+    const ADMIN_LATE_ADD_GRACE_HOURS = 8;
+
+    const getScheduleEndMsPH = (dateYmd, timeValue) => {
+      if (!dateYmd) return NaN;
+
+      let time = String(timeValue || "23:59:59").trim();
+
+      // Normalize HH:mm to HH:mm:ss
+      if (/^\d{1,2}:\d{2}$/.test(time)) {
+        time = `${time}:00`;
       }
+
+      if (!/^\d{1,2}:\d{2}:\d{2}$/.test(time)) {
+        time = "23:59:59";
+      }
+
+      const ms = new Date(`${dateYmd}T${time}+08:00`).getTime();
+      return Number.isFinite(ms) ? ms : NaN;
+    };
+
+    const getAdminLateAddState = (endDate, endTime) => {
+      const endMs = getScheduleEndMsPH(endDate, endTime);
+
+      if (!Number.isFinite(endMs)) {
+        return {
+          allowed: false,
+          isLate: false,
+        };
+      }
+
+      const nowMs = Date.now();
+      const graceMs =
+        ADMIN_LATE_ADD_GRACE_HOURS * 60 * 60 * 1000;
+
+      return {
+        allowed: nowMs <= endMs + graceMs,
+        isLate: nowMs > endMs,
+      };
+    };
+
+    const scheduleOptionLabel = (s) => {
+      const dateText =
+        s.startDate === s.endDate
+          ? s.startDate
+          : `${s.startDate} → ${s.endDate}`;
+
+      const parts = [
+        dateText,
+        `${formatTime12Local(s.startTime)} - ${formatTime12Local(s.endTime)}`,
+        s.instructor || "TBA",
+        `${s.availableSlots} slot(s) left`,
+      ];
+
+      if (s.lateAdd) {
+        parts.push(
+          `Late add allowed (${ADMIN_LATE_ADD_GRACE_HOURS}h grace)`,
+        );
+      }
+
+      return parts.join(" | ");
+    };
+
+    const loadAvailableSchedules = async () => {
+      availableSchedules.value = [];
+
+      if (!formData.course_id) return;
+
+      scheduleLoading.value = true;
+
+      try {
+        const courseId = Number(formData.course_id);
+
+        // =================================================
+        // TESDA
+        //
+        // TBA is NOT allowed here.
+        // Admin may still add to a recently-ended scheduled
+        // batch while it is inside the late-add grace window.
+        // Logical TESDA end uses the course duration.
+        // =================================================
+        if (formData.track === "tesda") {
+          const json = await apiJson(
+            `/api/admin/tesda/schedules?course_id=${courseId}`,
+          );
+
+          const rows = Array.isArray(json.data)
+            ? json.data
+            : [];
+
+          const course =
+            findCourseById(formData.course_id);
+
+          availableSchedules.value = rows
+            .filter((r) => {
+              const rawStatus = String(
+                r.scheduleStatus ||
+                  r.status ||
+                  "",
+              ).toLowerCase();
+
+              const availableSlots =
+                Number(r.availableSlots || 0);
+
+              // TBA/pooling is intentionally excluded.
+              if (!r.date) return false;
+
+              // Explicitly closed/TBA/full schedules are blocked.
+              if (
+                ["closed", "tba", "full"].includes(
+                  rawStatus,
+                )
+              ) {
+                return false;
+              }
+
+              if (availableSlots <= 0) {
+                return false;
+              }
+
+              const logicalEndDate =
+                tesdaEndDateFromStart(
+                  r.date,
+                  course?.duration ||
+                    r.duration ||
+                    "",
+                );
+
+              const lateState =
+                getAdminLateAddState(
+                  logicalEndDate || r.date,
+                  r.endTime ||
+                    r.end_time ||
+                    "17:00",
+                );
+
+              return lateState.allowed;
+            })
+            .map((r) => {
+              const logicalEndDate =
+                tesdaEndDateFromStart(
+                  r.date,
+                  course?.duration ||
+                    r.duration ||
+                    "",
+                );
+
+              const lateState =
+                getAdminLateAddState(
+                  logicalEndDate || r.date,
+                  r.endTime ||
+                    r.end_time ||
+                    "17:00",
+                );
+
+              return {
+                id: Number(
+                  r.id ?? r.schedule_id,
+                ),
+
+                courseId: Number(
+                  r.course_id,
+                ),
+
+                startDate: r.date,
+
+                endDate:
+                  logicalEndDate ||
+                  r.date,
+
+                startTime:
+                  r.startTime ||
+                  r.start_time ||
+                  "08:00",
+
+                endTime:
+                  r.endTime ||
+                  r.end_time ||
+                  "17:00",
+
+                instructor:
+                  r.instructor ||
+                  r.instructor_name ||
+                  r.trainer_name ||
+                  "TBA",
+
+                availableSlots:
+                  Number(
+                    r.availableSlots || 0,
+                  ),
+
+                lateAdd:
+                  lateState.isLate,
+              };
+            })
+            .sort((a, b) =>
+              String(a.startDate).localeCompare(
+                String(b.startDate),
+              ),
+            );
+
+          return;
+        }
+
+        // =================================================
+        // DRIVING
+        //
+        // Schedule Management may already display a session
+        // as Closed/Done because its end time passed.
+        // Students Management uses the RAW stored status plus
+        // an 8-hour admin grace window.
+        //
+        // For grouped TDC/PDC-AB, the grace window is based
+        // on the FINAL session of the package.
+        // =================================================
+        const json = await apiJson(
+          `/api/admin/schedules?course_id=${courseId}`,
+        );
+
+        const rows = Array.isArray(json.data)
+          ? json.data
+          : [];
+
+        const groups = new Map();
+
+        for (const row of rows) {
+          const key =
+            row.scheduleGroupId ||
+            `single-${row.id}`;
+
+          if (!groups.has(key)) {
+            groups.set(key, []);
+          }
+
+          groups.get(key).push(row);
+        }
+
+        const options = [];
+
+        for (const members of groups.values()) {
+          members.sort((a, b) => {
+            const dateCompare =
+              String(a.date || "").localeCompare(
+                String(b.date || ""),
+              );
+
+            if (dateCompare !== 0) {
+              return dateCompare;
+            }
+
+            return (
+              Number(a.sessionNo || 1) -
+              Number(b.sessionNo || 1)
+            );
+          });
+
+          const structurallyAvailable =
+            members.every((m) => {
+              const rawStatus = String(
+                m.scheduleStatus ||
+                  m.status ||
+                  "",
+              ).toLowerCase();
+
+              return (
+                Boolean(m.date) &&
+                ![
+                  "closed",
+                  "cancelled",
+                  "canceled",
+                  "full",
+                ].includes(rawStatus) &&
+                Number(
+                  m.availableSlots || 0,
+                ) > 0
+              );
+            });
+
+          if (!structurallyAvailable) {
+            continue;
+          }
+
+          const leader =
+            members.find(
+              (m) =>
+                Number(m.sessionNo || 1) ===
+                1,
+            ) || members[0];
+
+          const finalSession =
+            members[members.length - 1];
+
+          const lateState =
+            getAdminLateAddState(
+              finalSession.date,
+              finalSession.endTime ||
+                finalSession.end_time ||
+                "23:59",
+            );
+
+          // Too old = no longer shown to admin.
+          if (!lateState.allowed) {
+            continue;
+          }
+
+          const dates = members
+            .map((m) => m.date)
+            .filter(Boolean)
+            .sort();
+
+          const availableSlots =
+            Math.min(
+              ...members.map((m) =>
+                Number(
+                  m.availableSlots || 0,
+                ),
+              ),
+            );
+
+          options.push({
+            id: Number(
+              leader.id ??
+                leader.schedule_id,
+            ),
+
+            startDate:
+              dates[0],
+
+            endDate:
+              dates[
+                dates.length - 1
+              ],
+
+            startTime:
+              leader.startTime ||
+              leader.start_time,
+
+            // Label uses the final session end time so
+            // grouped schedule end is clearer.
+            endTime:
+              finalSession.endTime ||
+              finalSession.end_time ||
+              leader.endTime ||
+              leader.end_time,
+
+            instructor:
+              leader.instructor ||
+              leader.instructor_name ||
+              "TBA",
+
+            availableSlots,
+
+            lateAdd:
+              lateState.isLate,
+          });
+        }
+
+        availableSchedules.value =
+          options.sort((a, b) =>
+            String(a.startDate).localeCompare(
+              String(b.startDate),
+            ),
+          );
+      } catch (e) {
+        console.error(
+          "loadAvailableSchedules error:",
+          e,
+        );
+
+        availableSchedules.value =
+          [];
+      } finally {
+        scheduleLoading.value =
+          false;
+      }
+    };
+
+    const onSchedulePick = () => {
+      const selected =
+        availableSchedules.value.find(
+          (s) =>
+            String(s.id) ===
+            String(
+              formData.schedule_id,
+            ),
+        );
+
+      if (!selected) {
+        formData.course_start = "";
+        formData.course_end = "";
+        formData.instructor_name =
+          "";
+        return;
+      }
+
+      formData.course_start =
+        selected.startDate || "";
+
+      formData.course_end =
+        selected.endDate ||
+        selected.startDate ||
+        "";
+
+      formData.instructor_name =
+        selected.instructor || "";
+    };
+
+    const onCoursePick = async () => {
+
+      const c = findCourseById(formData.course_id);
+
+      if (!c) {
+
+        if (!isEditing.value) {
+
+          formData.schedule_id = "";
+
+          formData.course_start = "";
+
+          formData.course_end = "";
+
+          formData.instructor_name = "";
+
+        }
+
+        formData.dl_code = "";
+
+        formData.training_purpose = "";
+
+        availableSchedules.value = [];
+
+        return;
+
+      }
+
+      if (formData.track === "driving") {
+
+        formData.dl_code = deriveDlFromCourseCode(c.course_code);
+
+        if (!isDrivingPdcCourse(c)) formData.training_purpose = "";
+
+      } else {
+
+        formData.dl_code = "";
+
+        formData.training_purpose = "";
+
+      }
+
+      // Existing records keep their current schedule during Edit.
+
+      if (isEditing.value) return;
+
+      formData.schedule_id = "";
+
+      formData.course_start = "";
+
+      formData.course_end = "";
+
+      formData.instructor_name = "";
+
+      await loadAvailableSchedules();
+
     };
 
     const fetchStudents = async (track) => {
@@ -951,7 +1649,9 @@ export default {
     const paginatedTesda = computed(() => { const start = (tesdaPage.value - 1) * pageSize.value; return filteredTesda.value.slice(start, start + pageSize.value); });
 
     const pageRange = computed(() => { const total = activeTotal.value; const page = activePage.value; const start = total === 0 ? 0 : (page - 1) * pageSize.value + 1; const end = Math.min(total, page * pageSize.value); return { start, end }; });
+
 // Page buttons (like dashboard)
+
     const pageButtons = computed(() => {
 
       const total = activeTotalPages.value;
@@ -984,9 +1684,55 @@ export default {
 
     watch(activeTotalPages, () => { if (activePage.value > activeTotalPages.value) setActivePage(activeTotalPages.value); });
 
-    watch(() => [formData.track, formData.course_start, formData.course_id], () => { if (formData.track !== "tesda") return; const c = findCourseById(formData.course_id); if (!c || !formData.course_start) return; formData.course_end = tesdaEndDateFromStart(formData.course_start, c.duration || ""); });
+    const resetForm = () => {
 
-    const resetForm = () => { formError.value = ""; Object.assign(formData, { reservation_id: null, student_id: null, schedule_id: null, source: "walkin", status: "confirmed", client_id: "", full_name: "", birthdate: "", sex: "", instructor_name: "", course_start: "", course_end: "", training_purpose: "", course_id: "", dl_code: "", email: "", contact_no: "", address: "" }); };
+      formError.value = "";
+
+      availableSchedules.value = [];
+
+      Object.assign(formData, {
+
+        reservation_id: null,
+
+        student_id: null,
+
+        schedule_id: null,
+
+        source: "walkin",
+
+        status: "confirmed",
+
+        client_id: "",
+
+        full_name: "",
+
+        birthdate: "",
+
+        sex: "",
+
+        instructor_name: "",
+
+        course_start: "",
+
+        course_end: "",
+
+        training_purpose: "",
+
+        course_id: "",
+
+        dl_code: "",
+
+        payment_method: "CASH",
+
+        email: "",
+
+        contact_no: "",
+
+        address: "",
+
+      });
+
+    };
 
     const openAddModal = () => { isEditing.value = false; resetForm(); formData.track = activeTab.value; showModal.value = true; };
 
@@ -1019,54 +1765,113 @@ export default {
     const closeDeleteModal = () => { showDeleteModal.value = false; studentToDelete.value = null; };
 
     const submitStudent = async () => {
+
       saving.value = true;
+
       formError.value = "";
 
       try {
+
         const isTesda = formData.track === "tesda";
+
         const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
 
         const payload = {
+
           full_name: formData.full_name,
+
           birthdate: formData.birthdate || null,
+
           sex: formData.sex || null,
+
           email: formData.email || null,
+
           source: formData.source,
+
           status: formData.status,
+
           course_id: formData.course_id ? Number(formData.course_id) : null,
+
+          schedule_id: formData.schedule_id ? Number(formData.schedule_id) : null,
+
           course_start: formData.course_start || null,
+
           course_end: formData.course_end || null,
+
           training_purpose: !isTesda && isSelectedDrivingPdc.value ? formData.training_purpose || null : null,
+
           client_id: formData.client_id || null,
+
           dl_code: formData.dl_code || null,
+
+          payment_method: !isTesda ? formData.payment_method : null,
+
         };
 
         if (!payload.full_name) {
+
           formError.value = "Full name is required.";
+
           return;
+
         }
+
         if (!payload.course_id) {
+
           formError.value = "Course is required.";
+
           return;
+
         }
-        if (!isTesda && isSelectedDrivingPdc.value && !payload.training_purpose) {
-          formError.value = "Training purpose is required for PDC.";
+
+        if (!isEditing.value && !payload.schedule_id) {
+
+          formError.value = "Please select an available schedule.";
+
           return;
+
+        }
+
+        if (!isTesda && !isEditing.value && !payload.payment_method) {
+
+          formError.value = "Payment method is required.";
+
+          return;
+
+        }
+
+        if (!isTesda && isSelectedDrivingPdc.value && !payload.training_purpose) {
+
+          formError.value = "Training purpose is required for PDC.";
+
+          return;
+
         }
 
         if (isEditing.value && formData.reservation_id) {
+
           await apiJson(`${baseUrl}/${formData.reservation_id}`, { method: "PUT", body: JSON.stringify(payload) });
+
         } else {
+
           await apiJson(baseUrl, { method: "POST", body: JSON.stringify(payload) });
+
         }
 
         closeModal();
+
         await fetchActiveTabStudents();
+
       } catch (e) {
+
         formError.value = e?.message || "Failed to save.";
+
       } finally {
+
         saving.value = false;
+
       }
+
     };
 
     const confirmDelete = async () => { if (!studentToDelete.value?.reservation_id) return; saving.value = true; try { const isTesda = studentToDelete.value.track === "tesda"; const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students"; await apiJson(`${baseUrl}/${studentToDelete.value.reservation_id}`, { method: "DELETE" }); closeDeleteModal(); await fetchActiveTabStudents(); } catch (e) { console.error(e); } finally { saving.value = false; } };
@@ -1089,6 +1894,8 @@ export default {
 
       drivingCourses, tesdaCourses, modalCourses, onCoursePick, isSelectedDrivingPdc,
 
+      availableSchedules, scheduleLoading, selectedCourseFee, formatPeso, scheduleOptionLabel, onSchedulePick,
+
       debouncedFetch, switchTab, fetchActiveTabStudents,
 
       showModal, showDeleteModal, isEditing, studentToDelete, formData, formError,
@@ -1106,7 +1913,9 @@ export default {
 </script>
 
 <style scoped>
+
 /* ========== WRAPPER ========== */
+
 .students-wrapper { padding: 4px 0; display: flex; flex-direction: column; gap: 16px; }
 
 .page-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
@@ -1114,11 +1923,15 @@ export default {
 .page-title { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
 
 .page-subtitle { font-size: 0.8rem; color: #6b7280; margin: 2px 0 0; }
+
 /* ========== ADD BUTTON ========== */
+
 .add-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: #10b981; color: #fff; border: none; border-radius: 12px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
 
 .add-btn:hover { background: #059669; transform: translateY(-1px); }
+
 /* ========== SEARCH ========== */
+
 .search-box { position: relative; flex: 1; max-width: 380px; }
 
 .search-icon-svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #9ca3af; }
@@ -1126,7 +1939,9 @@ export default {
 .search-input-modern { width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; color: #111827 !important; background: #fff !important; }
 
 .search-input-modern:focus { border-color: #10b981; }
+
 /* ========== TABS ========== */
+
 .tab-group { display: flex; gap: 8px; }
 
 .tab-btn { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; border: 2px solid #e5e7eb; cursor: pointer; transition: all 0.2s; background: #fff; color: #6b7280; }
@@ -1136,7 +1951,9 @@ export default {
 .tab-active-green { background: #10b981; color: #fff; border-color: #10b981; }
 
 .tab-active-blue { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
 /* ========== FILTERS ========== */
+
 .filters-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
 
 .filter-item { display: flex; flex-direction: column; gap: 4px; }
@@ -1148,7 +1965,9 @@ export default {
 .select-modern:focus { border-color: #10b981; }
 
 .ml-auto { margin-left: auto; }
+
 /* ========== PANEL / TABLE ========== */
+
 .panel-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; }
 
 .table-wrap { overflow-x: auto; }
@@ -1166,7 +1985,9 @@ export default {
 .thead-blue th { background: #3b82f6; color: #fff; border-bottom: none; }
 
 .empty-cell { text-align: center; color: #9ca3af; padding: 30px !important; }
+
 /* ========== PILLS ========== */
+
 .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 
 .pill-green { background: #d1fae5; color: #059669; }
@@ -1178,7 +1999,9 @@ export default {
 .pill-red { background: #fee2e2; color: #dc2626; }
 
 .pill-gray { background: #f3f4f6; color: #6b7280; }
+
 /* ========== ACTION BUTTONS ========== */
+
 .action-btns { display: flex; gap: 6px; }
 
 .action-edit { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; background: #3b82f6; color: #fff; border: none; cursor: pointer; transition: all 0.2s; }
@@ -1188,7 +2011,9 @@ export default {
 .action-delete { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; background: #ef4444; color: #fff; border: none; cursor: pointer; transition: all 0.2s; }
 
 .action-delete:hover { background: #dc2626; }
+
 /* ========== PAGINATION ========== */
+
 .pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb; flex-wrap: wrap; gap: 10px; }
 
 .page-info { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
@@ -1206,7 +2031,9 @@ export default {
 .pg-num:hover { border-color: #10b981; }
 
 .pg-active { background: #10b981; color: #fff; border-color: #10b981; }
+
 /* ========== MODALS ========== */
+
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
 
 .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.2); }
@@ -1270,7 +2097,9 @@ export default {
 .btn-red { background: #ef4444; }
 
 .btn-red:hover:not(:disabled) { background: #dc2626; }
+
 /* ========== ANIMATIONS ========== */
+
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
 
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
@@ -1282,7 +2111,9 @@ export default {
 .modal-scale-enter-from { opacity: 0; transform: scale(0.95) translateY(10px); }
 
 .modal-scale-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
+
 /* ========== MISC ========== */
+
 .flex { display: flex; } .items-center { align-items: center; } .gap-3 { gap: 12px; }
 
 @media (max-width: 640px) {
