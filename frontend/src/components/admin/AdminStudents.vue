@@ -408,7 +408,14 @@
 
     <transition name="modal-fade">
 
-      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div
+          v-if="showModal"
+          class="modal-overlay"
+          @mousedown="onOverlayPointerDown"
+          @mouseup="onOverlayPointerUp"
+          @touchstart="onOverlayPointerDown"
+          @touchend="onOverlayPointerUp"
+        >
 
         <transition name="modal-scale">
 
@@ -455,13 +462,24 @@
               </div>
 
               <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">First Name *</label>
+                  <input v-model="formData.first_name" class="form-input" type="text" placeholder="Juan" />
+                </div>
 
                 <div class="form-group">
+                  <label class="form-label">Last Name *</label>
+                  <input v-model="formData.last_name" class="form-input" type="text" placeholder="Dela Cruz" />
+                </div>
 
-                  <label class="form-label">Full Name *</label>
+                <div class="form-group">
+                  <label class="form-label">Username {{ isEditing ? "" : "*" }}</label>
+                  <input v-model="formData.username" class="form-input" type="text" autocomplete="off" />
+                </div>
 
-                  <input v-model="formData.full_name" class="form-input" type="text" placeholder="Juan Dela Cruz" />
-
+                <div class="form-group">
+                  <label class="form-label">Password {{ isEditing ? "(optional – leave blank to keep)" : "*" }}</label>
+                  <input v-model="formData.password" class="form-input" type="password" autocomplete="new-password" />
                 </div>
 
                 <div v-if="formData.track === 'driving'" class="form-group">
@@ -473,11 +491,9 @@
                 </div>
 
                 <div class="form-group">
-
-                  <label class="form-label">Birthdate</label>
-
-                  <input v-model="formData.birthdate" class="form-input" type="date" />
-
+                  <label class="form-label">Birthdate {{ isEditing ? "" : "*" }}</label>
+                  <input v-model="formData.birthdate" class="form-input" type="date" :max="maxBirthdate" />
+                  <p class="text-xs text-gray-400 mt-1">Must be at least {{ minAge }} years old.</p>
                 </div>
 
                 <div class="form-group">
@@ -497,11 +513,66 @@
                 </div>
 
                 <div class="form-group">
+                  <label class="form-label">Civil Status</label>
+                  <select v-model="formData.civil_status" class="form-input">
+                    <option value="">Select Civil Status</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Separated">Separated</option>
+                    <option value="Divorced">Divorced</option>
+                  </select>
+                </div>
 
-                  <label class="form-label">Email</label>
+                <div class="form-group">
+
+                  <label class="form-label">Email {{ isEditing ? "" : "*" }}</label>
 
                   <input v-model="formData.email" class="form-input" type="email" placeholder="email@example.com" />
 
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Contact Number {{ isEditing ? "" : "*" }}</label>
+                  <input v-model="formData.contact_no" @input="onContactInput" class="form-input" type="text" inputmode="numeric" maxlength="11" placeholder="09XXXXXXXXX" />
+                </div>
+
+                <div class="form-group nationality-wrap" ref="natWrapRef">
+                  <label class="form-label">Nationality {{ isEditing ? "" : "*" }}</label>
+                  <input
+                    v-model="nationalityQuery"
+                    type="text"
+                    class="form-input"
+                    autocomplete="off"
+                    placeholder="Search nationality (e.g., Filipino)"
+                    @focus="openNationality"
+                    @input="onNationalityInput"
+                    @keydown.down.prevent="moveNationality(1)"
+                    @keydown.up.prevent="moveNationality(-1)"
+                    @keydown.enter.prevent="selectHighlightedNationality"
+                    @keydown.esc.prevent="isNationalityOpen = false"
+                  />
+                  <div v-if="isNationalityOpen && filteredNationalities.length" class="nationality-dropdown">
+                    <button
+                      v-for="(n, idx) in filteredNationalities"
+                      :key="n"
+                      type="button"
+                      class="nationality-option"
+                      :class="{ 'nationality-option-active': idx === nationalityHighlight }"
+                      @mousedown.prevent="pickNationality(n)"
+                    >{{ n }}</button>
+                  </div>
+                </div>
+
+                <div class="form-group md-col-span-2">
+                  <label class="form-label">Address {{ isEditing ? "" : "*" }}</label>
+                  <div class="address-grid">
+                    <input v-model="addressParts.street" class="form-input" placeholder="Street / Sitio / House No." />
+                    <input v-model="addressParts.barangay" class="form-input" placeholder="Barangay" />
+                    <input v-model="addressParts.city" class="form-input" placeholder="City / Municipality" />
+                    <input v-model="addressParts.province" class="form-input" placeholder="Province" />
+                  </div>
+                  <p class="address-preview">Preview: <span>{{ composedAddressPreview }}</span></p>
                 </div>
 
                 <div class="form-group">
@@ -884,7 +955,7 @@
 
 <script>
 
-import { ref, computed, onMounted, reactive, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from "vue";
 
 import AdminLayout from "./AdminLayout.vue";
 
@@ -966,11 +1037,12 @@ export default {
 
       track: "driving", source: "walkin", status: "confirmed",
 
-      client_id: "", full_name: "", birthdate: "", sex: "",
+      client_id: "", full_name: "", first_name: "", last_name: "",
+      username: "", password: "", birthdate: "", sex: "",
 
       instructor_name: "", course_start: "", course_end: "", training_purpose: "",
 
-      course_id: "", dl_code: "", payment_method: "CASH", email: "", contact_no: "", address: "",
+      course_id: "", dl_code: "", payment_method: "CASH", email: "", contact_no: "", address: "", nationality: "",
 
     });
 
@@ -980,6 +1052,29 @@ export default {
 
     const fmtBirth = (d) => { if (!d) return "—"; const dt = new Date(d); if (Number.isNaN(dt.getTime())) return "—"; const mm = String(dt.getMonth() + 1).padStart(2, "0"); const dd = String(dt.getDate()).padStart(2, "0"); const yy = String(dt.getFullYear()).slice(-2); return `${mm}/${dd}/${yy}`; };
 
+    const MIN_AGE = { driving: 17, tesda: 15 };
+      const minAge = computed(() => MIN_AGE[formData.track] || 17);
+
+      const maxBirthdate = computed(() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - minAge.value);
+        return toYMD(d);
+      });
+
+      const isAtLeastMinAge = (ymd) => {
+        const b = new Date(`${ymd}T00:00:00`);
+        if (Number.isNaN(b.getTime())) return false;
+        const t = new Date();
+        let age = t.getFullYear() - b.getFullYear();
+        const m = t.getMonth() - b.getMonth();
+        if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
+        return age >= minAge.value;
+      };
+
+      const splitFullName = (full) => {
+        const parts = String(full || "").trim().split(/\s+/).filter(Boolean);
+        return { first: parts[0] || "", last: parts.slice(1).join(" ") };
+      };
     function statusPill(status) {
 
       const s = String(status || "").toLowerCase();
@@ -1684,6 +1779,60 @@ export default {
 
     watch(activeTotalPages, () => { if (activePage.value > activeTotalPages.value) setActivePage(activeTotalPages.value); });
 
+        const addressParts = ref({ street: "", barangay: "", city: "", province: "" });
+
+        const buildAddressString = () =>
+          [addressParts.value.street, addressParts.value.barangay, addressParts.value.city, addressParts.value.province]
+            .map((x) => x?.trim()).filter(Boolean).join(", ");
+
+        const composedAddressPreview = computed(() => buildAddressString() || "—");
+
+        const fillAddressPartsFromString = (addr) => {
+          const c = String(addr || "").split(",").map((x) => x.trim()).filter(Boolean);
+          addressParts.value = { street: c[0] || "", barangay: c[1] || "", city: c[2] || "", province: c[3] || "" };
+        };
+
+        const onContactInput = () => {
+          formData.contact_no = String(formData.contact_no || "").replace(/\D/g, "").slice(0, 11);
+        };
+
+        const nationalities = [
+          "Filipino","American","British","Canadian","Australian","Chinese","Japanese","Korean",
+          "Indian","Malaysian","Singaporean","Indonesian","Thai","Vietnamese","Cambodian","Laotian",
+          "Myanmar","Pakistani","Bangladeshi","Sri Lankan","Nepalese","Bhutanese","Afghan","Iranian",
+          "Iraqi","Saudi","Emirati","Qatari","Kuwaiti","Omani","Yemeni","Jordanian","Lebanese","Syrian",
+          "Turkish","Russian","Ukrainian","Polish","German","French","Spanish","Italian","Portuguese",
+          "Dutch","Belgian","Swiss","Austrian","Swedish","Norwegian","Danish","Finnish","Irish","Greek",
+          "Romanian","Bulgarian","Hungarian","Czech","Slovak","Croatian","Serbian","Slovenian","Bosnian",
+          "Albanian","Macedonian","Brazilian","Argentinian","Chilean","Peruvian","Colombian","Venezuelan",
+          "Mexican","Cuban","Dominican","Jamaican","Haitian","South African","Nigerian","Kenyan","Egyptian","Moroccan",
+        ];
+        const nationalityQuery = ref("");
+        const isNationalityOpen = ref(false);
+        const nationalityHighlight = ref(0);
+        const natWrapRef = ref(null);
+
+        const filteredNationalities = computed(() => {
+          const q = nationalityQuery.value.trim().toLowerCase();
+          return (q ? nationalities.filter((n) => n.toLowerCase().includes(q)) : nationalities).slice(0, 12);
+        });
+        const openNationality = () => { isNationalityOpen.value = true; nationalityHighlight.value = 0; };
+        const onNationalityInput = () => { openNationality(); formData.nationality = nationalityQuery.value; };
+        const pickNationality = (n) => { nationalityQuery.value = n; formData.nationality = n; isNationalityOpen.value = false; };
+        const moveNationality = (dir) => {
+          isNationalityOpen.value = true;
+          const max = filteredNationalities.value.length - 1;
+          if (max < 0) return;
+          nationalityHighlight.value = Math.max(0, Math.min(max, nationalityHighlight.value + dir));
+        };
+        const selectHighlightedNationality = () => {
+          const n = filteredNationalities.value[nationalityHighlight.value];
+          if (n) pickNationality(n);
+        };
+        const onDocMouseDown = (e) => {
+          if (isNationalityOpen.value && natWrapRef.value && !natWrapRef.value.contains(e.target)) isNationalityOpen.value = false;
+        };
+
     const resetForm = () => {
 
       formError.value = "";
@@ -1704,12 +1853,17 @@ export default {
 
         client_id: "",
 
-        full_name: "",
+          full_name: "",
+        first_name: "",
+        last_name: "",
+        username: "",
+        password: "",
 
-        birthdate: "",
-
-        sex: "",
-
+      birthdate: "",
+      sex: "",
+      civil_status: "",
+      email: "",
+      track: "",
         instructor_name: "",
 
         course_start: "",
@@ -1729,8 +1883,11 @@ export default {
         contact_no: "",
 
         address: "",
-
+        nationality: "",
       });
+      addressParts.value = { street: "", barangay: "", city: "", province: "" };
+      nationalityQuery.value = "";
+      isNationalityOpen.value = false;
 
     };
 
@@ -1744,7 +1901,11 @@ export default {
 
       formData.source = (row.source || "online").toLowerCase(); formData.status = (row.status || "confirmed").toLowerCase();
 
-      formData.client_id = row.client_id || ""; formData.full_name = row.full_name || ""; formData.birthdate = fmtYMD(row.birthdate) !== "—" ? fmtYMD(row.birthdate) : "";
+      formData.client_id = row.client_id || ""; formData.full_name = row.full_name || ""; 
+      formData.birthdate = fmtYMD(row.birthdate) !== "—" ? fmtYMD(row.birthdate) : "";
+      formData.sex = row.sex || "";
+      formData.civil_status = row.civil_status || "";
+      formData.email = row.email || "";
 
       formData.sex = row.sex || ""; formData.instructor_name = row.instructor_name || ""; formData.course_start = fmtYMD(row.course_start) !== "—" ? fmtYMD(row.course_start) : "";
 
@@ -1752,131 +1913,141 @@ export default {
 
       formData.course_id = row.course_id ? String(row.course_id) : ""; formData.dl_code = row.dl_code || "";
 
-      formData.email = row.email || ""; formData.contact_no = row.contact_no || ""; formData.address = row.address || "";
-
+     formData.email = row.email || "";
+      formData.contact_no = row.contact_no || row.contact || "";
+      formData.address = row.address || "";
+      formData.nationality = row.nationality || "";
+      fillAddressPartsFromString(formData.address);
+      nationalityQuery.value = formData.nationality;
+      const nm = splitFullName(row.full_name);
+      formData.first_name = nm.first;
+      formData.last_name = nm.last;
+      formData.username = row.username || "";
+      formData.password = "";
       showModal.value = true; onCoursePick();
 
     };
 
     const closeModal = () => { showModal.value = false; };
 
+      // Close only if mousedown AND mouseup both happen on the overlay itself
+      const overlayDownOnSelf = ref(false);
+      const onOverlayPointerDown = (e) => { overlayDownOnSelf.value = e.target === e.currentTarget; };
+      const onOverlayPointerUp = (e) => {
+        if (overlayDownOnSelf.value && e.target === e.currentTarget) closeModal();
+        overlayDownOnSelf.value = false;
+      };
+
     const openDeleteModal = (row, track) => { studentToDelete.value = { ...row, track }; showDeleteModal.value = true; };
 
     const closeDeleteModal = () => { showDeleteModal.value = false; studentToDelete.value = null; };
 
-    const submitStudent = async () => {
+      const submitStudent = async () => {
+        saving.value = true;
+        formError.value = "";
 
-      saving.value = true;
+        try {
+          const isTesda = formData.track === "tesda";
+          const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
 
-      formError.value = "";
+          const first = formData.first_name.trim();
+          const last = formData.last_name.trim();
+          const fullName = [first, last].filter(Boolean).join(" ");
 
-      try {
+          const payload = {
+            first_name: first,
+            last_name: last,
+            full_name: fullName,
+            username: formData.username.trim() || null,
+            password: formData.password || null,
+            birthdate: formData.birthdate || null,
+            sex: formData.sex || null,
+            civil_status: formData.civil_status || null,
+            email: formData.email || null,
+            track: formData.track,
+            contact_no: formData.contact_no || null,
+            contact: formData.contact_no || null, // temporary; aalisin ang isa kapag nakita ko ang backend
+            address: buildAddressString() || null,
+            nationality: formData.nationality?.trim() || null,
+            source: formData.source,
+            status: formData.status,
+            course_id: formData.course_id ? Number(formData.course_id) : null,
+            schedule_id: formData.schedule_id ? Number(formData.schedule_id) : null,
+            course_start: formData.course_start || null,
+            course_end: formData.course_end || null,
+            training_purpose: !isTesda && isSelectedDrivingPdc.value ? formData.training_purpose || null : null,
+            client_id: formData.client_id || null,
+            dl_code: formData.dl_code || null,
+            payment_method: !isTesda ? formData.payment_method : null,
+          };
 
-        const isTesda = formData.track === "tesda";
+          if (!first || !last) {
+            formError.value = "First name and last name are required.";
+            return;
+          }
 
-        const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students";
+          if (!isEditing.value) {
+            if (!formData.username.trim()) { formError.value = "Username is required."; return; }
+            if (!formData.password) { formError.value = "Password is required."; return; }
+            if (!formData.email) { formError.value = "Email is required."; return; }
+            if (!formData.birthdate) { formError.value = "Birthdate is required."; return; }
+            if (!/^09\d{9}$/.test(formData.contact_no || "")) { formError.value = "Enter a valid contact number (09XXXXXXXXX)."; return; }
+            if (!buildAddressString() || Object.values(addressParts.value).some((x) => !x.trim())) { formError.value = "Complete address is required."; return; }
+            if (!formData.nationality?.trim()) { formError.value = "Nationality is required."; return; }
+          }
 
-        const payload = {
+          if (formData.password && formData.password.length < 8) {
+            formError.value = "Password must be at least 8 characters.";
+            return;
+          }
 
-          full_name: formData.full_name,
+          if (formData.birthdate && !isAtLeastMinAge(formData.birthdate)) {
+            formError.value = `Student must be at least ${minAge.value} years old for ${formData.track.toUpperCase()}.`;
+            return;
+          }
 
-          birthdate: formData.birthdate || null,
+          if (!payload.course_id) {
+            formError.value = "Course is required.";
+            return;
+          }
 
-          sex: formData.sex || null,
+          if (!isEditing.value && !payload.schedule_id) {
+            formError.value = "Please select an available schedule.";
+            return;
+          }
 
-          email: formData.email || null,
+          if (!isTesda && !isEditing.value && !payload.payment_method) {
+            formError.value = "Payment method is required.";
+            return;
+          }
 
-          source: formData.source,
+          if (!isTesda && isSelectedDrivingPdc.value && !payload.training_purpose) {
+            formError.value = "Training purpose is required for PDC.";
+            return;
+          }
 
-          status: formData.status,
+          if (isEditing.value && formData.reservation_id) {
+            await apiJson(`${baseUrl}/${formData.reservation_id}`, { method: "PUT", body: JSON.stringify(payload) });
+          } else {
+            await apiJson(baseUrl, { method: "POST", body: JSON.stringify(payload) });
+          }
 
-          course_id: formData.course_id ? Number(formData.course_id) : null,
-
-          schedule_id: formData.schedule_id ? Number(formData.schedule_id) : null,
-
-          course_start: formData.course_start || null,
-
-          course_end: formData.course_end || null,
-
-          training_purpose: !isTesda && isSelectedDrivingPdc.value ? formData.training_purpose || null : null,
-
-          client_id: formData.client_id || null,
-
-          dl_code: formData.dl_code || null,
-
-          payment_method: !isTesda ? formData.payment_method : null,
-
-        };
-
-        if (!payload.full_name) {
-
-          formError.value = "Full name is required.";
-
-          return;
-
+          closeModal();
+          await fetchActiveTabStudents();
+        } catch (e) {
+          formError.value = e?.message || "Failed to save.";
+        } finally {
+          saving.value = false;
         }
-
-        if (!payload.course_id) {
-
-          formError.value = "Course is required.";
-
-          return;
-
-        }
-
-        if (!isEditing.value && !payload.schedule_id) {
-
-          formError.value = "Please select an available schedule.";
-
-          return;
-
-        }
-
-        if (!isTesda && !isEditing.value && !payload.payment_method) {
-
-          formError.value = "Payment method is required.";
-
-          return;
-
-        }
-
-        if (!isTesda && isSelectedDrivingPdc.value && !payload.training_purpose) {
-
-          formError.value = "Training purpose is required for PDC.";
-
-          return;
-
-        }
-
-        if (isEditing.value && formData.reservation_id) {
-
-          await apiJson(`${baseUrl}/${formData.reservation_id}`, { method: "PUT", body: JSON.stringify(payload) });
-
-        } else {
-
-          await apiJson(baseUrl, { method: "POST", body: JSON.stringify(payload) });
-
-        }
-
-        closeModal();
-
-        await fetchActiveTabStudents();
-
-      } catch (e) {
-
-        formError.value = e?.message || "Failed to save.";
-
-      } finally {
-
-        saving.value = false;
-
-      }
-
-    };
+      };
 
     const confirmDelete = async () => { if (!studentToDelete.value?.reservation_id) return; saving.value = true; try { const isTesda = studentToDelete.value.track === "tesda"; const baseUrl = isTesda ? "/api/admin/tesda/students" : "/api/admin/students"; await apiJson(`${baseUrl}/${studentToDelete.value.reservation_id}`, { method: "DELETE" }); closeDeleteModal(); await fetchActiveTabStudents(); } catch (e) { console.error(e); } finally { saving.value = false; } };
 
-    onMounted(async () => { await fetchCourses(); await fetchAll(); });
+    onMounted(async () => {
+      document.addEventListener("mousedown", onDocMouseDown, true);
+      await fetchCourses(); await fetchAll();
+    });
+    onBeforeUnmount(() => document.removeEventListener("mousedown", onDocMouseDown, true));
 
     return {
 
@@ -1903,6 +2074,11 @@ export default {
       openAddModal, openEditModal, closeModal, openDeleteModal, closeDeleteModal,
 
       submitStudent, confirmDelete,
+      minAge, maxBirthdate, onOverlayPointerDown, onOverlayPointerUp,
+
+      addressParts, composedAddressPreview, onContactInput,
+      natWrapRef, nationalityQuery, isNationalityOpen, nationalityHighlight, filteredNationalities,
+      openNationality, onNationalityInput, pickNationality, moveNationality, selectHighlightedNationality,
 
     };
 
@@ -2097,6 +2273,15 @@ export default {
 .btn-red { background: #ef4444; }
 
 .btn-red:hover:not(:disabled) { background: #dc2626; }
+
+.form-group { position: relative; }
+.address-grid { margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.address-preview { margin-top: 8px; font-size: 0.75rem; color: #6b7280; }
+.address-preview span { color: #111827; font-weight: 600; }
+.nationality-dropdown { position: absolute; z-index: 20; top: 100%; margin-top: 4px; width: 100%; max-height: 190px; overflow-y: auto; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+.nationality-option { display: block; width: 100%; text-align: left; padding: 8px 12px; font-size: 0.85rem; background: transparent; border: none; color: #374151; cursor: pointer; }
+.nationality-option:hover, .nationality-option-active { background: #f0fdf4; color: #059669; }
+@media (max-width: 640px) { .address-grid { grid-template-columns: 1fr; } }
 
 /* ========== ANIMATIONS ========== */
 

@@ -384,9 +384,9 @@
             :class="track === 'tesda' ? 'focus:ring-blue-500' : 'focus:ring-green-500'"
           />
 
-          <p class="text-[11px] text-gray-400 mt-1">
-            You must be at least 17 years old to create an account.
-          </p>
+        <p class="text-[11px] text-gray-400 mt-1">
+          You must be at least {{ minAge }} years old to create an account.
+        </p>
 
           <p
             v-if="errors.birthday"
@@ -714,14 +714,18 @@ export default {
 
       return { score, ...levels[Math.max(0, score - 1)] };
     },
-    maxBirthday() {
-      const today = new Date();
+      minAge() {
+        return this.track === "tesda" ? 15 : 17;
+      },
 
-      const maxDate = new Date(
-        today.getFullYear() - 17,
-        today.getMonth(),
-        today.getDate()
-      );
+      maxBirthday() {
+        const today = new Date();
+
+        const maxDate = new Date(
+          today.getFullYear() - this.minAge,
+          today.getMonth(),
+          today.getDate()
+        );
 
       const year = maxDate.getFullYear();
       const month = String(maxDate.getMonth() + 1).padStart(2, "0");
@@ -906,13 +910,13 @@ export default {
       this.errors.birthday = "Birthday is required";
       isValid = false;
     } else {
-      const age = this.getAge(this.formData.birthday);
+        const age = this.getAge(this.formData.birthday);
 
-      if (age < 17) {
-        this.errors.birthday =
-          "You must be at least 17 years old to create an account.";
-        isValid = false;
-      }
+        if (age < this.minAge) {
+          this.errors.birthday =
+            `You must be at least ${this.minAge} years old to create an account.`;
+          isValid = false;
+        }
     }
 
       if (!this.formData.password) {
