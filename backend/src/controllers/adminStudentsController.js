@@ -911,17 +911,27 @@ exports.createStudent = async (req, res) => {
 
       if (uCols.has("role")) {
         insertCols.push("role");
-
         insertVals.push("?");
-
         params.push("user");
       }
 
+      // ✅ users.password is NOT NULL in the database.
+      // Walk-in students created by admin do not receive
+      // login credentials from this form.
+      if (uCols.has("password")) {
+        insertCols.push("password");
+        insertVals.push("?");
+        params.push("ADMIN_WALKIN_NO_LOGIN");
+      }
+
       if (uCols.has("username")) {
-        const uname = await generateUniqueUsername(body.username, conn);
+        const uname =
+          await generateUniqueUsername(
+            body.username,
+            conn,
+          );
 
         insertCols.push("username");
-
         insertVals.push("?");
 
         params.push(uname);
