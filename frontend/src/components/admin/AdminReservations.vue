@@ -576,21 +576,73 @@ export default {
       return result;
     });
 
-    // Pagination computed (shared for both tracks)
-    const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)));
+// ---- TESDA batching: i-group muna ang LAHAT ng rows, tapos i-paginate ang batches ----
+const BATCH_SIZE = 25;
+const TESDA_BATCHES_PER_PAGE = 5;
 
-    const paginatedRows = computed(() => {
-      const start = (currentPage.value - 1) * pageSize.value;
-      return filteredRows.value.slice(start, start + pageSize.value);
-    });
+const safeTime = (v) => {
+  const s = String(v || "");
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+};
 
-    const pageRangeText = computed(() => {
-      const total = filteredRows.value.length;
-      if (total === 0) return "0 of 0";
-      const start = (currentPage.value - 1) * pageSize.value + 1;
-      const end = Math.min(currentPage.value * pageSize.value, total);
-      return `${start}-${end} of ${total}`;
-    });
+const batchKey = (courseName, batchNo) => `${String(courseName || "Unknown")}__B${batchNo}`;
+
+const allTesdaBatches = computed(() => {
+  if (activeTrack.value !== "tesda") return [];
+  const byCourse = new Map();
+  for (const r of filteredRows.value) {            // <-- lahat ng rows, hindi paginatedRows
+    const c = String(r?.course_name || "Unknown");
+    if (!byCourse.has(c)) byCourse.set(c, []);
+    byCourse.get(c).push(r);
+  }
+  const out = [];
+  for (const [courseName, rows] of byCourse.entries()) {
+    rows.sort((a, b) => safeTime(a.created_at) - safeTime(b.created_at));
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batchNo = Math.floor(i / BATCH_SIZE) + 1;
+      const chunk = rows.slice(i, i + BATCH_SIZE);
+      out.push({ key: batchKey(courseName, batchNo), course_name: courseName, batch_no: batchNo, count: chunk.length, is_full: chunk.length >= BATCH_SIZE, rows: chunk, is_placeholder: false });
+    }
+    if (rows.length > 0 && rows.length % BATCH_SIZE === 0) {
+      const nextBatchNo = Math.floor(rows.length / BATCH_SIZE) + 1;
+      out.push({ key: batchKey(courseName, nextBatchNo), course_name: courseName, batch_no: nextBatchNo, count: 0, is_full: false, rows: [], is_placeholder: true });
+    }
+  }
+  out.sort((a, b) => {
+    const c = String(a.course_name).localeCompare(String(b.course_name));
+    return c !== 0 ? c : Number(a.batch_no) - Number(b.batch_no);
+  });
+  return out;
+});
+
+// Pagination (driving = per row, TESDA = per batch)
+const isTesda = computed(() => activeTrack.value === "tesda");
+const pageSizeNow = computed(() => (isTesda.value ? TESDA_BATCHES_PER_PAGE : pageSize.value));
+const totalItems = computed(() => (isTesda.value ? allTesdaBatches.value.length : filteredRows.value.length));
+
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSizeNow.value)));
+
+const paginatedRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredRows.value.slice(start, start + pageSize.value);
+});
+
+const tesdaBatches = computed(() => {
+  const start = (currentPage.value - 1) * TESDA_BATCHES_PER_PAGE;
+  return allTesdaBatches.value.slice(start, start + TESDA_BATCHES_PER_PAGE);
+});
+
+const pageRangeText = computed(() => {
+  const total = totalItems.value;
+  if (total === 0) return "0 of 0";
+  const size = pageSizeNow.value;
+  const start = (currentPage.value - 1) * size + 1;
+  const end = Math.min(currentPage.value * size, total);
+  return isTesda.value
+    ? `${start}-${end} of ${total} batches (${filteredRows.value.length} learners)`
+    : `${start}-${end} of ${total}`;
+});
 
     const pageButtons = computed(() => {
       const total = totalPages.value;
@@ -627,43 +679,6 @@ export default {
       expandedBatchMap.value = {};
     });
 
-    const BATCH_SIZE = 25;
-
-    const safeTime = (v) => {
-      const s = String(v || "");
-      const d = new Date(s);
-      return Number.isNaN(d.getTime()) ? 0 : d.getTime();
-    };
-
-    const batchKey = (courseName, batchNo) => `${String(courseName || "Unknown")}__B${batchNo}`;
-
-    const tesdaBatches = computed(() => {
-      if (activeTrack.value !== "tesda") return [];
-      const byCourse = new Map();
-      // Use paginatedRows for TESDA batches (paginated)
-      for (const r of paginatedRows.value) {
-        const c = String(r?.course_name || "Unknown");
-        if (!byCourse.has(c)) byCourse.set(c, []);
-        byCourse.get(c).push(r);
-      }
-      const out = [];
-      for (const [courseName, rows] of byCourse.entries()) {
-        rows.sort((a, b) => safeTime(a.created_at) - safeTime(b.created_at));
-        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-          const batchNo = Math.floor(i / BATCH_SIZE) + 1;
-          const chunk = rows.slice(i, i + BATCH_SIZE);
-          const key = batchKey(courseName, batchNo);
-          out.push({ key, course_name: courseName, batch_no: batchNo, count: chunk.length, is_full: chunk.length >= BATCH_SIZE, rows: chunk, is_placeholder: false });
-        }
-        if (rows.length > 0 && rows.length % BATCH_SIZE === 0) {
-          const nextBatchNo = Math.floor(rows.length / BATCH_SIZE) + 1;
-          const key = batchKey(courseName, nextBatchNo);
-          out.push({ key, course_name: courseName, batch_no: nextBatchNo, count: 0, is_full: false, rows: [], is_placeholder: true });
-        }
-      }
-      out.sort((a, b) => { const c = String(a.course_name).localeCompare(String(b.course_name)); if (c !== 0) return c; return Number(a.batch_no) - Number(b.batch_no); });
-      return out;
-    });
 
       const tesdaBatchStatus = (b) => {
       if (b?.is_placeholder) {
