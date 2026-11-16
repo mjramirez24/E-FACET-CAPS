@@ -49,7 +49,7 @@ function safeLike(v) {
 
 function clampLimitOffset(page, limit) {
   const p = Math.max(1, safeInt(page, 1));
-  const l = Math.min(200, Math.max(1, safeInt(limit, 20)));
+  const l = Math.min(10000, Math.max(1, safeInt(limit, 5000)));
   const offset = (p - 1) * l;
   return { page: p, limit: l, offset };
 }
@@ -417,7 +417,7 @@ exports.getDetailed = async (req, res) => {
 
           ts.schedule_date AS schedule_date,
           ts.schedule_date AS course_start,
-          ts.schedule_date AS course_end,
+          NULL AS course_end,
           ts.start_time,
           ts.end_time,
 
@@ -1241,29 +1241,15 @@ COALESCE(u.fullname, CONCAT('Student #', a.student_id)) AS fullname,
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
 
-// GET /api/admin/reports/revenue-preview?from&to&course_id&payment_method
 exports.getRevenuePreview = async (req, res) => {
   try {
     const { from, to } = getDateRange(req);
-
     const courseId = safeStr(req.query.course_id);
     const paymentMethod = safeStr(req.query.payment_method).toUpperCase();
 
-    const dateExpr = `
-          COALESCE(sr.done_at, sr.updated_at, sr.created_at)
-        `;
+    const dateExpr = `COALESCE(sr.done_at, sr.updated_at, sr.created_at)`;
 
-    // =====================================================
-    // MAIN WHERE
-    // Historical + real students
-    // Ginagamit ito sa revenue computation
-    // =====================================================
-    let where = `
-          WHERE ${dateExpr} >= ?
-            AND ${dateExpr} < ?
-            AND ${isDoneConditionSql()}
-        `;
-
+    let where = `WHERE ${dateExpr} >= ? AND ${dateExpr} < ? AND ${isDoneConditionSql()}`;
     const params = [from, to];
 
     if (courseId) {
@@ -1276,121 +1262,76 @@ exports.getRevenuePreview = async (req, res) => {
       params.push(paymentMethod);
     }
 
-    // =====================================================
-    // PAYMENT PREVIEW WHERE
-    // Real students ONLY
-    // Historical/mock students are hidden here
-    // =====================================================
+    // PAYMENT PREVIEW: Real students ONLY
     const previewWhere = `
-          ${where}
-          AND COALESCE(sr.is_historical, 0) = 0
-        `;
+      ${where}
+      AND COALESCE(sr.is_historical, 0) = 0
+    `;
 
-    // =====================================================
-    // QUERY #1
-    // PAYMENT PREVIEW TABLE
-    // Historical/mock students are HIDDEN
-    // =====================================================
+    // QUERY #1: PAYMENT PREVIEW
     const [rows] = await pool.execute(
       `
-          SELECT
-            sr.reservation_id,
-            sr.payment_method AS reservation_payment_method,
-            sr.reservation_status,
-            sr.done_at,
+      SELECT
+        sr.reservation_id,
+        sr.payment_method AS reservation_payment_method,
+        sr.reservation_status,
+        sr.done_at,
+        ${dateExpr} AS sort_date,
+        u.fullname,
+        c.course_name,
+        sps.id AS submission_id,
+        sps.payment_ref,
+        sps.verified_at AS submission_verified_at,
+        sps.created_at AS submission_created_at,
+        CASE
+          WHEN sps.amount_centavos IS NOT NULL
+            THEN ROUND(sps.amount_centavos / 100, 2)
+          ELSE COALESCE(c.course_fee, 0)
+        END AS amount_peso
+      FROM schedule_reservations sr
+      LEFT JOIN users u ON u.id = sr.student_id
+      LEFT JOIN courses c ON c.id = sr.course_id
+      ${latestSubmissionJoinSql()}
+      ${previewWhere}
+      ORDER BY sort_date DESC
+      LIMIT 500
+      `,
+      params,
+    );
 
-            ${dateExpr} AS sort_date,
-
-            u.fullname,
-            c.course_name,
-
-            sps.id AS submission_id,
-            sps.payment_ref,
-            sps.verified_at AS submission_verified_at,
-            sps.created_at AS submission_created_at,
-
+    // QUERY #2: VERIFIED REVENUE / STATS
+    // Includes historical + real students.
+    const [statsRows] = await pool.execute(
+      `
+      SELECT
+        COUNT(*) AS verifiedCount,
+        COALESCE(
+          SUM(
             CASE
               WHEN sps.amount_centavos IS NOT NULL
                 THEN ROUND(sps.amount_centavos / 100, 2)
               ELSE COALESCE(c.course_fee, 0)
-            END AS amount_peso
-
-          FROM schedule_reservations sr
-
-          LEFT JOIN users u
-            ON u.id = sr.student_id
-
-          LEFT JOIN courses c
-            ON c.id = sr.course_id
-
-          ${latestSubmissionJoinSql()}
-
-          ${previewWhere}
-
-          ORDER BY sort_date DESC
-          LIMIT 500
-          `,
-      params,
-    );
-
-    // =====================================================
-    // QUERY #2
-    // VERIFIED REVENUE / STATS
-    //
-    // IMPORTANT:
-    // ${where} ang ginagamit dito.
-    // HINDI ${previewWhere}.
-    //
-    // Kaya historical + real data pa rin ang kasama
-    // sa revenue computation.
-    // =====================================================
-    const [statsRows] = await pool.execute(
-      `
-          SELECT
-            COUNT(*) AS verifiedCount,
-
-            COALESCE(
-              SUM(
-                CASE
-                  WHEN sps.amount_centavos IS NOT NULL
-                    THEN ROUND(
-                      sps.amount_centavos / 100,
-                      2
-                    )
-                  ELSE COALESCE(c.course_fee, 0)
-                END
-              ),
-              0
-            ) AS totalRevenuePeso
-
-          FROM schedule_reservations sr
-
-          LEFT JOIN users u
-            ON u.id = sr.student_id
-
-          LEFT JOIN courses c
-            ON c.id = sr.course_id
-
-          ${latestSubmissionJoinSql()}
-
-          ${where}
-          `,
+            END
+          ),
+          0
+        ) AS totalRevenuePeso
+      FROM schedule_reservations sr
+      LEFT JOIN users u ON u.id = sr.student_id
+      LEFT JOIN courses c ON c.id = sr.course_id
+      ${latestSubmissionJoinSql()}
+      ${where}
+      `,
       params,
     );
 
     const verifiedCount = Number(statsRows?.[0]?.verifiedCount || 0);
-
     const totalRevenuePeso = Number(statsRows?.[0]?.totalRevenuePeso || 0);
 
     const avgFeePeso = verifiedCount
       ? Math.round(totalRevenuePeso / verifiedCount)
       : 0;
 
-    // =====================================================
     // FORECAST REVENUE SUPPORT DATA
-    // Enrollment prediction is already computed by /forecast.
-    // Revenue endpoint only needs to provide the average fee.
-    // =====================================================
     let avgFeePesoForForecast = 0;
 
     try {
@@ -1408,66 +1349,50 @@ exports.getRevenuePreview = async (req, res) => {
             0
           ) AS totalRevenuePeso
         FROM schedule_reservations sr
-        LEFT JOIN courses c
-          ON c.id = sr.course_id
+        LEFT JOIN courses c ON c.id = sr.course_id
         ${latestSubmissionJoinSql()}
         WHERE ${isDoneConditionSql()}
       `);
 
       const allTimeDoneCount = Number(allTimeFeeRows?.[0]?.doneCount || 0);
-
       const allTimeRevenue = Number(allTimeFeeRows?.[0]?.totalRevenuePeso || 0);
 
-      avgFeePesoForForecast =
-        allTimeDoneCount > 0
-          ? Math.round(allTimeRevenue / allTimeDoneCount)
-          : 0;
+      avgFeePesoForForecast = allTimeDoneCount > 0
+        ? Math.round(allTimeRevenue / allTimeDoneCount)
+        : 0;
+
     } catch (feeErr) {
       console.error(
         "avgFeePesoForForecast computation failed:",
-        feeErr.message,
+        feeErr.message
       );
 
       avgFeePesoForForecast = 0;
     }
 
-    // Compatibility only.
-    // The actual forecast revenue is computed in Vue using
-    // the already-loaded enrollment forecast.
     const forecastRevenuePeso = 0;
 
     return res.json({
       status: "success",
-
       data: {
-        // Revenue computation:
-        // historical + actual students
         verifiedCount,
         verifiedRevenuePeso: totalRevenuePeso,
-
         doneCount: verifiedCount,
         totalRevenuePeso,
-
         avgFeePeso,
         avgFeePesoForForecast,
         forecastRevenuePeso,
 
-        // Payment Preview:
-        // actual students ONLY
+        // Actual students ONLY
         payments: rows.map((p) => ({
           reservation_id: p.reservation_id,
           payment_ref: p.payment_ref || null,
           fullname: p.fullname || null,
           course_name: p.course_name || null,
-
           payment_method: p.reservation_payment_method || null,
-
           amount_peso: Number(p.amount_peso || 0),
-
           status: "DONE",
-
           verified_at: p.submission_verified_at || null,
-
           created_at: p.submission_created_at || p.sort_date || null,
         })),
       },
@@ -1482,6 +1407,7 @@ exports.getRevenuePreview = async (req, res) => {
     });
   }
 };
+
 
 // ------------------------
 // ✅ EXPORT CONTROLLERS

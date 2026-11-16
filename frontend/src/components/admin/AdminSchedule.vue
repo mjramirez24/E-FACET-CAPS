@@ -768,6 +768,12 @@ import { ref, computed, onMounted, reactive, watch } from "vue";
 import AdminLayout from "./AdminLayout.vue";
 import axios from "axios";
 import { API_URL } from "../../config/api";
+import {
+  parseDurationHours,
+  isMonToSatYMD,
+  listTesdaTrainingDays,
+  tesdaEndDateFromStart,
+} from "../../utils/tesdaSchedule";
 
 const api = axios.create({
   baseURL: API_URL,
@@ -816,63 +822,6 @@ const withinFacetHours = (start, end) => {
 
 // TESDA batch constants
 const TESDA_BATCH_CAP = 25;
-
-// ===============================
-// ✅ TESDA: duration -> training days (Mon–Sat), skipping Sundays
-// ===============================
-const TESDA_HOURS_PER_DAY = 9;
-
-const parseDurationHours = (duration) => {
-  const m = String(duration || "").match(/(\d+(?:\.\d+)?)/);
-  const n = m ? Number(m[1]) : 0;
-  return Number.isFinite(n) ? n : 0;
-};
-
-const tesdaDaysFromDuration = (duration) => {
-  const totalHours = parseDurationHours(duration);
-  return totalHours > 0 ? Math.max(1, Math.ceil(totalHours / TESDA_HOURS_PER_DAY)) : 1;
-};
-
-const isMonToSatYMD = (ymd) => {
-  if (!ymd) return false;
-  const d = new Date(`${ymd}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return false;
-  const day = d.getDay(); // 0..6
-  return day >= 1 && day <= 6;
-};
-
-const addDaysSkipSundays = (startYmd, addTrainingDays) => {
-  let d = new Date(`${startYmd}T00:00:00`);
-  let added = 0;
-
-  while (added < addTrainingDays) {
-    d.setDate(d.getDate() + 1);
-    const ymd = toLocalYMD(d);
-    if (isMonToSatYMD(ymd)) added++;
-  }
-  return toLocalYMD(d);
-};
-
-const listTesdaTrainingDays = (startYmd, duration) => {
-  if (!startYmd) return [];
-  if (!isMonToSatYMD(startYmd)) return []; // start date must be Mon-Sat
-
-  const daysNeeded = tesdaDaysFromDuration(duration);
-  const out = [startYmd];
-
-  let cur = startYmd;
-  while (out.length < daysNeeded) {
-    cur = addDaysSkipSundays(cur, 1);
-    out.push(cur);
-  }
-  return out;
-};
-
-const tesdaEndDateFromStart = (startYmd, duration) => {
-  if (!startYmd) return "";
-  const days = listTesdaTrainingDays(startYmd, duration);
-  return days.length ? days[days.length - 1] : "";
-};
 
 export default {
   name: "AdminSchedule",

@@ -45,6 +45,61 @@ function fmtDate(d) {
   });
 }
 
+const TESDA_HOURS_PER_DAY = 9;
+
+function parseDurationHours(duration) {
+  const m = String(duration || "").match(/(\d+(?:\.\d+)?)/);
+  const n = m ? Number(m[1]) : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+function tesdaEndDateFromStart(startYmd, duration) {
+  if (!startYmd) return null;
+  let date;
+
+  if (startYmd instanceof Date) {
+    date = new Date(
+      startYmd.getFullYear(),
+      startYmd.getMonth(),
+      startYmd.getDate(),
+    );
+  } else {
+    const start = String(startYmd).slice(0, 10);
+    const [year, month, day] = start.split("-").map(Number);
+
+    date = new Date(year, month - 1, day);
+  }
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  const startDay = date.getDay();
+
+  // TESDA training starts Monday–Saturday only
+  if (startDay === 0) return null;
+
+  const totalHours = parseDurationHours(duration);
+  const daysNeeded =
+    totalHours > 0
+      ? Math.max(1, Math.ceil(totalHours / TESDA_HOURS_PER_DAY))
+      : 1;
+
+  let added = 1;
+
+  while (added < daysNeeded) {
+    date.setDate(date.getDate() + 1);
+
+    if (date.getDay() >= 1 && date.getDay() <= 6) {
+      added++;
+    }
+  }
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+
+  return `${y}-${m}-${d}`;
+}
+
 function computeAge(birthday) {
   const b = safeDate(birthday);
   if (!b) return "—";
@@ -919,6 +974,8 @@ exports.listCompletions = async (req, res) => {
         r.reservation_status,
         r.done_at,
         r.updated_at,
+        NULL AS tesda_start_date,
+        NULL AS course_duration,
 
         u.fullname AS student_name,
         u.email AS student_email,
@@ -969,8 +1026,11 @@ exports.listCompletions = async (req, res) => {
         NULL AS picture_2x2,
         'TESDA' AS reservation_type,
         tr.reservation_status,
-        tr.updated_at AS done_at,
+        NULL AS done_at,
         tr.updated_at,
+
+        ts.schedule_date AS tesda_start_date,
+        tc.duration AS course_duration,
 
         u2.fullname AS student_name,
         u2.email AS student_email,
@@ -1013,15 +1073,21 @@ exports.listCompletions = async (req, res) => {
 
       const isMock = String(r.student_email || "").endsWith("@seedtest.local");
 
-      return {
-        ...r,
-        track,
-        age: computeAge(r.birthday),
-        sex: normalizeSex(r.gender),
-        ui_status,
-        is_mock: isMock,
-      };
-    });
+      const tesdaDoneDate =
+        track === "tesda"
+          ? tesdaEndDateFromStart(r.tesda_start_date, r.course_duration)
+          : r.done_at;
+
+        return {
+          ...r,
+          done_at: tesdaDoneDate || r.done_at,
+          track,
+          age: computeAge(r.birthday),
+          sex: normalizeSex(r.gender),
+          ui_status,
+          is_mock: isMock,
+        };
+      });
 
       // ✅ Stats computed from the FULL dataset (kasama ang mock data), split by track
       const stats = {
@@ -1232,9 +1298,10 @@ exports.generateTesda = async (req, res) => {
       SELECT
         tr.reservation_id,
         tr.reservation_status,
-        tr.updated_at AS done_at,
-        u.fullname AS student_name,
-        tc.course_name
+      ts.schedule_date AS tesda_start_date,
+      tc.duration AS course_duration,
+      u.fullname AS student_name,
+      tc.course_name
       FROM tesda_schedule_reservations tr
       JOIN users u ON u.id = tr.student_id
       JOIN tesda_schedules ts ON ts.schedule_id = tr.schedule_id
@@ -1252,6 +1319,10 @@ exports.generateTesda = async (req, res) => {
     }
 
     const r = rRows[0];
+    const tesdaDoneDate = tesdaEndDateFromStart(
+      r.tesda_start_date,
+      r.course_duration,
+    );
 
     if (r.reservation_status !== "DONE") {
       return res
@@ -1288,7 +1359,7 @@ exports.generateTesda = async (req, res) => {
       student_name: r.student_name,
       course_name: r.course_name || "TESDA Course",
       issued_at,
-      done_at: r.done_at,
+      done_at: tesdaDoneDate,
     });
 
     await pool.execute(

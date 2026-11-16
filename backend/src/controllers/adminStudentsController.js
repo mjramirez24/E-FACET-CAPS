@@ -3,14 +3,15 @@ const pool = require("../config/database");
 const bcrypt = require("bcryptjs");
 
 async function getTrackIdByCode(code) {
-  const c = String(code || "")
-    .trim()
-    .toLowerCase();
+  const c = String(code || "").trim().toLowerCase();
+
   if (c !== "driving" && c !== "tesda") return null;
+
   const [rows] = await pool.execute(
     "SELECT track_id FROM tracks WHERE track_code = ? LIMIT 1",
     [c],
   );
+
   return rows?.[0]?.track_id ?? null;
 }
 // ------------------------
@@ -752,18 +753,22 @@ exports.createStudent = async (req, res) => {
         uSets.push("civil_status = ?");
         uParams.push(safeStr(body.civil_status) || null);
       }
+
       if (uCols.has("contact") && safeStr(body.contact_no ?? body.contact)) {
         uSets.push("contact = ?");
         uParams.push(safeStr(body.contact_no ?? body.contact));
       }
+
       if (uCols.has("address") && safeStr(body.address)) {
         uSets.push("address = ?");
         uParams.push(safeStr(body.address));
       }
+
       if (uCols.has("nationality") && safeStr(body.nationality)) {
         uSets.push("nationality = ?");
         uParams.push(safeStr(body.nationality));
       }
+
       if (uCols.has("track_id")) {
         const trackId = await getTrackIdByCode(track);
         if (trackId) {
@@ -780,8 +785,6 @@ exports.createStudent = async (req, res) => {
         );
       }
     }
-
-    // ensure schedule_id (WALK-IN safe)
     const scheduleId = await ensureScheduleId({
       schedule_id: body.schedule_id,
       courseId,
@@ -967,7 +970,11 @@ exports.updateStudent = async (req, res) => {
         "SELECT id FROM users WHERE username = ? AND id <> ? LIMIT 1",
         [uname, cur.student_id],
       );
-      if (d?.[0]?.id) throw new Error("Username already used by another user.");
+
+      if (d?.[0]?.id) {
+        throw new Error("Username already used by another user.");
+      }
+
       uSets.push("username = ?");
       uParams.push(uname);
     }

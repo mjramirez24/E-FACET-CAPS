@@ -779,7 +779,7 @@
                     <td v-if="visibleColumns.instructor_name">{{ row.trainer_name || row.instructor_name || '-' }}</td>
                     <td v-if="visibleColumns.course_name">{{ row.course_name || '-' }}</td>
                     <td v-if="visibleColumns.course_start">{{ (row.course_start || row.schedule_date) ? formatDate(row.course_start || row.schedule_date) : '-' }}</td>
-                    <td v-if="visibleColumns.course_end">{{ (row.course_end || row.schedule_date) ? formatDate(row.course_end || row.schedule_date) : '-' }}</td>
+                    <td v-if="visibleColumns.course_end">{{ row.course_end ? formatDate(row.course_end) : 'Hindi nakasaad' }}</td>
                     <td v-if="visibleColumns.reservation_source">{{ row.reservation_source || '-' }}</td>
                     <td v-if="visibleColumns.created_at">{{ row.created_at ? formatDate(row.created_at) : '-' }}</td>
                     <td v-if="visibleColumns.nationality">{{ row.nationality || '-' }}</td>
@@ -861,35 +861,89 @@
             </div>
           </div>
 
-          <!-- Basic filters only -->
-          <div class="filters-panel mt-4" style="background: transparent; border: none; padding: 0;">
-            <div class="filter-field">
-              <label class="filter-label">From</label>
-              <input v-model="attendanceFilters.from" type="date" @change="attendancePage = 1; loadAttendance()" class="date-input-modern" style="width: 150px;" />
-            </div>
-            <div class="filter-field">
-              <label class="filter-label">To</label>
-              <input v-model="attendanceFilters.to" type="date" @change="attendancePage = 1; loadAttendance()" class="date-input-modern" style="width: 150px;" />
-            </div>
-            <div class="filter-field">
-              <label class="filter-label">Status</label>
-              <select v-model="attendanceFilters.status" @change="attendancePage = 1; loadAttendance()" class="select-modern-sm" style="width: 140px;">
-                <option value="">All</option>
-                <option value="Present">Present</option>
-                <option value="Late">Late</option>
-                <option value="Absent">Absent</option>
-              </select>
-            </div>
-            <div class="filter-field">
-              <label class="filter-label">Rows</label>
-              <select v-model.number="attendancePageSize" class="select-modern-sm" style="width: 90px;">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-              </select>
-            </div>
-            <button @click="loadAttendance" class="pg-btn pg-btn-accent" style="align-self: flex-end;">Apply</button>
-          </div>
+         
+<!-- Improved Attendance Filters -->
+<div class="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+    <div>
+      <h4 class="text-sm font-bold text-gray-800">Attendance Filters</h4>
+      <p class="text-xs text-gray-500 mt-1">
+        Filter attendance records by date and status.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Date From -->
+    <div class="rounded-lg border border-gray-200 bg-white p-3">
+      <label class="block text-xs font-bold text-gray-600 mb-2">
+        From Date
+      </label>
+      <input
+        v-model="attendanceFilters.from"
+        type="date"
+        @change="attendancePage = 1; loadAttendance()"
+        class="date-input-modern w-full"
+      />
+    </div>
+
+    <!-- Date To -->
+    <div class="rounded-lg border border-gray-200 bg-white p-3">
+      <label class="block text-xs font-bold text-gray-600 mb-2">
+        To Date
+      </label>
+      <input
+        v-model="attendanceFilters.to"
+        type="date"
+        @change="attendancePage = 1; loadAttendance()"
+        class="date-input-modern w-full"
+      />
+    </div>
+
+    <!-- Status -->
+    <div class="rounded-lg border border-gray-200 bg-white p-3">
+      <label class="block text-xs font-bold text-gray-600 mb-2">
+        Attendance Status
+      </label>
+      <select
+        v-model="attendanceFilters.status"
+        @change="attendancePage = 1; loadAttendance()"
+        class="select-modern-sm w-full"
+      >
+        <option value="">All Statuses</option>
+        <option value="Present">Present</option>
+        <option value="Late">Late</option>
+        <option value="Absent">Absent</option>
+      </select>
+    </div>
+
+    <!-- Rows -->
+    <div class="rounded-lg border border-gray-200 bg-white p-3">
+      <label class="block text-xs font-bold text-gray-600 mb-2">
+        Rows per Page
+      </label>
+      <select
+        v-model.number="attendancePageSize"
+        class="select-modern-sm w-full"
+      >
+        <option :value="10">10 rows</option>
+        <option :value="25">25 rows</option>
+        <option :value="50">50 rows</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Apply Button -->
+  <div class="flex justify-end mt-4">
+    <button
+      type="button"
+      @click="attendancePage = 1; loadAttendance()"
+      class="pg-btn pg-btn-accent w-full sm:w-auto"
+    >
+      Apply Filters
+    </button>
+  </div>
+</div>
 
           <!-- Separate action tabs / less crowded -->
           <div class="toolbar-row mt-4">
@@ -1692,6 +1746,7 @@ import { GridComponent, TooltipComponent, LegendComponent, TitleComponent, Visua
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { tesdaEndDateFromStart, normalizeYMD } from "../../utils/tesdaSchedule.js";
 
 echarts.use([CanvasRenderer, LineChart, BarChart, PieChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent]);
 
@@ -3074,18 +3129,18 @@ const mlForecastError = ref("");
           return;
         }
 
-        // TESDA = raw reservations list (no payment_method, no group_by)
-        const qs = buildParams("detailed", {
-          source: "",
-        });
+      // TESDA = raw reservations list
+      const qs = buildParams("detailed", { source: "" });
+      const json = await apiGet(`/api/admin/reports/detailed?${qs.toString()}`);
+      const rows = json.status === "success" && Array.isArray(json.data) ? json.data : [];
 
-        const json = await apiGet(`/api/admin/reports/detailed?${qs.toString()}`);
-        detailedRows.value =
-          json.status === "success"
-            ? Array.isArray(json.data)
-              ? json.data
-              : []
-            : [];
+      // Same rule as Add TESDA Batch: start date + duration, Mon–Sat
+      detailedRows.value = rows.map((r) => ({
+        ...r,
+        course_end:
+          tesdaEndDateFromStart(normalizeYMD(r.course_start || r.schedule_date), r.duration) || null,
+      }));
+
       } catch (e) {
         detailedError.value =
           e?.response?.data?.message ||
@@ -4230,7 +4285,10 @@ async function reloadCertificateReport() {
       if (key === "birthday") return row.birthday ? formatDateShort(row.birthday) : "";
       if (key === "gender") return row.gender ? (String(row.gender).toLowerCase() === "male" ? "M" : "F") : "";
       if (key === "course_start") return (row.course_start || row.schedule_date) ? formatDate(row.course_start || row.schedule_date) : "";
-      if (key === "course_end") return (row.course_end || row.schedule_date) ? formatDate(row.course_end || row.schedule_date) : "";
+      if (key === "course_end") {
+        if (reportMode.value === "tesda") return row.course_end ? formatDate(row.course_end) : "Hindi nakasaad";
+        return (row.course_end || row.schedule_date) ? formatDate(row.course_end || row.schedule_date) : "";
+      }
       if (key === "created_at") return row.created_at ? formatDate(row.created_at) : "";
       if (key === "verified_at") return row.verified_at ? formatDate(row.verified_at) : "";
       if (key === "done_at") return row.done_at ? formatDate(row.done_at) : "";

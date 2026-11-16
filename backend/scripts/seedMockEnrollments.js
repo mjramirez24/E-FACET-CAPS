@@ -12,14 +12,14 @@ const REAL_MONTHLY_DATA = [
   { month: "2025-01", tdc: 9,  pdcTotal: 66 },
   { month: "2025-02", tdc: 11, pdcTotal: 99 },
   { month: "2025-03", tdc: 8,  pdcTotal: 122 },
-  { month: "2025-04", tdc: 11, pdcTotal: 82 },
+  { month: "2025-04", tdc: 11, pdcTotal: 87 },
   { month: "2025-05", tdc: 13, pdcTotal: 153 },
   { month: "2025-06", tdc: 6,  pdcTotal: 66 },
   { month: "2025-07", tdc: 3,  pdcTotal: 78 },
   { month: "2025-08", tdc: 12, pdcTotal: 90 },
   { month: "2025-09", tdc: 0,  pdcTotal: 40 },
   { month: "2025-10", tdc: 0,  pdcTotal: 41 },
-  { month: "2025-11", tdc: 0,  pdcTotal: 69 },
+  { month: "2025-11", tdc: 0,  pdcTotal: 67 },
   { month: "2025-12", tdc: 0,  pdcTotal: 49 },
 
   // =========================
@@ -31,8 +31,25 @@ const REAL_MONTHLY_DATA = [
   { month: "2026-04", tdc: 3, pdcTotal: 40 },
   { month: "2026-05", tdc: 6, pdcTotal: 46 },
   { month: "2026-06", tdc: 8, pdcTotal: 31 },
-  { month: "2026-07", tdc: 5, pdcTotal: 24 },
-  { month: "2026-08", tdc: 2, pdcTotal: 11 },
+{ month: "2026-07", tdc: 5, pdcTotal: 24 },
+
+// FINAL ACTUAL DATA — AUGUST 2026
+{
+  month: "2026-08",
+  tdc: 8,
+  pdcA: 8,
+  pdcB: 11,
+  pdcAB: 0
+},
+
+// ACTUAL DATA AS OF SEPTEMBER 17, 2026
+{
+  month: "2026-09",
+  tdc: 3,
+  pdcA: 3,
+  pdcB: 2,
+  pdcAB: 0
+},
 ];
 
 // =====================================================
@@ -232,31 +249,51 @@ async function main() {
     // -------------------------
     // PDC
     // -------------------------
-    const split = splitPdcTotal(row.pdcTotal);
+// -------------------------
+// PDC
+// -------------------------
 
-    if (split.A > 0) {
-      courseSchedule["PDC-A"].push({
-        year,
-        monthIndex,
-        count: split.A,
-      });
-    }
+// If exact A/B/AB counts are provided, use them.
+// Otherwise, use the existing ratio for older months.
+let split;
 
-    if (split.B > 0) {
-      courseSchedule["PDC-B"].push({
-        year,
-        monthIndex,
-        count: split.B,
-      });
-    }
+if (
+  row.pdcA !== undefined ||
+  row.pdcB !== undefined ||
+  row.pdcAB !== undefined
+) {
+  split = {
+    A: row.pdcA || 0,
+    B: row.pdcB || 0,
+    AB: row.pdcAB || 0,
+  };
+} else {
+  split = splitPdcTotal(row.pdcTotal);
+}
 
-    if (split.AB > 0) {
-      courseSchedule["PDC-AB"].push({
-        year,
-        monthIndex,
-        count: split.AB,
-      });
-    }
+if (split.A > 0) {
+  courseSchedule["PDC-A"].push({
+    year,
+    monthIndex,
+    count: split.A,
+  });
+}
+
+if (split.B > 0) {
+  courseSchedule["PDC-B"].push({
+    year,
+    monthIndex,
+    count: split.B,
+  });
+}
+
+if (split.AB > 0) {
+  courseSchedule["PDC-AB"].push({
+    year,
+    monthIndex,
+    count: split.AB,
+  });
+}
   }
 
   // ===================================================

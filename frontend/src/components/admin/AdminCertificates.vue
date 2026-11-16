@@ -199,7 +199,7 @@
             </thead>
 
             <tbody>
-              <tr v-for="row in activeRowsFiltered" :key="row.reservation_id">
+              <tr v-for="row in paginatedRows" :key="row.reservation_id">
                 <td>
                   <div class="user-cell">
                     <div class="avatar-sm">{{ getInitials(row.student_name) }}</div>
@@ -277,6 +277,50 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Pagination -->
+        <div
+          v-if="!loading && activeRowsFiltered.length > 0"
+          class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-gray-100"
+        >
+          <div class="text-sm text-gray-500">
+            Showing
+            <span class="font-semibold text-gray-700">{{ paginationStart }}</span>
+            to
+            <span class="font-semibold text-gray-700">{{ paginationEnd }}</span>
+            of
+            <span class="font-semibold text-gray-700">{{ activeRowsFiltered.length }}</span>
+            records
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button
+              @click="goToPage(currentPage - 1)"
+              :disabled="currentPage === 1"
+              class="pg-btn"
+            >
+              Previous
+            </button>
+
+            <button
+              v-for="page in pageNumbers"
+              :key="page"
+              @click="goToPage(page)"
+              class="pg-btn"
+              :class="currentPage === page ? 'pg-btn-accent' : ''"
+            >
+              {{ page }}
+            </button>
+
+            <button
+              @click="goToPage(currentPage + 1)"
+              :disabled="currentPage === totalPages"
+              class="pg-btn"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -681,7 +725,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import axios from "axios";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
@@ -731,6 +775,8 @@ export default {
     const selectedStatus = ref("");
     const selectedDate = ref("");
     const sortBy = ref("dateDesc");
+    const currentPage = ref(1);
+    const itemsPerPage = ref(10);
 
     const drivingModalOpen = ref(false);
     const drivingViewModalOpen = ref(false);
@@ -942,6 +988,51 @@ export default {
 
       return result;
     });
+    const totalPages = computed(() =>
+  Math.max(1, Math.ceil(activeRowsFiltered.value.length / itemsPerPage.value))
+);
+
+    const paginatedRows = computed(() => {
+      const start = (currentPage.value - 1) * itemsPerPage.value;
+
+      return activeRowsFiltered.value.slice(
+        start,
+        start + itemsPerPage.value
+      );
+    });
+
+    const pageNumbers = computed(() => {
+      return Array.from(
+        { length: totalPages.value },
+        (_, i) => i + 1
+      );
+    });
+
+    const paginationStart = computed(() =>
+      activeRowsFiltered.value.length === 0
+        ? 0
+        : (currentPage.value - 1) * itemsPerPage.value + 1
+    );
+
+    const paginationEnd = computed(() =>
+      Math.min(
+        currentPage.value * itemsPerPage.value,
+        activeRowsFiltered.value.length
+      )
+    );
+
+    const goToPage = (page) => {
+      if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page;
+      }
+    };
+
+    watch(
+      [activeTab, searchQuery, selectedCourse, selectedStatus, selectedDate, sortBy],
+      () => {
+        currentPage.value = 1;
+      }
+    );
 
     const activeIssuedCount = computed(() => certStats.value[activeTab.value]?.issued || 0);
     const activeRevokedCount = computed(() => certStats.value[activeTab.value]?.revoked || 0);
@@ -1360,6 +1451,15 @@ export default {
       confirmModalOpen, confirmTitle, confirmText, confirmLoading, confirmActionType,
       openConfirm, closeConfirm, runConfirmedAction,
       messageOpen, messageTitle, messageText, messageType, showMessage, closeMessage,
+
+      currentPage,
+      itemsPerPage,
+      totalPages,
+      paginatedRows,
+      pageNumbers,
+      paginationStart,
+      paginationEnd,
+      goToPage,
     };
   },
 };
