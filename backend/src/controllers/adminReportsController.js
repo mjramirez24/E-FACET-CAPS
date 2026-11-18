@@ -2481,25 +2481,33 @@ exports.getForecastBacktest = async (req, res) => {
     const [rows] = await pool.execute(`
       SELECT
         DATE_FORMAT(sr.created_at, '%Y-%m') AS month,
+        sr.course_id,
         c.course_name,
         COUNT(*) AS total
       FROM schedule_reservations sr
       LEFT JOIN courses c ON c.id = sr.course_id
-      WHERE sr.created_at >= DATE_SUB(CURDATE(), INTERVAL 26 MONTH)
+      WHERE sr.created_at >= '2024-01-01'
         AND sr.created_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
-      GROUP BY month, sr.course_id, c.course_name
+        AND sr.reservation_type = 'DRIVING'
+        AND sr.reservation_status = 'DONE'
+      GROUP BY
+        DATE_FORMAT(sr.created_at, '%Y-%m'),
+        sr.course_id,
+        c.course_name
       ORDER BY month ASC
     `);
 
     const months = [];
 
-    const start = new Date();
-    start.setMonth(start.getMonth() - 26);
-    start.setDate(1);
+    const start = new Date(2024, 0, 1);
 
     const current = new Date();
 
-    const end = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+    const end = new Date(
+      current.getFullYear(),
+      current.getMonth() - 1,
+      1
+    );
 
     let cursor = new Date(start);
 
@@ -2652,17 +2660,26 @@ exports.getForecast = async (req, res) => {
       });
     }
 
-    const [rows] = await pool.execute(`
-      SELECT 
+const [rows] = await pool.execute(`
+      SELECT
         DATE_FORMAT(sr.created_at, '%Y-%m') AS month,
-        c.course_name,
+        sr.course_id AS course_id,
+        COALESCE(
+          c.course_name,
+          CONCAT('Course #', sr.course_id)
+        ) AS course_name,
         COUNT(*) AS total
       FROM schedule_reservations sr
       LEFT JOIN courses c ON c.id = sr.course_id
       WHERE sr.created_at >= '2024-01-01'
         AND sr.created_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
-      GROUP BY month, sr.course_id
-      ORDER BY month ASC
+        AND sr.reservation_type = 'DRIVING'
+        AND sr.reservation_status = 'DONE'
+      GROUP BY
+        DATE_FORMAT(sr.created_at, '%Y-%m'),
+        sr.course_id,
+        c.course_name
+      ORDER BY month ASC, sr.course_id ASC
     `);
 
     const [promoRows] = await pool.execute(
@@ -2689,26 +2706,84 @@ exports.getForecast = async (req, res) => {
         ? 1
         : 0;
 
-    const courseMap = {};
-    const monthsSeen = new Set();
-    rows.forEach((r) => {
-      if (!courseMap[r.course_name]) courseMap[r.course_name] = {};
-      courseMap[r.course_name][r.month] = Number(r.total);
-      monthsSeen.add(r.month);
-    });
+      
+const courseMap = {};
 
-    const courseNames = Object.keys(courseMap);
+rows.forEach((r) => {
+  if (r.course_id === undefined || r.course_id === null) {
+    throw new Error(
+      `Forecast SQL missing course_id for ${r.course_name}`
+    );
+  }
+
+  const courseId = String(r.course_id);
+
+  if (!courseMap[courseId]) {
+    courseMap[courseId] = {
+      courseName: r.course_name || `Course #${courseId}`,
+      monthly: {},
+    };
+  }
+
+  courseMap[courseId].monthly[r.month] = Number(r.total);
+});
+
+// Complete timeline: January 2024 to last completed month
+
+      const months = [];
+
+      const nowForTimeline = new Date();
+      const endMonth = new Date(
+        nowForTimeline.getFullYear(),
+        nowForTimeline.getMonth(),
+        1
+      );
+
+      const cursor = new Date(2024, 0, 1);
+
+      while (cursor < endMonth) {
+        const year = cursor.getFullYear();
+        const month = String(cursor.getMonth() + 1).padStart(2, "0");
+
+        months.push(`${year}-${month}`);
+
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+
+      const courseIds = Object.keys(courseMap);
+      console.log("FORECAST DEBUG - Courses:", courseIds);
+
+console.log(
+  "FORECAST DEBUG - Course names:",
+  courseIds.map((id) => ({
+    id,
+    name: courseMap[id].courseName,
+  }))
+);
 
     const MIN_PROMO_SAMPLES = 3;
     const PROMO_UPLIFT_MULTIPLIER = 1.25;
     const HORIZON = 3; // ✅ NEW: 3-buwan na forecast, hindi lang 1
 
     const result = await Promise.all(
-      courseNames.map(async (course) => {
-        const months = Array.from(monthsSeen).sort();
-        const values = months.map((m) => Number(courseMap[course][m] || 0));
+      courseIds.map(async (courseId) => {
+        const course = courseMap[courseId].courseName;
 
-        const promoHistory = months.map((m) => (promoMap[m] ? 1 : 0));
+      const values = months.map(
+        (m) => Number(courseMap[courseId].monthly[m] ?? 0)
+      );
+
+      // DEBUG: Check monthly data per course
+      console.log("FORECAST INPUT:", {
+        course,
+        courseId,
+        months: months.length,
+        valuesCount: values.length,
+        lastSixMonths: values.slice(-6),
+        totalEnrollments: values.reduce((a, b) => a + b, 0),
+      });
+
+      const promoHistory = months.map((m) => (promoMap[m] ? 1 : 0));
         const promoMonthCount = promoHistory.filter((v) => v === 1).length;
         const hasEnoughPromoData = promoMonthCount >= MIN_PROMO_SAMPLES;
 
@@ -2733,7 +2808,21 @@ exports.getForecast = async (req, res) => {
                 : {}),
             }),
           });
+          if (!resp.ok) {
+            throw new Error(`ML service returned HTTP ${resp.status}`);
+          }
+
           mlResult = await resp.json();
+
+          if (
+            !mlResult ||
+            !Number.isFinite(Number(mlResult.point)) ||
+            !Array.isArray(mlResult.points) ||
+            mlResult.points.length !== HORIZON ||
+            mlResult.points.some((v) => !Number.isFinite(Number(v)))
+          ) {
+            throw new Error("Invalid forecast response from ML service");
+          }
 
           // ✅ Manual multiplier fallback — ilapat lang sa BUWAN 1 (index 0),
           // dahil doon lang tayo may kumpirmadong impormasyon ng promo.
@@ -2835,6 +2924,18 @@ exports.getForecast = async (req, res) => {
                 : "Enrollment is stable.",
         };
       }),
+    );
+
+    // DEBUG: Check final predictions from ML service
+    console.log(
+      "FORECAST OUTPUT:",
+      result.map((r) => ({
+        course: r.course,
+        forecast: r.forecast,
+        model: r.model_used,
+        promo: r.promoAppliedNextMonth,
+        dataPoints: r.dataPoints,
+      }))
     );
 
     return res.json({
